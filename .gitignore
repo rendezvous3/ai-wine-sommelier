@@ -1,0 +1,50 @@
+# Node / npm / pnpm / yarn
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn-debug.log*
+.pnpm-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build outputs
+backend/dist/
+client/dist/
+client/static/widget.js
+client/.svelte-kit/
+client/build/
+
+# Local environment variables (never commit real keys!)
+.env
+.env.local
+.env.*.local
+
+# Cloudflare Wrangler
+backend/.wrangler/
+backend/.dev.vars
+
+# Python
+__pycache__/
+*.pyc
+vectorizer/.venv/
+vectorizer/venv/
+vectorizer/env/
+vectorizer/*.db
+
+# OS / Editor junk
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+*~
+
+# IDEs
+.vscode/
+.idea/
+*.code-workspace
+
+# Optional: if you ever add tests or examples
+coverage/
+test-results/
