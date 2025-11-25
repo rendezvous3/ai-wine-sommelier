@@ -4,6 +4,14 @@ const container = document.createElement('div');
 container.id = 'AiChatBot-Widget-Root';
 document.body.appendChild(container);
 
+// const script = document.currentScript as HTMLScriptElement;
+// const apiUrl = script.dataset.api ?? import.meta.env.VITE_API_URL;
+// const store = script.dataset.store ?? "demo-store";
+
+const script = document.getElementById('ecom-widget-script') as HTMLScriptElement;
+const apiUrl = script?.dataset.api ?? import.meta.env.VITE_API_URL ?? "http://localhost:8787/chat";
+const store = script?.dataset.store ?? "demo-store";
+
 const shadow = container.attachShadow({ mode: 'open' });
 
 const app = mount(Widget, {
