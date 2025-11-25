@@ -18,7 +18,8 @@
     input = "";
     loading = true;
 
-    const response = await fetch("http://127.0.0.1:8787/chat", {
+    const response = await fetch("http://localhost:8787/chat", {
+      // const response = await fetch("http://127.0.0.1:8787/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages, store }),
@@ -91,90 +92,115 @@
 </div>
 
 <style>
+  @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
+
+  :global(*) {
+    font-family: "Inter", system-ui, sans-serif !important;
+  }
+
   .widget {
     position: fixed;
     bottom: 90px;
     right: 20px;
-    width: 380px;
-    height: 520px;
+    width: 390px;
+    height: 540px;
     background: white;
-    border-radius: 16px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    border-radius: 20px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18);
     display: flex;
     flex-direction: column;
-    z-index: 10000;
-    font-size: 14px;
+    z-index: 2147483647;
+    font-family: "Poppins", sans-serif;
+    overflow: hidden;
   }
+  /* .widget form {
+    z-index: 2147483648;
+  } */
   .header {
-    padding: 16px;
-    background: #0066ff;
+    padding: 18px 20px;
+    background: linear-gradient(135deg, #24c6d5, #25b4e4);
     color: white;
-    border-radius: 16px 16px 0 0;
+    font-weight: 600;
+    font-size: 17px;
+    border-radius: 20px 20px 0 0;
     display: flex;
     justify-content: space-between;
-    font-weight: bold;
+    align-items: center;
   }
   .messages {
     flex: 1;
-    padding: 16px;
+    padding: 20px;
     overflow-y: auto;
-    background: #f8f9fa;
+    background: #f9fafa;
   }
-  .user {
-    text-align: right;
+  .user div,
+  .assistant div {
+    padding: 12px 18px;
+    border-radius: 20px;
+    max-width: 82%;
     margin: 8px 0;
+    line-height: 1.5;
+    font-size: 15px;
   }
   .user div {
-    background: #0066ff;
+    background: linear-gradient(135deg, #24c6d5, #25b4e4);
     color: white;
-    display: inline-block;
-    padding: 10px 16px;
-    border-radius: 18px;
-    max-width: 80%;
+    margin-left: auto;
+    border-bottom-right-radius: 6px;
   }
   .assistant div {
-    background: white;
-    display: inline-block;
-    padding: 10px 16px;
-    border-radius: 18px;
-    max-width: 80%;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    background: #f1f3f5;
+    color: #1a1a1a;
+    border-bottom-left-radius: 6px;
   }
+
   form {
     display: flex;
-    padding: 12px;
+    padding: 16px;
+    gap: 12px;
+    background: white;
     border-top: 1px solid #eee;
   }
   input {
     flex: 1;
-    padding: 12px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
+    padding: 14px 18px;
+    border: 1.5px solid #ddd;
+    border-radius: 12px;
+    font-size: 15px;
   }
   button {
-    margin-left: 8px;
-    padding: 12px 20px;
-    background: #0066ff;
+    padding: 14px 24px;
+    background: linear-gradient(135deg, #24c6d5, #25b4e4);
     color: white;
     border: none;
-    border-radius: 8px;
+    border-radius: 12px;
+    font-weight: 600;
     cursor: pointer;
   }
   .bubble {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
-    width: 60px;
-    height: 60px;
-    background: #0066ff;
+    bottom: 28px;
+    right: 28px;
+    width: 75px;
+    height: 75px;
+    background: linear-gradient(135deg, #24c6d5, #25b4e4);
+    border: none;
     border-radius: 50%;
     color: white;
-    font-size: 28px;
+    /* ← THIS IS THE MAGIC */
+    font-size: 25px; /* bigger icon */
+    font-weight: 300;
+    line-height: 1;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-    z-index: 10000;
+    box-shadow: 0 12px 35px rgba(36, 198, 213, 0.45);
+    z-index: 2147483647;
+    transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    user-select: none;
+  }
+  .bubble:hover {
+    transform: scale(1.1);
   }
 </style>
