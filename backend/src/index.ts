@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { cors } from 'hono/cors';
 import type { Env } from 'hono/types';
 
 interface Bindings {
@@ -7,6 +8,25 @@ interface Bindings {
 }
 
 const app = new Hono<{ Bindings: Bindings }>();
+
+app.use('*', cors({
+  origin: '*',
+  allowMethods: ['GET', 'POST', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+}));
+
+// app.options('/chat', c => c.text('', 204)) // Explicit OPTIONS is optional with cors()
+
+app.options('/chat', () => {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    }
+  });
+});
 
 app.get('/', (c) => {
     return c.text('hello world')
@@ -29,32 +49,29 @@ app.post('/chat', async (c) => {
 
   console.log("user Message", userMessage);
 
-// console.log("API_KEY", API_KEY);  
+  const response = await fetch(`${BASE_URL}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: LLM_PROVIDER === 'cerebras' 
+        // ? 'llama-3.3-70b' 
+        ? 'llama3.1-8b'
+        : 'llama-3.1-70b-instant',
+      messages: [
+        { role: 'system', content: `You are a helpful shopping assistant for ${store}.` },
+        ...messages
+      ],
+      temperature: 0.7,
+      stream: true
+    })
+  });
 
-  // const response = await fetch(`${BASE_URL}/chat/completions`, {
-  //   method: 'POST',
-  //   headers: {
-  //     'Authorization': `Bearer ${API_KEY}`,
-  //     'Content-Type': 'application/json',
-  //   },
-  //   body: JSON.stringify({
-  //     model: LLM_PROVIDER === 'cerebras' 
-  //       // ? 'llama-3.3-70b' 
-  //       ? 'llama3.1-8b'
-  //       : 'llama-3.1-70b-instant',
-  //     messages: [
-  //       { role: 'system', content: `You are a helpful shopping assistant for ${store}.` },
-  //       ...messages
-  //     ],
-  //     temperature: 0.7,
-  //     stream: true
-  //   })
-  // });
-
-  const response = {
-    body: 'response body',
-  }
-  
+  // const response = {
+  //   body: 'response body',
+  // }
 
   return new Response(response.body, {
     headers: {
