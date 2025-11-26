@@ -108,6 +108,7 @@ documents = [
 # Use product IDs as unique vector IDs
 ids = [p["id"] for p in products]
 
+print("Examples for embeddings")
 print("ids", ids)
 print("ids 1", ids)
 print("---------------------------------")
