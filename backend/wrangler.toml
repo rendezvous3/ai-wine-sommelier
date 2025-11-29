@@ -5,3 +5,10 @@ compatibility_date = "2025-11-24"
 [vars]
 # These will be overridden by .env in dev, and by Cloudflare dashboard in prod
 CEREBRAS_API_KEY = "replace-me-in-dashboard"
+
+[[vectorize]]
+binding = "VECTORIZE_INDEX"
+index_name = "products-demo-1"
+
+[ai]
+binding = "AI"

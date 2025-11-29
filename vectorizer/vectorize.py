@@ -26,9 +26,13 @@ documents = [
     Document(
         page_content=f"{p['name']}. {p['description']}. Effects: {', '.join(p['effects'])}. Flavor: {', '.join(p['flavor'])}",
         metadata={
+            # "id": p["id"],
+            "name": p["name"],
             "category": p["category"],
             "type": p["type"],
             "brand": p["brand"],
+            "effects": ", ".join(p["effects"]),
+            "flavor": ", ".join(p["flavor"]),
         },
     )
     for p in products
@@ -42,7 +46,7 @@ print("ids", ids)
 print("---------------------------------")
 print("documents", documents)
 
-vectorize_index_name = "products-demo"
+vectorize_index_name = "products-demo-1"
 # vectorize_index_name = "test-langchain-cloudflare"
 
 # ONLY RUN ONCE INITIALLY to create the Vector DB Table
