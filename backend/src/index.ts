@@ -115,7 +115,7 @@ app.post('/chat', async (c) => {
 
   const messagesForLLM = [
     { role: "system", content: PROMPT },
-    ...messages.slice(-10)
+    ...messages.slice(-15)
   ];
 
   let response;

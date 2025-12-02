@@ -1,15 +1,40 @@
 <script lang="ts">
-  export let store: string = "demo-store";
+  import { onMount } from "svelte";
+  export let store: string = "name-of-the-eccom-store";
+
+  const STORAGE_KEY = `widget_chat_${store}`;
 
   interface Message {
     role: "user" | "assistant";
     content: string;
+    timestamp?: string;
   }
 
   let open = false;
   let messages: Message[] = [];
   let input = "";
   let loading = false;
+
+  onMount(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        messages = Array.isArray(parsed) ? parsed : [];
+      } catch (err) {
+        console.warn("Failed to load chat history:", err);
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+  });
+
+  $: if (messages.length) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    } catch (err) {
+      // Silently ignore quota exceeded
+    }
+  }
 
   async function send() {
     if (!input.trim() || loading) return;
@@ -25,23 +50,40 @@
       body: JSON.stringify({ messages, store }),
     });
 
+    if (!response.ok) {
+      messages = [
+        ...messages,
+        { role: "assistant", content: "AI temporarily unavailable" },
+      ];
+      loading = false;
+      return;
+    }
+
     const reader = response.body!.getReader();
-    const decoder = new TextDecoder();
-    let botMessage: Message = { role: "assistant", content: "" };
+    const decoder = new TextDecoder("utf-8");
+    let botMessage: Message = {
+      role: "assistant",
+      content: "",
+      timestamp: new Date().toISOString(),
+    };
     messages = [...messages, botMessage];
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      const chunk = decoder.decode(value);
+
+      const chunk = decoder.decode(value, { stream: true });
       const lines = chunk.split("\n").filter((l) => l.startsWith("data: "));
+
       for (const line of lines) {
         if (line === "data: [DONE]") break;
         try {
           const json = JSON.parse(line.slice(6));
           const token = json.choices?.[0]?.delta?.content || "";
           botMessage.content += token;
-          messages = [...messages];
+          // messages = [...messages];
+          // Trigger Svelte reactivity without recreating whole array
+          messages = messages;
         } catch {}
       }
     }
