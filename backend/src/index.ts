@@ -13,7 +13,7 @@ import type {
   AiModels,
 } from "@cloudflare/workers-types";
 import { generatePrompt } from "./prompt";
-import { MODEL_PROVIDER } from "./model_providers";
+import { MODEL_PROVIDER, LLM_PROVIDER } from "./model_providers";
 
 interface Bindings {
   CEREBRAS_API_KEY: string;
@@ -49,13 +49,17 @@ app.get('/', (c) => {
 
 app.post('/chat', async (c) => {
 
-  const LLM_PROVIDER = 'cerebras';
-    const API_KEY = LLM_PROVIDER === 'cerebras' 
-    ? c.env.CEREBRAS_API_KEY 
-    : c.env.GROQ_API_KEY ?? '';
-  const BASE_URL = LLM_PROVIDER === 'cerebras'
-    ? 'https://api.cerebras.ai/v1'
-    : 'https://api.groq.com/openai/v1';
+  const LLM = LLM_PROVIDER.CEREBRAS;
+  let API_KEY: string | undefined = "";
+  let BASE_URL: string | undefined = "";
+  if(LLM === LLM_PROVIDER.CEREBRAS) {
+    API_KEY = c.env.CEREBRAS_API_KEY;
+    BASE_URL = 'https://api.cerebras.ai/v1';
+
+  } else if (LLM === LLM_PROVIDER.GROQ) {
+    API_KEY = c.env.GROQ_API_KEY;
+    BASE_URL = 'https://api.groq.com/openai/v1';
+  }
 
   if (!API_KEY) {
     return c.json({ error: "No LLM API key configured" }, 500);
@@ -143,7 +147,7 @@ app.post('/chat', async (c) => {
   // const MODEL = 'zai-glm-4.6'
 
   let response;
-  if(LLM_PROVIDER === 'cerebras') { 
+  if(LLM === LLM_PROVIDER.CEREBRAS) {
       try {
       response = await fetch(`${BASE_URL}/chat/completions`, {
         method: 'POST',

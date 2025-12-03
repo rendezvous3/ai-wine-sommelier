@@ -8,8 +8,10 @@
     "deploy": "wrangler deploy"
   },
   "dependencies": {
+    "@ai-sdk/groq": "^2.0.32",
     "@langchain/cloudflare": "^1.0.1",
     "@langchain/core": "^1.1.0",
+    "ai": "^5.0.106",
     "hono": "^4.6.0"
   },
   "devDependencies": {
