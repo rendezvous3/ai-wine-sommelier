@@ -12,6 +12,8 @@ import type {
   Ai,
   AiModels,
 } from "@cloudflare/workers-types";
+import { generatePrompt } from "./prompt";
+import { MODEL_PROVIDER } from "./models";
 
 interface Bindings {
   CEREBRAS_API_KEY: string;
@@ -71,7 +73,7 @@ app.post('/chat', async (c) => {
     return c.json({ error: "No message provided" }, 400);
   }
 
-  const userMessage = messages[messages.length - 1]?.content || '';
+  const user_message = messages[messages.length - 1]?.content || '';
 
   let results;
   try {
@@ -82,7 +84,7 @@ app.post('/chat', async (c) => {
     const storeVec = new CloudflareVectorizeStore(embeddings, {
     index: c.env.VECTORIZE_INDEX,
     });
-    results = await storeVec.similaritySearch(userMessage, 8);
+    results = await storeVec.similaritySearch(user_message, 8);
   } catch (err) {
     console.error("Vector search failed:", err);
     return c.json({ error: "Search temporarily unavailable" }, 503);
@@ -99,61 +101,91 @@ app.post('/chat', async (c) => {
     })
     .join("\n\n");
     
-  console.log("productsContext", productsContext);
-  console.log("results", results);
-  console.log("user Message", userMessage);
+  console.log("Products Stringified Context", productsContext);
+  console.log("Similarity Search Results", results);
+  console.log("User Message", user_message);
 
-  const PROMPT = `You are a dispensary budtender. ONLY recommend products from this exact list. 
-          You MUST recommend at least 2–3 products from the list below when possible.
-          Do not invent products. If nothing matches, say "I don't have anything that fits perfectly."
+  function formatConversationHistory(messageList: Array<any>) {
+    // Use map to convert each object into a formatted string (e.g., "User: What do you got?")
+    const formattedMessages = messageList.map(message => {
+      // Capitalize the role for cleaner presentation (User, Assistant, System)
+      const role = message.role.charAt(0).toUpperCase() + message.role.slice(1);
+      
+      // Return the formatted line
+      return `${role}: ${message.content}`;
+    });
+    
+    // Join all formatted lines with a newline character
+    return formattedMessages.join('\n');
+    }
 
-          Available products:
-          ${productsContext}
+  const lastMessagesForLLM = messages.slice(-15);
+  const conversation_history = formatConversationHistory(lastMessagesForLLM);
 
-          Use the real names, prices, and brands above. Be concise and helpful.` ;
+  console.log("lastMessagesForLLM ", lastMessagesForLLM);
+  console.log("conversation_history ", conversation_history);
 
+  // Grok Suggested Template
+  const PROMPT = generatePrompt(MODEL_PROVIDER.LLAMA, user_message, conversation_history, productsContext);
+  console.log("PROMPT", PROMPT);
 
   const messagesForLLM = [
     { role: "system", content: PROMPT },
-    ...messages.slice(-15)
+    ...lastMessagesForLLM,
   ];
 
-  let response;
-  try {
-    response = await fetch(`${BASE_URL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'llama3.1-8b',
-        messages: messagesForLLM,
-        temperature: 0.3,
-        max_tokens: 800,
-        stream: true
-      })
-    });
+  // console.log("PROMPT", PROMPT);
 
-    if (!response.ok) {
-      const err = await response.text();
-      console.error("Cerebras error:", err);
+  // const MODEL = "qwen-3-32b";
+  const MODEL = 'llama3.1-8b'
+  // const MODEL =  'llama-3.3-70b'
+  // const MODEL = 'gpt-oss-120b'
+  // const MODEL = 'zai-glm-4.6'
+
+  let response;
+  if(LLM_PROVIDER === 'cerebras') { 
+      try {
+      response = await fetch(`${BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: messagesForLLM,
+          temperature: 0.3,
+          max_tokens: 800,
+          stream: true,
+          // stream: false,
+          // stop: ["<think>", "</think>", "<|im_end|>"], // Add this line
+        })
+      });
+
+      console.log("response ", response.body);
+
+      if (!response.ok) {
+        const err = await response.text();
+        console.error("Cerebras error:", err);
+        return c.json({ error: "AI temporarily unavailable" }, 503);
+      }
+
+    } catch (err) {
+      console.error("LLM call failed:", err);
       return c.json({ error: "AI temporarily unavailable" }, 503);
     }
-
-  } catch (err) {
-    console.error("LLM call failed:", err);
-    return c.json({ error: "AI temporarily unavailable" }, 503);
+  }
+  if(response) {
+    return new Response(response.body, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        "Access-Control-Allow-Origin": "*",
+      }
+    });
   }
 
-  return new Response(response.body, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      "Access-Control-Allow-Origin": "*",
-    }
-  });
 });
 
 export default app;
