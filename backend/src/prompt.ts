@@ -1,4 +1,4 @@
-import { MODEL_PROVIDER } from "./models";
+import { MODEL_PROVIDER } from "./model_providers";
 
 const generatePromptforLlama = (
 current_query: string, 
@@ -29,6 +29,7 @@ const PROMPT =  `
     </current_query>
 
     You can only recommend products from the available products.
+    NEVER INVENT PRODUCTS.
     Make your resoponses neat and not long.
     Use bullet points.
     Separate each product with a new paragraph.

@@ -13,7 +13,7 @@ import type {
   AiModels,
 } from "@cloudflare/workers-types";
 import { generatePrompt } from "./prompt";
-import { MODEL_PROVIDER } from "./models";
+import { MODEL_PROVIDER } from "./model_providers";
 
 interface Bindings {
   CEREBRAS_API_KEY: string;
