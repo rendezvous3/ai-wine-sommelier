@@ -12,6 +12,8 @@ import type {
   Ai,
   AiModels,
 } from "@cloudflare/workers-types";
+// import { groq } from '@ai-sdk/groq';
+// import { streamText } from 'ai';
 import { generatePrompt } from "./prompt";
 import { MODEL_PROVIDER, LLM_PROVIDER } from "./model_providers";
 
@@ -49,9 +51,10 @@ app.get('/', (c) => {
 
 app.post('/chat', async (c) => {
 
-  const LLM = LLM_PROVIDER.CEREBRAS;
+  const LLM = LLM_PROVIDER.GROQ;
   let API_KEY: string | undefined = "";
   let BASE_URL: string | undefined = "";
+  // @ts-ignore
   if(LLM === LLM_PROVIDER.CEREBRAS) {
     API_KEY = c.env.CEREBRAS_API_KEY;
     BASE_URL = 'https://api.cerebras.ai/v1';
@@ -140,13 +143,18 @@ app.post('/chat', async (c) => {
 
   // console.log("PROMPT", PROMPT);
 
+  // Cerebras models
   // const MODEL = "qwen-3-32b";
-  const MODEL = 'llama3.1-8b'
+  // const MODEL = 'llama3.1-8b'
   // const MODEL =  'llama-3.3-70b'
   // const MODEL = 'gpt-oss-120b'
   // const MODEL = 'zai-glm-4.6'
 
+  // Groq models
+  const MODEL = 'llama-3.1-8b-instant'
+
   let response;
+  // @ts-ignore
   if(LLM === LLM_PROVIDER.CEREBRAS) {
       try {
       response = await fetch(`${BASE_URL}/chat/completions`, {
@@ -174,6 +182,32 @@ app.post('/chat', async (c) => {
         return c.json({ error: "AI temporarily unavailable" }, 503);
       }
 
+    } catch (err) {
+      console.error("LLM call failed:", err);
+      return c.json({ error: "AI temporarily unavailable" }, 503);
+    }
+  } else if (LLM === LLM_PROVIDER.GROQ) {
+    try { 
+        response = await fetch(`${BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`, 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: messagesForLLM,
+          temperature: 0.3,
+          max_tokens: 800,
+          stream: true, 
+        })
+      });
+
+      if (!response.ok) {
+        const err = await response.text();
+        console.error("Groq error:", err);
+        return c.json({ error: `Groq AI temporarily unavailable: ${err}` }, 503);
+      }
     } catch (err) {
       console.error("LLM call failed:", err);
       return c.json({ error: "AI temporarily unavailable" }, 503);
