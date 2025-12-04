@@ -1,4 +1,4 @@
-import { MODEL_PROVIDER } from "./model_providers";
+import { MODEL_PROVIDER } from "./types-and-constants";
 
 const generatePromptforLlama1 = (
 current_query: string, 
@@ -235,6 +235,30 @@ const generatePrompForDeepSeek = (
   //   - List each product on new paragraph
   //   </instructions>
   //   `
+
+
+// const generatePrompt = (
+//     store_name: string,
+//     role: AGENT_ROLE,
+//     modelProvider: string, 
+//     current_query: string, 
+//     conversation_history: string,
+//     products_context?: string
+//     ) => {
+//     if(role === AGENT_ROLE.MAITRED 
+//       && modelProvider === MODEL_PROVIDER.DEEPSEEK) {
+//       return generatePromptForMaitredAgentDeepSeek(store_name, conversation_history, current_query)
+//     } else if (role === AGENT_ROLE.RECOMMEND 
+//       && modelProvider === MODEL_PROVIDER.LLAMA) {
+//       return generatePromptforLlama3(store_name, current_query, conversation_history);
+//     }
+//     else if(modelProvider === MODEL_PROVIDER.DEEPSEEK && products_context) {
+//         return generatePrompForDeepSeek(current_query, conversation_history, products_context);
+//     } else if (modelProvider === MODEL_PROVIDER.LLAMA && products_context) {
+//         return generatePromptforLlama2(store_name, current_query, conversation_history, products_context);
+//     }
+// }
+
 
 const generatePrompt = (
     model: string, 

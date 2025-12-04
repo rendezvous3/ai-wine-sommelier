@@ -15,7 +15,8 @@ import type {
 // import { groq } from '@ai-sdk/groq';
 // import { streamText } from 'ai';
 import { generatePrompt } from "./prompt";
-import { MODEL_PROVIDER, LLM_PROVIDER } from "./model_providers";
+import { MODEL_PROVIDER, LLM_PROVIDER, STORE_NAME, AGENT_ROLE } from "./types-and-constants";
+import { formatConversationHistory } from "./utils"
 
 interface Bindings {
   CEREBRAS_API_KEY: string;
@@ -111,20 +112,6 @@ app.post('/chat', async (c) => {
   console.log("Products Stringified Context", productsContext);
   console.log("Similarity Search Results", results);
   console.log("User Message", user_message);
-
-  function formatConversationHistory(messageList: Array<any>) {
-    // Use map to convert each object into a formatted string (e.g., "User: What do you got?")
-    const formattedMessages = messageList.map(message => {
-      // Capitalize the role for cleaner presentation (User, Assistant, System)
-      const role = message.role.charAt(0).toUpperCase() + message.role.slice(1);
-      
-      // Return the formatted line
-      return `${role}: ${message.content}`;
-    });
-    
-    // Join all formatted lines with a newline character
-    return formattedMessages.join('\n');
-    }
 
   const lastMessagesForLLM = messages.slice(-15);
   const conversation_history = formatConversationHistory(lastMessagesForLLM);
