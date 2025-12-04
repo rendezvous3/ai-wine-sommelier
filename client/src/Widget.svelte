@@ -10,6 +10,15 @@
     timestamp?: string;
   }
 
+  let messagesEl: HTMLDivElement;
+  let bottomEl: HTMLDivElement;
+
+  function autoScroll() {
+    bottomEl?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }
+
+  $: messages, autoScroll();
+
   let open = false;
   let messages: Message[] = [];
   let input = "";
@@ -93,20 +102,29 @@
 
 <!-- Keep the chat window inside {#if open} -->
 {#if open}
-  <div
-    class="widget"
-    on:click|stopPropagation
-  >
+  <div class="widget">
     <div class="header">
       <span>Shopping Assistant</span>
       <button on:click={() => (open = false)}>×</button>
     </div>
-    <div class="messages">
+    <div
+      class="messages"
+      bind:this={messagesEl}
+    >
+      {#if messages.length === 0}
+        <div class="system-message">
+          Welcome! Ask me for product recommendations.
+        </div>
+      {/if}
+
       {#each messages as msg}
         <div class={msg.role}>
           <div>{msg.content || "..."}</div>
         </div>
       {/each}
+
+      <!-- Invisible “scroll to me” anchor -->
+      <div bind:this={bottomEl}></div>
     </div>
     <form on:submit|preventDefault={send}>
       <input
@@ -168,6 +186,15 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+  }
+
+  .system-message {
+    text-align: center;
+    padding: 10px;
+    font-size: 13px;
+    color: #777;
+    border-bottom: 1px dashed #eee;
+    margin-bottom: 15px;
   }
   .messages {
     flex: 1;
