@@ -244,7 +244,7 @@ const generatePrompt = (
     if(model === MODEL_PROVIDER.DEEPSEEK) {
         return generatePrompForDeepSeek(current_query, conversation_history, products_context);
     } else if (model === MODEL_PROVIDER.LLAMA) {
-        return generatePromptforLlama(current_query, conversation_history, products_context);
+        return generatePromptforLlama2(current_query, conversation_history, products_context);
     }
 }
 

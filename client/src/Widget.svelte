@@ -73,7 +73,7 @@
     let botMessage: Message = {
       role: "assistant",
       content: "",
-      timestamp: new Date().toISOString(),
+      // timestamp: new Date().toISOString(),
     };
     messages = [...messages, botMessage];
 
