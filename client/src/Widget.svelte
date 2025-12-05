@@ -1,14 +1,30 @@
 <script lang="ts">
   import { onMount } from "svelte";
+
   export let store: string = "name-of-the-eccom-store";
+
+  let isOpen = false;
 
   const STORAGE_KEY = `widget_chat_${store}`;
 
   interface Message {
     role: "user" | "assistant";
     content: string;
-    timestamp?: string;
   }
+
+  interface Recommendation {
+    id: string;
+    name: string;
+    price: number;
+    image: string;
+    description: string;
+  }
+
+  let messages: Message[] = [];
+  let input = "";
+  let loading = false;
+
+  let productRecommendations: Recommendation[] = [];
 
   let messagesEl: HTMLDivElement;
   let bottomEl: HTMLDivElement;
@@ -16,117 +32,154 @@
   function autoScroll() {
     bottomEl?.scrollIntoView({ behavior: "smooth", block: "end" });
   }
-
   $: messages, autoScroll();
-
-  let open = false;
-  let messages: Message[] = [];
-  let input = "";
-  let loading = false;
 
   onMount(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try {
-        const parsed = JSON.parse(saved);
-        messages = Array.isArray(parsed) ? parsed : [];
-      } catch (err) {
-        console.warn("Failed to load chat history:", err);
+        messages = JSON.parse(saved);
+      } catch {
         localStorage.removeItem(STORAGE_KEY);
       }
     }
   });
 
-  $: if (messages.length) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
-    } catch (err) {
-      // Silently ignore quota exceeded
-    }
-  }
+  $: localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
 
-  async function send() {
+  // ------------------------------------------------------
+  // MAIN HANDLER (Decision + Stream + Recommendation Tool)
+  // ------------------------------------------------------
+  async function handleChat() {
     if (!input.trim() || loading) return;
-    const userMsg = input;
+
+    const userMsg = input.trim();
+
     messages = [...messages, { role: "user", content: userMsg }];
     input = "";
     loading = true;
 
-    const response = await fetch("http://localhost:8787/chat", {
-      // const response = await fetch("http://127.0.0.1:8787/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages, store }),
-    });
+    const payload = { messages };
 
-    if (!response.ok) {
-      messages = [
-        ...messages,
-        { role: "assistant", content: "AI temporarily unavailable" },
-      ];
-      loading = false;
-      return;
+    // STEP 1 — Intent Classifier
+    let intent = "general";
+    try {
+      const decide = await fetch("http://localhost:8787/chat/decide", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const d = await decide.json();
+      intent = d.intent || "general";
+    } catch (err) {
+      console.warn("Decision failed, defaulting to general.");
     }
 
-    const reader = response.body!.getReader();
-    const decoder = new TextDecoder("utf-8");
-    let botMessage: Message = {
-      role: "assistant",
-      content: "",
-      // timestamp: new Date().toISOString(),
-    };
-    messages = [...messages, botMessage];
+    // STEP 2 — Start STREAMING (Agent 1)
+    const streamPromise = (async () => {
+      const resp = await fetch("http://localhost:8787/chat/stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value, { stream: true });
-      const lines = chunk.split("\n").filter((l) => l.startsWith("data: "));
-
-      for (const line of lines) {
-        if (line === "data: [DONE]") break;
-        try {
-          const json = JSON.parse(line.slice(6));
-          const token = json.choices?.[0]?.delta?.content || "";
-          botMessage.content += token;
-          // messages = [...messages];
-          // Trigger Svelte reactivity without recreating whole array
-          messages = messages;
-        } catch {}
+      if (!resp.body) {
+        console.error("No response body from stream");
+        return;
       }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+
+      let botMessage: Message = { role: "assistant", content: "" };
+      messages = [...messages, botMessage];
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n").filter((l) => l.startsWith("data: "));
+
+        for (const line of lines) {
+          if (line === "data: [DONE]") break;
+
+          try {
+            const json = JSON.parse(line.slice(6));
+            const token = json.choices?.[0]?.delta?.content || "";
+            botMessage.content += token;
+            messages = messages;
+          } catch {}
+        }
+      }
+    })();
+
+    // STEP 3 — Recommendation Tool (only when needed)
+    let recPromise = Promise.resolve();
+    if (intent === "recommendation") {
+      recPromise = (async () => {
+        try {
+          const resp = await fetch(
+            "http://localhost:8787/chat/recommendations",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            }
+          );
+          const data = await resp.json();
+          productRecommendations = data.recommendations || [];
+        } catch (err) {
+          console.error("Recommendation tool failed:", err);
+        }
+      })();
     }
+
+    await Promise.all([streamPromise, recPromise]);
     loading = false;
   }
 </script>
 
-<!-- Keep the chat window inside {#if open} -->
-{#if open}
+<!-- Keep the chat window inside {#if isOpen} -->
+{#if isOpen}
   <div class="widget">
     <div class="header">
       <span>Shopping Assistant</span>
-      <button on:click={() => (open = false)}>×</button>
+      <button on:click={() => (isOpen = false)}>×</button>
     </div>
+
     <div
       class="messages"
       bind:this={messagesEl}
     >
       {#if messages.length === 0}
         <div class="system-message">
-          Welcome! Ask me for product recommendations.
+          Welcome! Ask me anything about products.
         </div>
       {/if}
 
       {#each messages as msg}
-        <div class={msg.role}>
-          <div>{msg.content || "..."}</div>
-        </div>
+        <div class={msg.role}><div>{msg.content}</div></div>
       {/each}
 
-      <!-- Invisible “scroll to me” anchor -->
+      {#if productRecommendations.length > 0}
+        <div class="recommendations-block">
+          <h3>Recommended for you</h3>
+          {#each productRecommendations as p}
+            <div class="product-card">
+              <img src={p.image} />
+              <div class="name">{p.name}</div>
+              <div class="desc">{p.description}</div>
+              <div class="price">${p.price}</div>
+            </div>
+          {/each}
+        </div>
+      {/if}
+
       <div bind:this={bottomEl}></div>
     </div>
-    <form on:submit|preventDefault={send}>
+
+    <form on:submit|preventDefault={handleChat}>
       <input
         bind:value={input}
         placeholder="Ask about products..."
@@ -140,13 +193,13 @@
   </div>
 {/if}
 
-<!-- BUBBLE MUST BE OUTSIDE THE {#if open} BLOCK -->
+<!-- BUBBLE MUST BE OUTSIDE THE {#if isOpen} BLOCK -->
 <div
   class="bubble"
   role="button"
   tabindex="0"
-  on:click={() => (open = !open)}
-  on:keydown={(e) => e.key === "Enter" && (open = true)}
+  on:click={() => (isOpen = !isOpen)}
+  on:keydown={(e) => e.key === "Enter" && (isOpen = true)}
 >
   Chat
 </div>
