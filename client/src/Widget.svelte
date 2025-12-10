@@ -1,12 +1,16 @@
 <script lang="ts">
   import { onMount } from "svelte";
 
-  export let store: string = "name-of-the-eccom-store";
-
   let isOpen = false;
 
-  const STORAGE_KEY = `widget_chat_${store}`;
+  const BASE_URL = import.meta.env.VITE_BASE_API_URL;
+  const storeName = import.meta.env.VITE_STORE_NAME;
 
+  let isInitialized = false;
+
+  console.log("ENV variables ", BASE_URL, storeName);
+
+  const STORAGE_KEY = `widget_chat_${storeName}`;
   interface Message {
     role: "user" | "assistant";
     content: string;
@@ -43,9 +47,13 @@
         localStorage.removeItem(STORAGE_KEY);
       }
     }
+
+    isInitialized = true;
   });
 
-  $: localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+  $: if (isInitialized) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+  }
 
   // ------------------------------------------------------
   // MAIN HANDLER (Decision + Stream + Recommendation Tool)
@@ -64,7 +72,8 @@
     // STEP 1 — Intent Classifier
     let intent = "general";
     try {
-      const decide = await fetch("http://localhost:8787/chat/decide", {
+      const decide = await fetch(`${BASE_URL}/decide`, {
+        // const decide = await fetch("http://localhost:8787/chat/decide", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -122,9 +131,10 @@
             const token = json.choices?.[0]?.delta?.content ?? "";
             if (token) {
               botMessage.content += token;
-              messages = messages; // trigger Svelte reactivity
+              // messages = messages; // trigger Svelte reactivity
+              messages = [...messages];
             }
-          } catch (e) {
+          } catch (err) {
             // ignore malformed JSON
             console.error("Stream error:", err);
             messages = [
