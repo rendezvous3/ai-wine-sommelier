@@ -13,11 +13,19 @@ const enum AGENT_ROLE {
     RECOMMEND = "recommend"
 }
 
+const enum AGENT_ROLE_MODEL {
+    // STREAMING = "llama-3.1-8b-instant",
+    INTENT = "llama-3.1-8b-instant",
+    STREAM = "llama-3.3-70b-versatile",
+    RECCOMEND = "llama-3.1-8b-instant",
+}
+
 const STORE_NAME = "Cannavita"
 
 export {
     MODEL_PROVIDER,
     LLM_PROVIDER,
     AGENT_ROLE,
-    STORE_NAME
+    STORE_NAME,
+    AGENT_ROLE_MODEL
 }

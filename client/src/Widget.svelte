@@ -75,6 +75,8 @@
       console.warn("Decision failed, defaulting to general.");
     }
 
+    let buffer = "";
+
     // STEP 2 — Start STREAMING (Agent 1)
     const streamPromise = (async () => {
       const resp = await fetch("http://localhost:8787/chat/stream", {
@@ -98,19 +100,43 @@
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n").filter((l) => l.startsWith("data: "));
+        // Append new chunk to buffer
+        buffer += decoder.decode(value, { stream: true });
 
-        for (const line of lines) {
-          if (line === "data: [DONE]") break;
+        // Split on double newlines (SSE event boundary)
+        let parts = buffer.split("\n\n");
+
+        // Process all complete events
+        for (let i = 0; i < parts.length - 1; i++) {
+          const event = parts[i].trim();
+          if (!event) continue;
+
+          const dataIndex = event.indexOf("data: ");
+          if (dataIndex === -1) continue;
+
+          const jsonStr = event.slice(dataIndex + 6);
+          if (jsonStr === "[DONE]") continue;
 
           try {
-            const json = JSON.parse(line.slice(6));
-            const token = json.choices?.[0]?.delta?.content || "";
-            botMessage.content += token;
-            messages = messages;
-          } catch {}
+            const json = JSON.parse(jsonStr);
+            const token = json.choices?.[0]?.delta?.content ?? "";
+            if (token) {
+              botMessage.content += token;
+              messages = messages; // trigger Svelte reactivity
+            }
+          } catch (e) {
+            // ignore malformed JSON
+            console.error("Stream error:", err);
+            messages = [
+              ...messages,
+              { role: "assistant", content: "Sorry, connection lost." },
+            ];
+            loading = false;
+          }
         }
+
+        // Keep the incomplete part for next read
+        buffer = parts[parts.length - 1];
       }
     })();
 

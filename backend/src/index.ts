@@ -15,7 +15,7 @@ import type {
 // import { groq } from '@ai-sdk/groq';
 // import { streamText } from 'ai';
 import { generatePrompt } from "./prompt";
-import { MODEL_PROVIDER, LLM_PROVIDER, STORE_NAME, AGENT_ROLE } from "./types-and-constants";
+import { MODEL_PROVIDER, LLM_PROVIDER, STORE_NAME, AGENT_ROLE, AGENT_ROLE_MODEL } from "./types-and-constants";
 import { formatConversationHistory } from "./utils"
 
 interface Bindings {
@@ -56,7 +56,7 @@ app.post("/chat/decide", async (c) => {
   const last = messages[messages.length - 1]?.content || "";
 
   const API_KEY = c.env.GROQ_API_KEY;
-  const MODEL = "llama-3.1-8b-instant";
+  const MODEL = AGENT_ROLE_MODEL.INTENT;
 
   const prompt = `
     You are an intent classifier for premium cannabis dispensary
@@ -67,12 +67,29 @@ app.post("/chat/decide", async (c) => {
     - "recommendation examples" → need/looking for/give me
     something for/suggest/how about for/anything for/ sleep/going out/appetite/upity mood/party/staying up/celebrating
 
+    Classify intent: return ONLY "recommendation" or "general"
+
+    Examples:
+    "best indica" → recommendation
+    "what strains for sleep" → recommendation
+    "what are your hours" → general
+    "return policy" → general
+    "something for anxiety" → recommendation
+
+    User: "${last}"
+
+    Respond with only the word.
+
     Return ONLY:
     {"intent": "general"} OR {"intent": "recommendation"}
 
     User says: "${last}"`;
 
-  const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+  console.log("/decide route called", prompt);
+
+  let text;
+  try {
+    const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${API_KEY}`,
@@ -87,13 +104,24 @@ app.post("/chat/decide", async (c) => {
     })
   });
 
+  console.log("/decide route resp", resp);
+
   const data = await resp.json();
-  let text = data.choices?.[0]?.message?.content || "";
+  text = data.choices?.[0]?.message?.content || "";
+
+  } catch (err) {
+    const formatError = `/decide api error: ${err}`;
+    console.error(formatError);
+    return c.json({ error: formatError }, 503);
+    // return c.json({ intent: "general" });
+  }
+
+
 
   try {
     const parsed = JSON.parse(text);
     return c.json(parsed);
-  } catch (e) {
+  } catch (err) {
     return c.json({ intent: "general" });
   }
 });
@@ -103,7 +131,7 @@ app.post("/chat/stream", async (c) => {
   const messages = body.messages || [];
 
   const API_KEY = c.env.GROQ_API_KEY;
-  const MODEL = "llama-3.1-8b-instant";
+  const MODEL = AGENT_ROLE_MODEL.STREAM;
   const BASE_URL = "https://api.groq.com/openai/v1";
 
   const lastMessages = messages.slice(-15);
@@ -118,11 +146,16 @@ app.post("/chat/stream", async (c) => {
   );
 
   const messagesForLLM = [
+    { role: "system", content: "Hello." },
     { role: "system", content: prompt },
     ...lastMessages
   ];
 
-  const resp = await fetch(`${BASE_URL}/chat/completions`, {
+  console.log("/stream route ", messagesForLLM);
+
+  let response;
+  try {
+  response = await fetch(`${BASE_URL}/chat/completions`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${API_KEY}`,
@@ -131,19 +164,20 @@ app.post("/chat/stream", async (c) => {
     body: JSON.stringify({
       model: MODEL,
       messages: messagesForLLM,
-      temperature: 0.3,
-      max_tokens: 800,
+      temperature: 0.1,
+      max_tokens: 1200,
       stream: true
     })
   });
 
-  if (!resp.ok) {
-    const err = await resp.text();
-    console.error("Groq Stream Error:", err);
-    return c.json({ error: "Streaming failed" }, 500);
+  console.log("/stream route ", response);
+  } catch (err) {
+    const formatError = `"Groq Stream Error: ${err}`
+    console.error(formatError);
+    return c.json({ error: formatError }, 503);
   }
-
-  return new Response(resp.body, {
+  if(response) {
+      return new Response(response.body, {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
@@ -151,6 +185,7 @@ app.post("/chat/stream", async (c) => {
       "Access-Control-Allow-Origin": "*"
     }
   });
+  }
 });
 
 app.post("/chat/recommendations", async (c) => {
@@ -187,7 +222,7 @@ app.post("/chat/recommendations", async (c) => {
     .join("\n\n");
 
   const API_KEY = c.env.GROQ_API_KEY;
-  const MODEL = "llama-3.1-8b-instant";
+  const MODEL = AGENT_ROLE_MODEL.RECCOMEND;
 
   const llmPrompt = `
     You are a recommendation engine. 
@@ -238,7 +273,7 @@ app.post("/chat/recommendations", async (c) => {
   try {
     const parsed = JSON.parse(text);
     return c.json(parsed, 200);
-  } catch (e) {
+  } catch (err) {
     console.error("Invalid JSON from LLM:", text);
     return c.json({ recommendations: [] }, 200);
   }
