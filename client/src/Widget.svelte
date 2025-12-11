@@ -12,6 +12,7 @@
   interface Message {
     role: "user" | "assistant";
     content: string;
+    recommendations?: Recommendation[];
   }
 
   interface Recommendation {
@@ -166,6 +167,12 @@
           );
           const data = await resp.json();
           productRecommendations = data.recommendations || [];
+          let botMessage: Message = {
+            role: "assistant",
+            content: "",
+            recommendations: productRecommendations,
+          };
+          messages = [...messages, botMessage];
         } catch (err) {
           console.error("Recommendation tool failed:", err);
         }
@@ -196,9 +203,29 @@
       {/if}
 
       {#each messages as msg}
-        <div class={msg.role}><div>{msg.content}</div></div>
+        <div class={msg.role}>
+          <div>{msg.content}</div>
+          {#if msg.recommendations && msg.recommendations.length > 0}
+            <div class="recommendations-block">
+              <h3>Recommended for you</h3>
+              {#each msg.recommendations as p}
+                <div class="product-card">
+                  <!-- <img src={p.image} /> -->
+                  <div class="name">{p.name}</div>
+                  <div class="desc">{p.description}</div>
+                  <div class="price">${p.price}</div>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        </div>
       {/each}
 
+      <!-- {#each messages as msg}
+        <div class={msg.role}><div>{msg.content}</div></div>
+      {/each} -->
+
+      <!-- 
       {#if productRecommendations.length > 0}
         <div class="recommendations-block">
           <h3>Recommended for you</h3>
@@ -211,7 +238,7 @@
             </div>
           {/each}
         </div>
-      {/if}
+      {/if} -->
 
       <div bind:this={bottomEl}></div>
     </div>

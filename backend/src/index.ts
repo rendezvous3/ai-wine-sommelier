@@ -135,8 +135,23 @@ app.post("/chat/stream", async (c) => {
   const BASE_URL = "https://api.groq.com/openai/v1";
 
   const lastMessages = messages.slice(-15);
-  const conversation_history = formatConversationHistory(lastMessages);
-  const user_message = lastMessages[lastMessages.length - 1]?.content || "";
+  const enrichedHistory = lastMessages.map(msg => {
+    if (msg.recommendations?.length > 0) {
+      const names = msg.recommendations.map(p => p.name).join(", ");
+      return {
+        role: "assistant",
+        content: `${msg.content}\n\nI recommended: ${names}.`
+      };
+    }
+    return { role: msg.role, content: msg.content };
+  });
+
+  const conversation_history = formatConversationHistory(enrichedHistory);
+  const user_message = enrichedHistory[enrichedHistory.length - 1]?.content || "";
+  // const conversation_history = formatConversationHistory(lastMessages);
+  // const user_message = lastMessages[lastMessages.length - 1]?.content || "";
+
+  // console.log("conversation_history", conversation_history);
 
   const prompt = generatePrompt(
     MODEL_PROVIDER.LLAMA,
@@ -145,13 +160,25 @@ app.post("/chat/stream", async (c) => {
     ""
   );
 
-  const messagesForLLM = [
+  // @ts-ignore
+  const cleanMessages = lastMessages.map(msg => {
+    const { recommendations, ...rest } = msg;
+    return rest;
+  });
+
+  // const messagesForLLM = [
+  //   { role: "system", content: "Hello." },
+  //   { role: "system", content: prompt },
+  //   ...lastMessages
+  // ];
+
+    const messagesForLLM = [
     { role: "system", content: "Hello." },
     { role: "system", content: prompt },
-    ...lastMessages
+    ...cleanMessages
   ];
 
-  console.log("/stream route ", messagesForLLM);
+  // console.log("/stream messagesForLLM ", messagesForLLM);
 
   let response;
   try {
@@ -171,6 +198,7 @@ app.post("/chat/stream", async (c) => {
   });
 
   console.log("/stream route ", response);
+
   } catch (err) {
     const formatError = `"Groq Stream Error: ${err}`
     console.error(formatError);
