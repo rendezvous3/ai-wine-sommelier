@@ -8,8 +8,6 @@
 
   let isInitialized = false;
 
-  console.log("ENV variables ", BASE_URL, storeName);
-
   const STORAGE_KEY = `widget_chat_${storeName}`;
   interface Message {
     role: "user" | "assistant";
@@ -88,7 +86,8 @@
 
     // STEP 2 — Start STREAMING (Agent 1)
     const streamPromise = (async () => {
-      const resp = await fetch("http://localhost:8787/chat/stream", {
+      const resp = await fetch(`${BASE_URL}/stream`, {
+        // const resp = await fetch("http://localhost:8787/chat/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -156,7 +155,9 @@
       recPromise = (async () => {
         try {
           const resp = await fetch(
-            "http://localhost:8787/chat/recommendations",
+            `${BASE_URL}/recommendations`,
+            // const resp = await fetch(
+            //   "http://localhost:8787/chat/recommendations",
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
