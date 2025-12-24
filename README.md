@@ -2,7 +2,7 @@
 
 ## Description
 
-This project is a production-grade, embeddable AI shopping assistant widget for Cannavita Dispensary, a premium cannabis store in Astoria, Queens, NY. The widget provides an intelligent budtender experience, handling general inquiries (hours, location, policies) and product recommendations via RAG (Retrieval-Augmented Generation). It streams natural conversations and displays rich product cards inline.
+This project is an embeddable AI shopping assistant widget for dispensaries. The widget provides an intelligent budtender experience, handling general inquiries (hours, location, policies) and product recommendations via RAG (Retrieval-Augmented Generation). It streams natural conversations and displays rich product cards inline. During chat Agentic AI can interpet the intent of the request and trigger recommendation if needed.
 
 The project consists of three microservices:
 - **Vectorizer**: Python script to embed and upload product data to a vector database.
@@ -64,15 +64,15 @@ python vectorize.py
 
 Create venv if not created
 ```bash
-    python3 -m venv
-    pip install --upgrade pip
+python3 -m venv
+pip install --upgrade pip
 ```
 
 Must activate venv
 ```bash
-    source venv/bin/activate
-    ## or
-    source .venv/bin/activate
+source venv/bin/activate
+## or
+source .venv/bin/activate
 ```
 
 This embeds products using Cloudflare Workers AI (@cf/baai/bge-large-en-v1.5).
@@ -94,9 +94,9 @@ cd backend
 npx wrangler dev --remote
 ```
 
-## Client
+## Client Worklof (Svelte App compiled into JS script widget)
 
-The client compiles Svelte app into JavasScript Widget placed in html
+The client compiles Svelte app into JavaScript Widget placed in html
 ```bash
 cd client
 # after changes
