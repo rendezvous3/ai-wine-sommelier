@@ -94,14 +94,26 @@ cd backend
 npx wrangler dev --remote
 ```
 
-## Client Worklof (Svelte App compiled into JS script widget)
+## Client Workflow (Svelte App compiled into JS script widget)
 
-The client compiles Svelte app into JavaScript Widget placed in html
+The client compiles Svelte app into JavaScript Widget placed in html.
+
+Run Locally:
+
 ```bash
 cd client
 # after changes
 npm run build
 npm run dev
+```
+
+```html
+<script
+  type="module"
+  src="https://your-cdn.com/widget.js"
+  data-api="https://your-api.com/chat"
+  data-store="cannavita"
+></script>
 ```
 
 Compiles everything to static files in dist/.
