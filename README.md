@@ -28,7 +28,7 @@ cd cannavita-ai-budtender
 
 ### Install Dependencies
 
-## Vectorizer
+### Vectorizer
 
 ```bash
 cd vectorizer
@@ -36,15 +36,47 @@ pip install -r requirements.txt  # (create requirements.txt with langchain-cloud
 # Load .env with Cloudflare/Groq keys
 ```
 
-## Backend
+### Backend
 
 ```bash
 cd backend
 npm install  # or pnpm install (installs Hono, LangChain, etc.)
 ```
 
-## Client
+### Client
 ```bash
 cd client
 npm install  # or pnpm install (installs Svelte, Vite)
+```
+
+## Workflows
+
+### Vectorizer Workflow (Embed & Upload Products)
+The vectorizer is a one-time or periodic script to prepare product data for RAG.
+
+Prepare Data: Edit dummy_products.json with real products (or integrate e-commerce API later).
+Run Locally:
+
+```bash
+cd vectorizer
+python vectorize.py
+```
+
+This embeds products using Cloudflare Workers AI (@cf/baai/bge-large-en-v1.5).
+Upserts vectors into the Cloudflare Vectorize index.
+First run: Uncomment cfVect.create_index() to create the index.
+Subsequent runs: Keep it commented to avoid recreating.
+
+Check console output for success messages.
+Verify in Cloudflare dashboard → Vectorize → your index → query a few vectors.
+Comment out create_index after first successful run.
+
+## Backend Workflow (API)
+The backend handles intent classification, streaming chat, and recommendations.
+
+Run Locally:
+
+```bash
+cd backend
+npx wrangler dev --remote
 ```
