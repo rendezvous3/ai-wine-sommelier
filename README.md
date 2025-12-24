@@ -28,8 +28,23 @@ cd cannavita-ai-budtender
 
 ### Install Dependencies
 
+## Vectorizer
+
 ```bash
 cd vectorizer
 pip install -r requirements.txt  # (create requirements.txt with langchain-cloudflare, sentence-transformers, etc.)
 # Load .env with Cloudflare/Groq keys
+```
+
+## Backend
+
+```bash
+cd backend
+npm install  # or pnpm install (installs Hono, LangChain, etc.)
+```
+
+## Client
+```bash
+cd client
+npm install  # or pnpm install (installs Svelte, Vite)
 ```
