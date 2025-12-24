@@ -62,6 +62,19 @@ cd vectorizer
 python vectorize.py
 ```
 
+Create venv if not created
+```bash
+    python3 -m venv
+    pip install --upgrade pip
+```
+
+Must activate venv
+```bash
+    source venv/bin/activate
+    ## or
+    source .venv/bin/activate
+```
+
 This embeds products using Cloudflare Workers AI (@cf/baai/bge-large-en-v1.5).
 Upserts vectors into the Cloudflare Vectorize index.
 First run: Uncomment cfVect.create_index() to create the index.
@@ -80,3 +93,16 @@ Run Locally:
 cd backend
 npx wrangler dev --remote
 ```
+
+## Client
+
+The client compiles Svelte app into JavasScript Widget placed in html
+```bash
+cd client
+# after changes
+npm run build
+npm run dev
+```
+
+Compiles everything to static files in dist/.
+The key file is dist/widget.js (plus CSS if any).
