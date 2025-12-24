@@ -20,12 +20,6 @@ The project consists of three microservices:
 
 ## Installation
 
-### Clone the Repository
-```bash
-git clone <your-repo-url>
-cd cannavita-ai-budtender
-```
-
 ### Install Dependencies
 
 ### Vectorizer
@@ -54,14 +48,6 @@ npm install  # or pnpm install (installs Svelte, Vite)
 ### Vectorizer Workflow (Embed & Upload Products)
 The vectorizer is a one-time or periodic script to prepare product data for RAG.
 
-Prepare Data: Edit dummy_products.json with real products (or integrate e-commerce API later).
-Run Locally:
-
-```bash
-cd vectorizer
-python vectorize.py
-```
-
 Create venv if not created
 ```bash
 python3 -m venv
@@ -75,6 +61,8 @@ source venv/bin/activate
 source .venv/bin/activate
 ```
 
+Prepare Data: Edit dummy_products.json with real products (or integrate e-commerce API later).
+
 This embeds products using Cloudflare Workers AI (@cf/baai/bge-large-en-v1.5).
 Upserts vectors into the Cloudflare Vectorize index.
 First run: Uncomment cfVect.create_index() to create the index.
@@ -83,6 +71,13 @@ Subsequent runs: Keep it commented to avoid recreating.
 Check console output for success messages.
 Verify in Cloudflare dashboard → Vectorize → your index → query a few vectors.
 Comment out create_index after first successful run.
+
+Run Locally:
+
+```bash
+cd vectorizer
+python vectorize.py
+```
 
 ## Backend Workflow (API)
 The backend handles intent classification, streaming chat, and recommendations.
