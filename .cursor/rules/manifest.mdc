@@ -15,7 +15,7 @@ The widget delivers a human-like budtender experience:
 - Remembers past recommendations and references them naturally
 - Persists entire chat (including recommendations) across page refreshes via localStorage
 
-The system is built as **three loosely coupled microservices** for maximum flexibility, scalability, and ease of development.
+The system is built as **four loosely coupled components** for maximum flexibility, scalability, and ease of development.
 
 ## Architecture & Components
 
@@ -58,7 +58,23 @@ The system is built as **three loosely coupled microservices** for maximum flexi
   ```html
   <script type="module" src="https://your-domain.com/widget.js" data-api="https://api..." data-store="cannavita"></script>
   ```
-- **Status**:  Functional, but work needed to be production UI
+- **Current State**: Functional with basic UI implementation
+- **Planned Improvement**: Migrating to use Component Library Chat Components for production-grade UI
+- **Import Pattern**: Direct imports from `Svelte-Component-Library/src/lib/custom/` (tree-shaking safe, Storybook files excluded)
+- **Status**: Functional, but work needed to be production UI
+
+### 4. **Component Library (`Svelte-Component-Library/`)**
+- **Technology**: Svelte 5 (runes) + TypeScript + Storybook
+- **Purpose**: Reusable UI component library for building production-ready chat interfaces
+- **Key Features**:
+  - Complete Chat Components suite (ChatWidget, ChatMessage, ChatBubble, ChatInput, ChatLoader, ChatWindow, TypingIndicator)
+  - Product display components (ProductCard, ProductGrid, ProductList, ProductRecommendation)
+  - Form components (Button, Input, Checkbox)
+  - All components use Svelte 5 runes syntax
+  - Storybook documentation for all components
+- **Integration**: Components are imported directly from the library into `client/src/Widget.svelte` for UI improvements
+- **Repository**: Separate git repository (nested), managed independently
+- **Status**: Ready for integration into client widget
 
 ## Current Project State
 
@@ -68,6 +84,7 @@ The system is built as **three loosely coupled microservices** for maximum flexi
 - **Persistence**: Full chat (text + recommendations) survives refresh
 - **Intent Detection**: Accurate and fast
 - **UX**: Warm, human-like, engaging — but work left to do making it look amazing, looks very basic
+- **UI Improvements**: In progress — migrating to Component Library Chat Components for production-grade interface
 
 ## Technology Decisions
 
@@ -89,6 +106,13 @@ The system is built as **three loosely coupled microservices** for maximum flexi
 - **Never use injection hacks** — keep conversational text and structured recommendation data completely separate (no <recs> tags in stream)
 - **Always enrich history for context** — when a message has recommendations, include a natural summary in the conversation history sent to the LLM (e.g., "I recommended: Gelato Cake, Granddaddy Purple.")
 - **Always maintain correct message order** — recommendations must appear in the exact conversation position where they were made (as part of the same assistant message)
+
+### Component Library Integration Rules
+- **Import patterns** — Always import directly from `.svelte` files (e.g., `import ChatWidget from '../Svelte-Component-Library/src/lib/custom/ChatWidget/ChatWidget.svelte'`), never import `.stories.ts` files
+- **Tree-shaking** — Vite automatically excludes Storybook files and unused components from the build, so only imported components are bundled
+- **Separate repository** — Component Library is a nested git repository, managed independently
+- **Component modifications** — When modifying Component Library components, commit changes in that repo separately (cd into `Svelte-Component-Library/` and commit there)
+- **Component usage** — Use Component Library Chat Components (ChatWidget, ChatMessage, ChatBubble, etc.) to replace basic UI in `client/src/Widget.svelte`
 
 ### Development Workflow
 1. **Develop locally first** — use `wrangler dev` for backend, `npm run dev` for widget
