@@ -1,0 +1,86 @@
+# Step 1: Ignore everything FIRST
+*
+
+# Step 2: Allow parent directories (needed to traverse to nested paths)
+!Svelte-Component-Library/
+!client/
+
+# Step 3: Allow the specific source directories you want
+!Svelte-Component-Library/src/
+!Svelte-Component-Library/src/**
+!client/src/
+!client/src/**
+
+# Step 4: Then add specific ignore patterns for things you don't want even in allowed dirs
+node_modules/
+**/node_modules/
+**/dist/
+**/.svelte-kit/
+**/.wrangler/
+**/.env
+**/.env.*
+**/package-lock.json
+
+# Node.js Dependencies
+node_modules/
+**/node_modules/
+
+# Build Outputs
+**/dist/
+**/.svelte-kit/
+**/build/
+**/.wrangler/
+**/.output/
+**/.vercel/
+**/.netlify/
+**/storybook-static/
+
+# Python Virtual Environment
+vectorizer/venv/
+vectorizer/.venv/
+vectorizer/env/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.Python
+
+# Cache & Temporary Files
+**/.cache/
+**/.vite/
+**/.parcel-cache/
+**/.turbo/
+**/.next/
+**/*.log
+**/*.tmp
+**/*.swp
+**/*~
+**/.DS_Store
+**/Thumbs.db
+
+# Environment Files
+**/.env
+**/.env.local
+**/.env.*.local
+backend/.dev.vars
+
+# IDE & Editor Files
+**/.vscode/
+**/.idea/
+**/*.code-workspace
+**/*.sublime-*
+
+# Package Manager Lock Files (reduce context)
+**/package-lock.json
+**/yarn.lock
+**/pnpm-lock.yaml
+
+# Test & Coverage
+**/coverage/
+**/.nyc_output/
+**/test-results/
+
+# Misc
+**/.history
+**/.git.backup/
+
