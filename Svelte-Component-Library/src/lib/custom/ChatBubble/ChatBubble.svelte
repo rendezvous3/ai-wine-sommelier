@@ -11,8 +11,6 @@
     children?: Snippet;
   }
 
-  // comment test
-  // Testing another
 
   let {
     variant = 'assistant',
