@@ -48,3 +48,4 @@ Thumbs.db
 # Optional: if you ever add tests or examples
 coverage/
 test-results/
+Svelte-Component-Library/.git.backup/

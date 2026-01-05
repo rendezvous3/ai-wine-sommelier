@@ -1,0 +1,225 @@
+---
+alwaysApply: true
+---
+
+# Svelte 5 Component Library
+
+## Project Overview
+This is a component library built with Svelte 5, TypeScript, and Storybook. The goal is to create reusable UI components that can be shared across muliple projects, organized into two sections:
+
+1. **Custom CSS Components** (`src/lib/custom/`) - Hand-crafted components with custom CSS, no framework dependencies
+2. **Tailwind Components** (`src/lib/tailwind/`) - Components built with Tailwind CSS utility classes
+
+**Purpose:** Learn modern development workflows while building production-ready components for future projects.
+
+**Tech Stack:**
+- Svelte 5 (latest with runes)
+- TypeScript (strict mode)
+- Vite (build tool)
+- Storybook (component documentation)
+- Tailwind CSS (utility-first styling)
+
+## How to Understand Project State
+- Check `src/lib/custom/` for custom CSS components
+- Check `src/lib/tailwind/` for Tailwind components
+
+## Component Inventory
+
+### Custom CSS Components (`src/lib/custom/`)
+
+#### Chat Components Suite
+A complete set of components for building chat interfaces:
+
+- **ChatBubble** - Individual message bubbles with variants (user, assistant, system). Supports expandable content, rich text, and custom styling.
+- **ChatInput** - Input field for chat messages with send functionality, file attachments, emoji support, and character counting.
+- **ChatLoader** - Loading indicator specifically designed for chat interfaces with animated dots.
+- **ChatMessage** - Complete message component that combines ChatBubble with product recommendations support, timestamps, and action handlers.
+- **ChatWidget** - Floating chat widget with expand/collapse functionality, dark mode support, and customizable positioning.
+- **ChatWindow** - Main chat window container with scrolling, subheader support, and expandable fullscreen mode.
+- **TypingIndicator** - Animated typing indicator for showing when someone is typing in chat.
+
+#### Form Components
+- **Button** - Button component with multiple variants (primary, secondary, danger, etc.) and size options.
+- **Checkbox** - Checkbox input with validation states (error, success), indeterminate state, and label/description support.
+- **Input** - Text input field with variants, sizes, and validation states.
+
+#### Product Components
+- **ProductCard** - Individual product card display with image, title, price, rating, and discount badges.
+- **ProductGrid** - Grid layout component for displaying multiple products in a responsive grid.
+- **ProductList** - List layout component for displaying products in a vertical list format.
+- **ProductRecommendation** - Product recommendation component designed to be embedded in chat messages, supporting multiple layout options (carousel, compact-list, grid, bubble-grid).
+
+**Note:** `ProductCarousel` folder exists but is not yet implemented.
+
+#### UI Components
+- **ThemeToggle** - Theme switcher component for toggling between light and dark modes.
+- **WidgetIcon** - Icon component for widgets with customizable size and styling.
+
+### Tailwind Components (`src/lib/tailwind/`)
+
+- **Button** - Button component built with Tailwind CSS utility classes, matching the custom Button's API but using Tailwind for styling.
+
+## Critical: Svelte 5 Syntax Only
+
+### ✅ Use Svelte 5 Runes
+- Props: `let { prop1, prop2 = 'default' } = $props();`
+- State: `let count = $state(0);`
+- Derived: `let doubled = $derived(count * 2);`
+- Effects: `$effect(() => { ... });`
+
+### ❌ Never Use Svelte 4 Syntax
+- NO `export let prop`
+- NO `$: reactive statements`
+- NO `let:` slot syntax
+
+**If you see Svelte 4 syntax, STOP immediately and use Svelte 5 runes instead.**
+
+---
+
+## Architecture Decisions
+
+### File Structure
+```
+src/
+├── lib/
+│   ├── custom/           # Custom CSS components
+│   │   └── Button/
+│   │       ├── Button.svelte
+│   │       ├── Button.stories.ts
+│   │       └── Button.test.ts (optional)
+│   ├── tailwind/         # Tailwind components
+│   ├── utils/            # Helper functions
+│   ├── types/            # TypeScript definitions
+│   └── icons/            # Icon components
+└── routes/               # Demo pages (if needed)
+```
+
+### Component Naming
+- Components: `PascalCase.svelte` (e.g., `Button.svelte`, `IconClose.svelte`)
+- Folders: Match component name (e.g., `Button/`)
+- Utils: `camelCase.ts` (e.g., `formatDate.ts`)
+- Types: `PascalCase` interfaces (e.g., `ButtonProps`)
+
+### Import Conventions
+- Use `$lib` alias: `import { Button } from '$lib/custom/Button/Button.svelte'`
+- Never relative imports across features
+- Type imports: `import type { ButtonProps } from '$lib/types'`
+
+---
+
+## Code Standards
+
+### Component Structure
+Each component follows this pattern:
+```svelte
+<script lang="ts">
+  // 1. Props with Svelte 5 runes
+  let { 
+    prop1,
+    prop2 = 'default',
+    onclick
+  } = $props();
+  
+  // 2. Local state (if needed)
+  let localState = $state(false);
+  
+  // 3. Derived values (if needed)
+  let computed = $derived(prop1 + prop2);
+</script>
+
+<!-- 4. Template -->
+<button {onclick}>
+  {prop1}
+</button>
+
+<!-- 5. Styles (for custom components) -->
+<style>
+  button {
+    /* scoped styles */
+  }
+</style>
+```
+
+### TypeScript Rules
+- Strict mode enabled
+- No `any` types (use `unknown` if needed)
+- No `@ts-ignore` (use `@ts-expect-error` with comment)
+- Define prop types explicitly
+
+### Storybook Stories (CSF3 format)
+```typescript
+import type { Meta, StoryObj } from '@storybook/svelte';
+import Button from './Button.svelte';
+
+const meta = {
+  title: 'Custom/Button',  // or 'Tailwind/Button'
+  component: Button as any,
+  tags: ['autodocs'],
+  argTypes: {
+    label: { control: 'text' },
+    variant: { 
+      control: 'select',
+      options: ['primary', 'secondary', 'danger']
+    }
+  },
+} satisfies Meta<any>;
+
+export default meta;
+type Story = StoryObj<any>;
+
+export const Primary: Story = {
+  args: {
+    label: 'Primary Button',
+    variant: 'primary',
+  },
+};
+```
+
+---
+
+## What We DON'T Use
+- ❌ Svelte 4 syntax
+- ❌ Class components
+- ❌ Inline styles (use Tailwind or `<style>` blocks)
+- ❌ `any` type without explanation
+- ❌ Relative imports across features
+
+---
+
+## Workflow
+**You will receive explicit instructions about which component(s) to build next. Do not proceed without this instruction.**
+
+### New Component Implementation
+1. **Plan** the component (props, variants, states, files)
+2. **Get approval** - Wait for "yes, proceed"
+3. **Implement** the component `.svelte` file
+4. **Create story** - Add `.stories.ts` file
+5. **Verify** - Confirm component renders in Storybook
+6. **Commit** - One component = one commit
+7. **STOP** - Wait for next instruction
+
+### Enhancing Existing Component
+If asked to add features to an existing component (variants, animations, props, etc.):
+1. **Plan** what will change (new props, CSS, stories)
+2. **Get approval** - Wait for "yes, proceed"
+3. **Modify** the component file only
+4. **Update story** - Add new story variants if needed
+5. **Verify** - Test all variants work in Storybook
+6. **Commit** - One enhancement = one commit
+7. **STOP** - Wait for next instruction
+
+### Multi-Component Features
+If user requests a feature requiring multiple components:
+1. **Break down** - List all components needed
+2. **Get approval** for the breakdown
+3. **Implement one component** following steps 1-6 above
+4. **STOP** - Wait for "build next component" instruction
+5. **Repeat** for each component in the feature
+
+### Critical Rules
+- **DO NOT INVENT OR CREATE** a component you were not asked to make
+- **Never suggest** what to build next
+- **Never offer** to build related components
+- **Always wait** for explicit instruction
+- If unclear whether to continue, **ask** "Should I proceed with [next component]?"
+```
