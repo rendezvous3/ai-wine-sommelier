@@ -213,7 +213,7 @@
 </script>
 
 <!-- Replace UI with ChatWidget from Component Library -->
-<!-- background colors: "#15685E" #F4C37D -->
+<!-- background colors: "#15685E" #F4C37D #6ed39f80 "#8aff5ec9" "#50ff5a8f" -->
 <ChatWidget
   isOpen={isOpen}
   onToggle={() => (isOpen = !isOpen)}
@@ -226,7 +226,8 @@
   menuMode="sidebar"
   onMenuItemClick={handleMenuItemClick}
   title="Cannavita Budtender"
-  themeBackgroundColor="#F4C37D"
+  themeBackgroundColor="#50ff5a8f"
+  showBadge={false}
 >
   {#snippet children()}
     {#if messages.length === 0}

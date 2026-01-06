@@ -35,6 +35,8 @@
     themeBackgroundColor?: string;
     headerBackgroundColor?: string;
     widgetButtonBackgroundColor?: string;
+    showBadge?: boolean;
+    badgeCount?: number;
   }
 
   let {
@@ -57,7 +59,9 @@
     title = 'Chat Support',
     themeBackgroundColor,
     headerBackgroundColor,
-    widgetButtonBackgroundColor
+    widgetButtonBackgroundColor,
+    showBadge = true,
+    badgeCount = 1
   }: ChatWidgetProps = $props();
 
   // Provide themeBackgroundColor to child components via context
@@ -181,7 +185,9 @@
       </svg>
     {:else}
       <WidgetIcon type="message-bubble" size="md" color="#ffffff" />
-      <span class="chat-widget__badge">1</span>
+      {#if showBadge}
+        <span class="chat-widget__badge">{badgeCount}</span>
+      {/if}
     {/if}
   </button>
 </div>

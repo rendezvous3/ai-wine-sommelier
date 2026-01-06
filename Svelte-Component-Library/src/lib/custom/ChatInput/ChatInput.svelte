@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getContext } from 'svelte';
 
   interface ChatInputProps {
     placeholder?: string;
@@ -67,6 +68,10 @@
   let selectedModel = $state('gpt-4');
   let selectedTemperature = $state('balanced');
   let selectedSpeed = $state('1x');
+
+  // Get themeBackgroundColor from context (provided by ChatWidget) as fallback
+  let contextThemeStore = getContext<{ value: string | undefined } | undefined>('themeBackgroundColor');
+  let effectiveThemeColor = $derived(contextThemeStore?.value);
 
   let inputClasses = $derived(
     [
@@ -454,6 +459,7 @@
                 aria-label="Send message"
                 type="button"
                 {disabled}
+                style="{effectiveThemeColor ? `background: ${effectiveThemeColor}; --send-button-bg: ${effectiveThemeColor};` : ''}"
               >
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                   <path d="M18 2L9 11M18 2L12 18L9 11M18 2L2 8L9 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -466,6 +472,7 @@
                 aria-label="Send message"
                 type="button"
                 {disabled}
+                style="{effectiveThemeColor ? `background: ${effectiveThemeColor}; --send-button-bg: ${effectiveThemeColor};` : ''}"
               >
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                   <path d="M18 2L9 11M18 2L12 18L9 11M18 2L2 8L9 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -560,6 +567,7 @@
               aria-label="Send message"
               type="button"
               {disabled}
+              style="{effectiveThemeColor ? `background: ${effectiveThemeColor}; --send-button-bg: ${effectiveThemeColor};` : ''}"
             >
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M18 2L9 11M18 2L12 18L9 11M18 2L2 8L9 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -871,7 +879,7 @@
     height: 40px;
     border-radius: 50%;
     border: none;
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    background: var(--send-button-bg, linear-gradient(135deg, #3b82f6 0%, #2563eb 100%));
     color: #ffffff;
     cursor: pointer;
     display: flex;
@@ -884,7 +892,8 @@
   }
 
   .chat-input__send-button-bottom:hover:not(:disabled) {
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    background: var(--send-button-bg, linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%));
+    filter: brightness(0.9);
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
     transform: scale(1.05);
   }
@@ -1027,13 +1036,14 @@
   }
 
   .chat-input__button--send {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    background: var(--send-button-bg, linear-gradient(135deg, #3b82f6 0%, #2563eb 100%));
     color: #ffffff;
     box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
   }
 
   .chat-input__button--send:hover:not(:disabled) {
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    background: var(--send-button-bg, linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%));
+    filter: brightness(0.9);
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
     transform: scale(1.05);
   }
