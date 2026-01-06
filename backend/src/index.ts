@@ -269,6 +269,7 @@ app.post("/chat/recommendations", async (c) => {
         {
           "name": "",
           "brand": "",
+          "category": "",
           "price": 0,
           "type": "",
           "effects": "",
