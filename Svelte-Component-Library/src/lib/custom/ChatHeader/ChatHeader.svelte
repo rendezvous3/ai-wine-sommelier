@@ -737,7 +737,8 @@
     /* Start from header position (top: 0) - no negative offset */
     top: 0;
     /* Use a fixed height that spans the widget container */
-    height: 600px;
+    /* height: 600px; */
+    height: 100vh;
     /* max-height: 100%; */
   }
 
@@ -848,7 +849,8 @@
   :global(.chat-widget__window) .chat-header__menu-overlay,
   :global(.widget-window) .chat-header__menu-overlay {
     top: 0;
-    height: 600px;
+    /* height: 600px; */
+    height: 100vh;
     max-height: 100%;
   }
 
