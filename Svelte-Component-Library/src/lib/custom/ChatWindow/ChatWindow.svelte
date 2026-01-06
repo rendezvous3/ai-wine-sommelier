@@ -3,6 +3,7 @@
   import Button from '../Button/Button.svelte';
   import ChatModeToggle from '../ChatModeToggle/ChatModeToggle.svelte';
   import GuidedFlow from '../GuidedFlow/GuidedFlow.svelte';
+  import ChatInput from '../ChatInput/ChatInput.svelte';
   import type { GuidedFlowConfig } from '../GuidedFlow/types.js';
 
   interface ChatWindowProps {
@@ -21,6 +22,7 @@
     modeTogglePosition?: 'upper-left' | 'upper-right' | 'lower-left';
     guidedFlowConfig?: GuidedFlowConfig;
     messagesCount?: number;
+    onSend?: (message: string) => void;
   }
 
   let {
@@ -38,7 +40,8 @@
     onModeToggle,
     modeTogglePosition = 'upper-left',
     guidedFlowConfig,
-    messagesCount = 0
+    messagesCount = 0,
+    onSend
   }: ChatWindowProps = $props();
 
   let isExpanded = $state(expanded);
@@ -46,13 +49,18 @@
   let showScrollToBottom = $state(false);
   let messagesContainerRef: HTMLDivElement | null = $state(null);
 
+  // Sync internal state with prop changes
+  $effect(() => {
+    isExpanded = expanded;
+  });
+
   let windowClasses = $derived(
     [
       'chat-window',
       isExpanded && 'chat-window--expanded'
     ]
-      .filter(Boolean)
-      .join(' ')
+    .filter(Boolean)
+    .join(' ')
   );
 
   function toggleExpand() {
@@ -134,6 +142,15 @@
         {@render children()}
       {/if}
       <div bind:this={messagesEndRef} class="chat-window__messages-end"></div>
+    </div>
+  {/if}
+
+  {#if expanded && mode === 'chat' && onSend}
+    <div class="chat-window__input-wrapper">
+      <ChatInput
+        placeholder="Type a message..."
+        onsend={onSend}
+      />
     </div>
   {/if}
 
@@ -443,6 +460,23 @@
     overflow: hidden;
   }
 
+  .chat-window__input-wrapper {
+    flex-shrink: 0;
+    padding: 16px;
+    background: rgba(249, 250, 251, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    z-index: 10;
+    position: relative;
+  }
+
+  :global(.dark) .chat-window__input-wrapper,
+  :global([data-theme="dark"]) .chat-window__input-wrapper {
+    background: rgba(31, 41, 55, 0.95);
+    border-top-color: rgba(255, 255, 255, 0.1);
+  }
+
   .chat-window__mode-toggle {
     position: absolute;
     z-index: 98;
@@ -461,6 +495,11 @@
   .chat-window__mode-toggle--lower-left {
     bottom: 12px; /* Same distance from text input as scroll button */
     left: 12px;
+  }
+
+  /* Position buttons above input when expanded and input is present */
+  .chat-window--expanded .chat-window__mode-toggle--lower-left {
+    bottom: 100px; /* Above input field when expanded */
   }
 
   .chat-window__mode-toggle :global(.chat-mode-toggle) {
@@ -492,6 +531,11 @@
     z-index: 100;
     padding: 0;
     animation: fade-in 0.2s ease-out;
+  }
+
+  /* Position scroll button above input when expanded and input is present */
+  .chat-window--expanded .chat-window__scroll-button {
+    bottom: 100px; /* Above input field when expanded */
   }
 
   @keyframes fade-in {
@@ -636,6 +680,14 @@
       right: 16px;
       width: 36px;
       height: 36px;
+    }
+
+    .chat-window--expanded .chat-window__scroll-button {
+      bottom: 100px;
+    }
+
+    .chat-window--expanded .chat-window__mode-toggle--lower-left {
+      bottom: 100px;
     }
   }
 </style>

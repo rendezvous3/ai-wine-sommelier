@@ -136,6 +136,12 @@
     // Small delay to allow animation
     setTimeout(() => {
       isWidgetOpen = false;
+      // Reset expanded state when closing widget
+      if (onExpand) {
+        onExpand(false);
+      } else {
+        internalIsExpanded = false;
+      }
       onClose?.();
     }, 200);
   }
@@ -161,7 +167,7 @@
       />
       
       <ChatWindow
-        {expanded}
+        expanded={isExpanded}
         onExpand={handleExpand}
         subheader={subheader}
         showScrollButton={true}
@@ -174,13 +180,14 @@
         modeTogglePosition={modeTogglePosition}
         guidedFlowConfig={guidedFlowConfig}
         messagesCount={messagesCount}
+        onSend={onSend}
       >
         {#if children}
           {@render children()}
         {/if}
       </ChatWindow>
 
-      {#if mode === 'chat'}
+      {#if mode === 'chat' && !isExpanded}
         <div class="chat-widget__input-wrapper">
           <ChatInput
             placeholder="Type a message..."
@@ -393,13 +400,9 @@
     position: relative;
   }
 
-  /* Ensure input wrapper is visible when expanded */
+  /* Hide input wrapper when expanded (input is now inside ChatWindow) */
   .chat-widget--expanded .chat-widget__input-wrapper {
-    display: flex !important;
-    flex-shrink: 0;
-    position: relative;
-    z-index: 10001;
-    background: rgba(249, 250, 251, 0.98);
+    display: none !important;
   }
 
   /* Dark mode */
