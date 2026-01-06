@@ -251,5 +251,7 @@
 </ChatWidget>
 
 <style>
-  /* All styling now handled by Component Library */
+  :global(*) {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
 </style>

@@ -14,6 +14,12 @@ const store = script?.dataset.store ?? "demo-store";
 
 const shadow = container.attachShadow({ mode: 'open' });
 
+// Load Inter font into Shadow DOM
+const fontLink = document.createElement('link');
+fontLink.rel = 'stylesheet';
+fontLink.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap';
+shadow.appendChild(fontLink);
+
 const app = mount(Widget, {
   target: shadow,
   // target: document.getElementById('app')!,
