@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { setContext } from 'svelte';
   import WidgetIcon from '../WidgetIcon/WidgetIcon.svelte';
   import ChatHeader from '../ChatHeader/ChatHeader.svelte';
   import ChatWindow from '../ChatWindow/ChatWindow.svelte';
@@ -30,6 +31,8 @@
     menuPosition?: 'left' | 'right';
     menuMode?: 'dropdown' | 'sidebar';
     onMenuItemClick?: (itemId: string) => void;
+    title?: string;
+    themeBackgroundColor?: string;
     headerBackgroundColor?: string;
     widgetButtonBackgroundColor?: string;
   }
@@ -51,9 +54,21 @@
     menuPosition = 'left',
     menuMode = 'sidebar',
     onMenuItemClick,
+    title = 'Chat Support',
+    themeBackgroundColor,
     headerBackgroundColor,
     widgetButtonBackgroundColor
   }: ChatWidgetProps = $props();
+
+  // Provide themeBackgroundColor to child components via context
+  // Use a reactive store-like object that updates when themeBackgroundColor changes
+  let themeContext = $state<{ value: string | undefined }>({ value: undefined });
+  setContext('themeBackgroundColor', themeContext);
+  
+  // Update context when themeBackgroundColor prop changes
+  $effect(() => {
+    themeContext.value = themeBackgroundColor;
+  });
 
   // Use prop directly when parent controls it, otherwise use internal state
   let internalIsOpen = $state(false);
@@ -114,7 +129,7 @@
   {#if isWidgetOpen}
     <div class="chat-widget__window">
       <ChatHeader
-        title="Chat Support"
+        title={title}
         style={headerStyle}
         darkMode={darkMode}
         onClose={handleClose}
@@ -122,7 +137,7 @@
         menuPosition={menuPosition}
         menuMode={menuMode}
         onMenuItemClick={onMenuItemClick}
-        headerBackgroundColor={headerBackgroundColor}
+        headerBackgroundColor={headerBackgroundColor ?? themeBackgroundColor}
       />
       
       <ChatWindow {expanded} onExpand={handleExpand} subheader={subheader} showScrollButton={true} expandIcon={expandIcon}>
@@ -146,7 +161,7 @@
     aria-label={isWidgetOpen ? 'Close chat' : 'Open chat'}
     aria-expanded={isWidgetOpen}
     type="button"
-    style="{widgetButtonBackgroundColor ? `--chat-widget-button-bg: ${widgetButtonBackgroundColor};` : ''}"
+    style="{(widgetButtonBackgroundColor ?? themeBackgroundColor) ? `--chat-widget-button-bg: ${widgetButtonBackgroundColor ?? themeBackgroundColor};` : ''}"
   >
     {#if isWidgetOpen}
       <svg

@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { getContext } from 'svelte';
   import ChatBubble from '../ChatBubble/ChatBubble.svelte';
   import ProductRecommendation from '../ProductRecommendation/ProductRecommendation.svelte';
 
@@ -23,6 +24,7 @@
     onAddToCart?: (product: Product) => void;
     onAction?: (action: string, message: string) => void;
     userBubbleBackgroundColor?: string;
+    themeBackgroundColor?: string;
   }
 
   let {
@@ -35,8 +37,13 @@
     productsInBubble = true,
     onAddToCart,
     onAction,
-    userBubbleBackgroundColor
+    userBubbleBackgroundColor,
+    themeBackgroundColor
   }: ChatMessageProps = $props();
+
+  // Get themeBackgroundColor from context (provided by ChatWidget) as fallback
+  let contextThemeStore = getContext<{ value: string | undefined } | undefined>('themeBackgroundColor');
+  let effectiveThemeColor = $derived(themeBackgroundColor ?? contextThemeStore?.value);
 
   let showActions = $state(false);
 
@@ -56,7 +63,7 @@
     </div>
   {/if}
   
-  <ChatBubble {variant} {sender} {timestamp} {userBubbleBackgroundColor}>
+  <ChatBubble {variant} {sender} {timestamp} userBubbleBackgroundColor={userBubbleBackgroundColor ?? effectiveThemeColor}>
     {#if children}
       {@render children()}
     {/if}
