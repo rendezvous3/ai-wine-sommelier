@@ -1,6 +1,9 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import Button from '../Button/Button.svelte';
+  import ChatModeToggle from '../ChatModeToggle/ChatModeToggle.svelte';
+  import GuidedFlow from '../GuidedFlow/GuidedFlow.svelte';
+  import type { GuidedFlowConfig } from '../GuidedFlow/types.js';
 
   interface ChatWindowProps {
     expanded?: boolean;
@@ -13,6 +16,10 @@
     onClearChat?: () => void;
     hasMessages?: boolean;
     clearButtonIcon?: 'trash' | 'x-circle' | 'refresh' | 'erase' | 'cross';
+    mode?: 'chat' | 'guided-flow';
+    onModeToggle?: () => void;
+    modeTogglePosition?: 'upper-left' | 'upper-right' | 'lower-left';
+    guidedFlowConfig?: GuidedFlowConfig;
   }
 
   let {
@@ -25,7 +32,11 @@
     expandIcon = 'dots',
     onClearChat,
     hasMessages = true,
-    clearButtonIcon = 'trash'
+    clearButtonIcon = 'trash',
+    mode = 'chat',
+    onModeToggle,
+    modeTogglePosition = 'upper-left',
+    guidedFlowConfig
   }: ChatWindowProps = $props();
 
   let isExpanded = $state(expanded);
@@ -87,16 +98,23 @@
     </div>
   {/if}
 
-  <div class="chat-window__messages" bind:this={messagesContainerRef} onscroll={handleScroll}>
-    {#if children}
-      {@render children()}
-    {/if}
-    <div bind:this={messagesEndRef} class="chat-window__messages-end"></div>
-  </div>
+  {#if mode === 'guided-flow' && guidedFlowConfig}
+    <div class="chat-window__guided-flow">
+      <GuidedFlow config={guidedFlowConfig} />
+    </div>
+  {:else}
+    <div class="chat-window__messages" bind:this={messagesContainerRef} onscroll={handleScroll}>
+      {#if children}
+        {@render children()}
+      {/if}
+      <div bind:this={messagesEndRef} class="chat-window__messages-end"></div>
+    </div>
+  {/if}
 
-  {#if showScrollButton && showScrollToBottom}
+  {#if showScrollButton && mode === 'chat'}
     <button
       class="chat-window__scroll-button"
+      class:chat-window__scroll-button--hidden={!showScrollToBottom}
       onclick={scrollToBottom}
       aria-label="Scroll to bottom"
       type="button"
@@ -107,7 +125,17 @@
     </button>
   {/if}
 
-  {#if onClearChat && hasMessages}
+  {#if onModeToggle && mode === 'chat'}
+    <div class="chat-window__mode-toggle" class:chat-window__mode-toggle--upper-left={modeTogglePosition === 'upper-left'} class:chat-window__mode-toggle--upper-right={modeTogglePosition === 'upper-right'} class:chat-window__mode-toggle--lower-left={modeTogglePosition === 'lower-left'}>
+      <ChatModeToggle
+        currentMode={mode}
+        position={modeTogglePosition}
+        onclick={onModeToggle}
+      />
+    </div>
+  {/if}
+
+  {#if onClearChat && hasMessages && mode === 'chat'}
     <button
       class="chat-window__clear-button"
       onclick={onClearChat}
@@ -382,6 +410,41 @@
     height: 1px;
   }
 
+  .chat-window__guided-flow {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .chat-window__mode-toggle {
+    position: absolute;
+    z-index: 98;
+  }
+
+  .chat-window__mode-toggle--upper-left {
+    top: 12px;
+    left: 12px;
+  }
+
+  .chat-window__mode-toggle--upper-right {
+    top: 12px;
+    right: 60px; /* Leave space for expand button */
+  }
+
+  .chat-window__mode-toggle--lower-left {
+    bottom: 12px; /* Same distance from text input as scroll button */
+    left: 12px;
+  }
+
+  .chat-window__mode-toggle :global(.chat-mode-toggle) {
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    bottom: auto;
+  }
+
   .chat-window__scroll-button {
     position: absolute;
     bottom: 12px;
@@ -420,6 +483,11 @@
     background: rgba(255, 255, 255, 1);
     transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  .chat-window__scroll-button--hidden {
+    opacity: 0;
+    pointer-events: none;
   }
 
   .chat-window__clear-button {

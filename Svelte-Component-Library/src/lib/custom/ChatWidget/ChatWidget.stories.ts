@@ -5,6 +5,9 @@ import ChatWidgetEnhanced from './ChatWidgetEnhanced.svelte';
 import ChatWidgetDarkMode from './ChatWidgetDarkMode.svelte';
 import ChatWidgetDecorator from './ChatWidgetDecorator.svelte';
 import ChatWidgetHeaderStyles from './ChatWidgetHeaderStyles.svelte';
+import ChatWidgetWithGuidedFlow from './ChatWidgetWithGuidedFlow.svelte';
+import ChatWidgetGuidedFlowActive from './ChatWidgetGuidedFlowActive.svelte';
+import ChatWidgetModeSwitching from './ChatWidgetModeSwitching.svelte';
 
 const meta = {
   title: 'Custom/ChatWidget',
@@ -153,6 +156,24 @@ export const ExpandIconOptions: Story = {
 export const AllHeaderStyles: Story = {
   render: () => ({
     Component: ChatWidgetHeaderStyles as any,
+  })
+};
+
+export const WithGuidedFlow: Story = {
+  render: () => ({
+    Component: ChatWidgetWithGuidedFlow as any,
+  })
+};
+
+export const GuidedFlowActive: Story = {
+  render: () => ({
+    Component: ChatWidgetGuidedFlowActive as any,
+  })
+};
+
+export const ModeSwitching: Story = {
+  render: () => ({
+    Component: ChatWidgetModeSwitching as any,
   })
 };
 

@@ -40,6 +40,10 @@
     onClearChat?: () => void;
     hasMessages?: boolean;
     clearButtonIcon?: 'trash' | 'x-circle' | 'refresh' | 'erase' | 'cross';
+    mode?: 'chat' | 'guided-flow';
+    onModeToggle?: () => void;
+    modeTogglePosition?: 'upper-left' | 'upper-right' | 'lower-left';
+    guidedFlowConfig?: import('../GuidedFlow/types.js').GuidedFlowConfig;
   }
 
   let {
@@ -67,7 +71,11 @@
     badgeCount = 1,
     onClearChat,
     hasMessages = true,
-    clearButtonIcon
+    clearButtonIcon,
+    mode = 'chat',
+    onModeToggle,
+    modeTogglePosition = 'upper-left',
+    guidedFlowConfig
   }: ChatWidgetProps = $props();
 
   // Provide themeBackgroundColor to child components via context
@@ -159,18 +167,24 @@
         onClearChat={onClearChat}
         {hasMessages}
         clearButtonIcon={clearButtonIcon}
+        {mode}
+        onModeToggle={onModeToggle}
+        modeTogglePosition={modeTogglePosition}
+        guidedFlowConfig={guidedFlowConfig}
       >
         {#if children}
           {@render children()}
         {/if}
       </ChatWindow>
 
-      <div class="chat-widget__input-wrapper">
-        <ChatInput
-          placeholder="Type a message..."
-          onsend={handleSend}
-        />
-      </div>
+      {#if mode === 'chat'}
+        <div class="chat-widget__input-wrapper">
+          <ChatInput
+            placeholder="Type a message..."
+            onsend={handleSend}
+          />
+        </div>
+      {/if}
     </div>
   {/if}
   
