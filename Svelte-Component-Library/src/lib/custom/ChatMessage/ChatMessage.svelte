@@ -193,22 +193,42 @@
   .chat-message__bubble-wrapper--with-products {
     width: 100%;
     max-width: 100%;
+    box-sizing: border-box;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .chat-message__bubble-wrapper--with-products:has(:global(.chat-bubble--user)),
+  .chat-message__bubble-wrapper--with-products:has(:global(.chat-bubble--assistant)) {
+    margin-left: 0;
+    margin-right: 0;
   }
 
   .chat-message__bubble-wrapper--with-products :global(.chat-bubble) {
     max-width: 100%;
     width: 100%;
+    box-sizing: border-box;
+    margin-left: 0;
+    margin-right: 0;
   }
 
   .chat-message__bubble-wrapper--with-products :global(.chat-bubble--user),
   .chat-message__bubble-wrapper--with-products :global(.chat-bubble--assistant) {
     max-width: 100%;
+    box-sizing: border-box;
+    margin-left: 0;
+    margin-right: 0;
   }
 
   .chat-message__products {
     margin-top: 12px;
-    width: 100%;
-    max-width: 100%;
+    width: calc(100% + 36px);
+    max-width: calc(100% + 36px);
+    margin-left: -18px;
+    margin-right: -18px;
+    padding-left: 18px;
+    padding-right: 18px;
+    box-sizing: border-box;
   }
 
   .chat-message__products-outside {

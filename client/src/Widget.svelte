@@ -23,6 +23,7 @@
     price: number;
     image: string;
     description: string;
+    category?: string;
   }
 
   let messages: Message[] = [];
@@ -70,7 +71,8 @@
       price: rec.price != null && !isNaN(rec.price) ? rec.price : 0,
       originalPrice: undefined,
       rating: undefined,
-      discount: undefined
+      discount: undefined,
+      category: rec.category
     }));
   }
 
