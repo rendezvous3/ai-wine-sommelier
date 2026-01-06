@@ -44,9 +44,8 @@
       products={sampleProducts}
       recommendationLayout="compact-list"
       productsInBubble={true}
-    >
-      Here are some products you might like:
-    </ChatMessage>
+      recommendationTitle="Here are some products you might like:"
+    />
   </div>
 
   <!-- Example 2: Products in bubble - carousel -->
@@ -59,9 +58,8 @@
       products={sampleProducts}
       recommendationLayout="carousel"
       productsInBubble={true}
-    >
-      Check out these trending items:
-    </ChatMessage>
+      recommendationTitle="Check out these trending items:"
+    />
   </div>
 
   <!-- Example 3: Products outside bubble - grid -->
@@ -74,9 +72,8 @@
       products={sampleProducts}
       recommendationLayout="bubble-grid"
       productsInBubble={false}
-    >
-      Here are some recommendations:
-    </ChatMessage>
+      recommendationTitle="Here are some recommendations:"
+    />
   </div>
 
   <!-- Example 4: Products outside bubble - compact list -->
@@ -89,9 +86,8 @@
       products={sampleProducts}
       recommendationLayout="compact-list"
       productsInBubble={false}
-    >
-      Quick picks for you:
-    </ChatMessage>
+      recommendationTitle="Quick picks for you:"
+    />
   </div>
 
   <!-- Example 5: Products outside bubble - carousel -->
@@ -104,9 +100,8 @@
       products={sampleProducts}
       recommendationLayout="carousel"
       productsInBubble={false}
-    >
-      Browse our best sellers:
-    </ChatMessage>
+      recommendationTitle="Browse our best sellers:"
+    />
   </div>
 </div>
 

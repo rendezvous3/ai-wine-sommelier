@@ -25,7 +25,6 @@
   ]}
   recommendationLayout="compact-list"
   productsInBubble={true}
->
-  Here are some products I recommend:
-</ChatMessage>
+  recommendationTitle="Here are some products I recommend:"
+/>
 

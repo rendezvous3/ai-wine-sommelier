@@ -4,9 +4,12 @@
 </script>
 
 <ChatWindow showScrollButton={true}>
-  <ChatMessage variant="user" sender="You" timestamp="2:30 PM">
-    Show me some recommendations
-  </ChatMessage>
+  <ChatMessage 
+    variant="user" 
+    sender="You" 
+    timestamp="2:30 PM"
+    messageText="Show me some recommendations"
+  />
   
   <ChatMessage
     variant="assistant"
@@ -31,8 +34,7 @@
     ]}
     recommendationLayout="compact-list"
     productsInBubble={true}
-  >
-    Here are some products I recommend:
-  </ChatMessage>
+    recommendationTitle="Here are some products I recommend:"
+  />
 </ChatWindow>
 

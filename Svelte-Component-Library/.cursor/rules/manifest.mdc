@@ -180,6 +180,12 @@ export const Primary: Story = {
 };
 ```
 
+### Story Component Rules
+- **Story components should not contain plain text as children** - All text content must be passed as props
+- Use component-specific props for text content (e.g., `messageText`, `recommendationTitle`) instead of plain text children
+- This ensures Storybook code generation shows proper component usage with props rather than render functions
+- Example: Use `<ChatMessage messageText="Hello" />` instead of `<ChatMessage>Hello</ChatMessage>` in story wrapper files
+
 ---
 
 ## What We DON'T Use

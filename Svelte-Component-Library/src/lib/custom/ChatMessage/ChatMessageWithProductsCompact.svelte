@@ -35,7 +35,6 @@
   products={sampleProducts}
   recommendationLayout="compact-list"
   productsInBubble={true}
->
-  Check out these quick picks:
-</ChatMessage>
+  recommendationTitle="Check out these quick picks:"
+/>
 

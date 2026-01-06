@@ -27,6 +27,8 @@
     userBubbleBackgroundColor?: string;
     themeBackgroundColor?: string;
     showHoverActions?: boolean;
+    recommendationTitle?: string;
+    messageText?: string;
   }
 
   let {
@@ -41,7 +43,9 @@
     onAction,
     userBubbleBackgroundColor,
     themeBackgroundColor,
-    showHoverActions = false
+    showHoverActions = false,
+    recommendationTitle,
+    messageText
   }: ChatMessageProps = $props();
 
   // Get themeBackgroundColor from context (provided by ChatWidget) as fallback
@@ -105,6 +109,14 @@
   
   <div class={bubbleWrapperClasses}>
     <ChatBubble {variant} {sender} {timestamp} userBubbleBackgroundColor={userBubbleBackgroundColor ?? effectiveThemeColor}>
+      {#if recommendationTitle && products && products.length > 0}
+        {recommendationTitle}
+      {/if}
+      
+      {#if messageText}
+        {messageText}
+      {/if}
+      
       {#if children}
         {@render children()}
       {/if}

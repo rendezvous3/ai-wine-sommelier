@@ -48,9 +48,12 @@
   themeBackgroundColor="#15685E"
 >
   {#snippet children()}
-    <ChatMessage variant="user" sender="You" timestamp="2:30 PM">
-      I'm looking for some products
-    </ChatMessage>
+    <ChatMessage 
+      variant="user" 
+      sender="You" 
+      timestamp="2:30 PM"
+      messageText="I'm looking for some products"
+    />
     
     <ChatMessage 
       variant="assistant" 
@@ -60,9 +63,8 @@
       recommendationLayout="compact-list"
       productsInBubble={true}
       showHoverActions={true}
-    >
-      Check out these quick picks:
-    </ChatMessage>
+      recommendationTitle="Check out these quick picks:"
+    />
   {/snippet}
 </ChatWidget>
 

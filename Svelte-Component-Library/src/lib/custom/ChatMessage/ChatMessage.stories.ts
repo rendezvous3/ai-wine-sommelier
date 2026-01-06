@@ -1,21 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/svelte';
 import ChatMessage from './ChatMessage.svelte';
-import ChatMessageUser from './ChatMessageUser.svelte';
-import ChatMessageTextOnly from './ChatMessageTextOnly.svelte';
-import ChatMessageSystem from './ChatMessageSystem.svelte';
-import ChatMessageWithProductsCompact from './ChatMessageWithProductsCompact.svelte';
-import ChatMessageWithHover from './ChatMessageWithHover.svelte';
-import ChatMessageWithoutHover from './ChatMessageWithoutHover.svelte';
-import ChatMessageUserWithHover from './ChatMessageUserWithHover.svelte';
-import ChatMessageUserWithoutHover from './ChatMessageUserWithoutHover.svelte';
-import ChatMessageWithProductsHover from './ChatMessageWithProductsHover.svelte';
-import ChatMessageWithProductsNoHover from './ChatMessageWithProductsNoHover.svelte';
-import ChatMessageWithProductsCompactInWidget from './ChatMessageWithProductsCompactInWidget.svelte';
-import ChatMessageWithProductsCompactInWindow from './ChatMessageWithProductsCompactInWindow.svelte';
-import ChatMessageWithProductsHoverInWidget from './ChatMessageWithProductsHoverInWidget.svelte';
-import ChatMessageWithProductsHoverInWindow from './ChatMessageWithProductsHoverInWindow.svelte';
-import ChatMessageWithProductsNoHoverInWidget from './ChatMessageWithProductsNoHoverInWidget.svelte';
-import ChatMessageWithProductsNoHoverInWindow from './ChatMessageWithProductsNoHoverInWindow.svelte';
 import ChatWidgetDecorator from '../ChatWidget/ChatWidgetDecorator.svelte';
 
 const meta = {
@@ -29,7 +13,9 @@ const meta = {
     },
     sender: { control: 'text' },
     timestamp: { control: 'text' },
-    showHoverActions: { control: 'boolean' }
+    showHoverActions: { control: 'boolean' },
+    messageText: { control: 'text' },
+    recommendationTitle: { control: 'text' }
   },
 } satisfies Meta<any>;
 
@@ -37,72 +23,336 @@ export default meta;
 type Story = StoryObj<any>;
 
 export const User: Story = {
-  render: () => ({
-    Component: ChatMessageUser as any,
-  })
+  args: {
+    variant: 'user',
+    sender: 'You',
+    timestamp: '2:31 PM',
+    messageText: 'I need help finding a good headphone'
+  },
+  parameters: {
+    docs: {
+      source: {
+        type: 'code',
+        code: `<ChatMessage
+	variant="user"
+	sender="You"
+	timestamp="2:31 PM"
+	messageText="I need help finding a good headphone"
+/>`
+      }
+    }
+  }
 };
 
 export const Assistant: Story = {
-  render: () => ({
-    Component: ChatMessageTextOnly as any,
-  })
+  args: {
+    variant: 'assistant',
+    sender: 'Support Bot',
+    timestamp: '2:30 PM',
+    messageText: 'Hi! How can I help you today?'
+  },
+  parameters: {
+    docs: {
+      source: {
+        type: 'code',
+        code: `<ChatMessage
+	variant="assistant"
+	sender="Support Bot"
+	timestamp="2:30 PM"
+	messageText="Hi! How can I help you today?"
+/>`
+      }
+    }
+  }
 };
 
 export const System: Story = {
-  render: () => ({
-    Component: ChatMessageSystem as any,
-  })
+  args: {
+    variant: 'system',
+    messageText: 'Welcome! Ask me anything about products.'
+  },
+  parameters: {
+    docs: {
+      source: {
+        type: 'code',
+        code: `<ChatMessage
+	variant="system"
+	messageText="Welcome! Ask me anything about products."
+/>`
+      }
+    }
+  }
 };
 
 export const WithHoverActions: Story = {
-  render: () => ({
-    Component: ChatMessageWithHover as any,
-  })
+  args: {
+    variant: 'assistant',
+    showHoverActions: true,
+    messageText: 'Hover over this message to see the action buttons (copy, react, reply).'
+  },
+  parameters: {
+    docs: {
+      source: {
+        type: 'code',
+        code: `<ChatMessage
+	variant="assistant"
+	showHoverActions={true}
+	messageText="Hover over this message to see the action buttons (copy, react, reply)."
+/>`
+      }
+    }
+  }
 };
 
 export const WithoutHoverActions: Story = {
-  render: () => ({
-    Component: ChatMessageWithoutHover as any,
-  })
+  args: {
+    variant: 'assistant',
+    showHoverActions: false,
+    messageText: 'This message has hover actions disabled. No action buttons will appear on hover.'
+  },
+  parameters: {
+    docs: {
+      source: {
+        type: 'code',
+        code: `<ChatMessage
+	variant="assistant"
+	showHoverActions={false}
+	messageText="This message has hover actions disabled. No action buttons will appear on hover."
+/>`
+      }
+    }
+  }
 };
 
 export const UserWithHoverActions: Story = {
-  render: () => ({
-    Component: ChatMessageUserWithHover as any,
-  })
+  args: {
+    variant: 'user',
+    showHoverActions: true,
+    messageText: 'This user message has hover actions enabled.'
+  },
+  parameters: {
+    docs: {
+      source: {
+        type: 'code',
+        code: `<ChatMessage
+	variant="user"
+	showHoverActions={true}
+	messageText="This user message has hover actions enabled."
+/>`
+      }
+    }
+  }
 };
 
 export const UserWithoutHoverActions: Story = {
-  render: () => ({
-    Component: ChatMessageUserWithoutHover as any,
-  })
+  args: {
+    variant: 'user',
+    showHoverActions: false,
+    messageText: 'This user message has hover actions disabled (typical for user messages).'
+  },
+  parameters: {
+    docs: {
+      source: {
+        type: 'code',
+        code: `<ChatMessage
+	variant="user"
+	showHoverActions={false}
+	messageText="This user message has hover actions disabled (typical for user messages)."
+/>`
+      }
+    }
+  }
 };
 
+const sampleProducts = [
+  {
+    image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400',
+    title: 'Wireless Headphones',
+    price: 99.99,
+    rating: 4.5,
+    category: 'Audio'
+  },
+  {
+    image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400',
+    title: 'Smart Watch',
+    price: 149.99,
+    originalPrice: 199.99,
+    discount: 25,
+    rating: 4.8,
+    category: 'Wearables'
+  },
+  {
+    image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400',
+    title: 'Phone Case',
+    price: 29.99,
+    rating: 4.2,
+    category: 'Accessories'
+  }
+];
+
 export const WithProductsCompact: Story = {
-  render: () => ({
-    Component: ChatMessageWithProductsCompact as any,
-  })
+  args: {
+    variant: 'assistant',
+    sender: 'Support Bot',
+    timestamp: '2:30 PM',
+    products: sampleProducts,
+    recommendationLayout: 'compact-list',
+    productsInBubble: true,
+    recommendationTitle: 'Check out these quick picks:'
+  },
+  parameters: {
+    docs: {
+      source: {
+        type: 'code',
+        code: `<ChatMessage
+	variant="assistant"
+	sender="Support Bot"
+	timestamp="2:30 PM"
+	products={sampleProducts}
+	recommendationLayout="compact-list"
+	productsInBubble={true}
+	recommendationTitle="Check out these quick picks:"
+/>`
+      }
+    }
+  }
 };
 
 export const WithProductsHoverEnabled: Story = {
-  render: () => ({
-    Component: ChatMessageWithProductsHover as any,
-  })
+  args: {
+    variant: 'assistant',
+    showHoverActions: true,
+    products: [
+      {
+        image: 'https://via.placeholder.com/200',
+        title: 'Product 1',
+        price: 29.99,
+        originalPrice: 39.99,
+        rating: 4.5,
+        discount: 25,
+        category: 'Electronics'
+      },
+      {
+        image: 'https://via.placeholder.com/200',
+        title: 'Product 2',
+        price: 49.99,
+        rating: 4.8,
+        category: 'Accessories'
+      }
+    ],
+    recommendationLayout: 'compact-list',
+    productsInBubble: true,
+    recommendationTitle: 'Here are some products I recommend:'
+  },
+  parameters: {
+    docs: {
+      source: {
+        type: 'code',
+        code: `<ChatMessage
+	variant="assistant"
+	showHoverActions={true}
+	products={[
+		{
+			image: 'https://via.placeholder.com/200',
+			title: 'Product 1',
+			price: 29.99,
+			originalPrice: 39.99,
+			rating: 4.5,
+			discount: 25,
+			category: 'Electronics'
+		},
+		{
+			image: 'https://via.placeholder.com/200',
+			title: 'Product 2',
+			price: 49.99,
+			rating: 4.8,
+			category: 'Accessories'
+		}
+	]}
+	recommendationLayout="compact-list"
+	productsInBubble={true}
+	recommendationTitle="Here are some products I recommend:"
+/>`
+      }
+    }
+  }
 };
 
 export const WithProductsHoverDisabled: Story = {
-  render: () => ({
-    Component: ChatMessageWithProductsNoHover as any,
-  })
+  args: {
+    variant: 'assistant',
+    showHoverActions: false,
+    products: [
+      {
+        image: 'https://via.placeholder.com/200',
+        title: 'Product 1',
+        price: 29.99,
+        originalPrice: 39.99,
+        rating: 4.5,
+        discount: 25,
+        category: 'Electronics'
+      }
+    ],
+    recommendationLayout: 'compact-list',
+    productsInBubble: true,
+    recommendationTitle: 'Here are some products (hover actions disabled):'
+  },
+  parameters: {
+    docs: {
+      source: {
+        type: 'code',
+        code: `<ChatMessage
+	variant="assistant"
+	showHoverActions={false}
+	products={[
+		{
+			image: 'https://via.placeholder.com/200',
+			title: 'Product 1',
+			price: 29.99,
+			originalPrice: 39.99,
+			rating: 4.5,
+			discount: 25,
+			category: 'Electronics'
+		}
+	]}
+	recommendationLayout="compact-list"
+	productsInBubble={true}
+	recommendationTitle="Here are some products (hover actions disabled):"
+/>`
+      }
+    }
+  }
 };
 
 // Stories in ChatWidget context
 export const WithProductsCompactInWidget: Story = {
-  render: () => ({
-    Component: ChatMessageWithProductsCompactInWidget as any,
-  }),
+  args: {
+    variant: 'assistant',
+    sender: 'Support Bot',
+    timestamp: '2:30 PM',
+    products: sampleProducts,
+    recommendationLayout: 'compact-list',
+    productsInBubble: true,
+    showHoverActions: true,
+    recommendationTitle: 'Check out these quick picks:'
+  },
   parameters: {
     layout: 'fullscreen',
+    docs: {
+      source: {
+        type: 'code',
+        code: `<ChatMessage
+	variant="assistant"
+	sender="Support Bot"
+	timestamp="2:30 PM"
+	products={sampleProducts}
+	recommendationLayout="compact-list"
+	productsInBubble={true}
+	showHoverActions={true}
+	recommendationTitle="Check out these quick picks:"
+/>`
+      }
+    }
   },
   decorators: [
     () => ({
@@ -112,11 +362,63 @@ export const WithProductsCompactInWidget: Story = {
 };
 
 export const WithProductsHoverEnabledInWidget: Story = {
-  render: () => ({
-    Component: ChatMessageWithProductsHoverInWidget as any,
-  }),
+  args: {
+    variant: 'assistant',
+    showHoverActions: true,
+    products: [
+      {
+        image: 'https://via.placeholder.com/200',
+        title: 'Product 1',
+        price: 29.99,
+        originalPrice: 39.99,
+        rating: 4.5,
+        discount: 25,
+        category: 'Electronics'
+      },
+      {
+        image: 'https://via.placeholder.com/200',
+        title: 'Product 2',
+        price: 49.99,
+        rating: 4.8,
+        category: 'Accessories'
+      }
+    ],
+    recommendationLayout: 'compact-list',
+    productsInBubble: true,
+    recommendationTitle: 'Here are some products I recommend:'
+  },
   parameters: {
     layout: 'fullscreen',
+    docs: {
+      source: {
+        type: 'code',
+        code: `<ChatMessage
+	variant="assistant"
+	showHoverActions={true}
+	products={[
+		{
+			image: 'https://via.placeholder.com/200',
+			title: 'Product 1',
+			price: 29.99,
+			originalPrice: 39.99,
+			rating: 4.5,
+			discount: 25,
+			category: 'Electronics'
+		},
+		{
+			image: 'https://via.placeholder.com/200',
+			title: 'Product 2',
+			price: 49.99,
+			rating: 4.8,
+			category: 'Accessories'
+		}
+	]}
+	recommendationLayout="compact-list"
+	productsInBubble={true}
+	recommendationTitle="Here are some products I recommend:"
+/>`
+      }
+    }
   },
   decorators: [
     () => ({
@@ -126,11 +428,49 @@ export const WithProductsHoverEnabledInWidget: Story = {
 };
 
 export const WithProductsHoverDisabledInWidget: Story = {
-  render: () => ({
-    Component: ChatMessageWithProductsNoHoverInWidget as any,
-  }),
+  args: {
+    variant: 'assistant',
+    showHoverActions: false,
+    products: [
+      {
+        image: 'https://via.placeholder.com/200',
+        title: 'Product 1',
+        price: 29.99,
+        originalPrice: 39.99,
+        rating: 4.5,
+        discount: 25,
+        category: 'Electronics'
+      }
+    ],
+    recommendationLayout: 'compact-list',
+    productsInBubble: true,
+    recommendationTitle: 'Here are some products (hover actions disabled):'
+  },
   parameters: {
     layout: 'fullscreen',
+    docs: {
+      source: {
+        type: 'code',
+        code: `<ChatMessage
+	variant="assistant"
+	showHoverActions={false}
+	products={[
+		{
+			image: 'https://via.placeholder.com/200',
+			title: 'Product 1',
+			price: 29.99,
+			originalPrice: 39.99,
+			rating: 4.5,
+			discount: 25,
+			category: 'Electronics'
+		}
+	]}
+	recommendationLayout="compact-list"
+	productsInBubble={true}
+	recommendationTitle="Here are some products (hover actions disabled):"
+/>`
+      }
+    }
   },
   decorators: [
     () => ({
@@ -141,19 +481,137 @@ export const WithProductsHoverDisabledInWidget: Story = {
 
 // Stories in ChatWindow context
 export const WithProductsCompactInWindow: Story = {
-  render: () => ({
-    Component: ChatMessageWithProductsCompactInWindow as any,
-  }),
+  args: {
+    variant: 'assistant',
+    sender: 'Support Bot',
+    timestamp: '2:30 PM',
+    products: sampleProducts,
+    recommendationLayout: 'compact-list',
+    productsInBubble: true,
+    showHoverActions: true,
+    recommendationTitle: 'Check out these quick picks:'
+  },
+  parameters: {
+    docs: {
+      source: {
+        type: 'code',
+        code: `<ChatMessage
+	variant="assistant"
+	sender="Support Bot"
+	timestamp="2:30 PM"
+	products={sampleProducts}
+	recommendationLayout="compact-list"
+	productsInBubble={true}
+	showHoverActions={true}
+	recommendationTitle="Check out these quick picks:"
+/>`
+      }
+    }
+  }
 };
 
 export const WithProductsHoverEnabledInWindow: Story = {
-  render: () => ({
-    Component: ChatMessageWithProductsHoverInWindow as any,
-  }),
+  args: {
+    variant: 'assistant',
+    showHoverActions: true,
+    products: [
+      {
+        image: 'https://via.placeholder.com/200',
+        title: 'Product 1',
+        price: 29.99,
+        originalPrice: 39.99,
+        rating: 4.5,
+        discount: 25,
+        category: 'Electronics'
+      },
+      {
+        image: 'https://via.placeholder.com/200',
+        title: 'Product 2',
+        price: 49.99,
+        rating: 4.8,
+        category: 'Accessories'
+      }
+    ],
+    recommendationLayout: 'compact-list',
+    productsInBubble: true,
+    recommendationTitle: 'Here are some products I recommend:'
+  },
+  parameters: {
+    docs: {
+      source: {
+        type: 'code',
+        code: `<ChatMessage
+	variant="assistant"
+	showHoverActions={true}
+	products={[
+		{
+			image: 'https://via.placeholder.com/200',
+			title: 'Product 1',
+			price: 29.99,
+			originalPrice: 39.99,
+			rating: 4.5,
+			discount: 25,
+			category: 'Electronics'
+		},
+		{
+			image: 'https://via.placeholder.com/200',
+			title: 'Product 2',
+			price: 49.99,
+			rating: 4.8,
+			category: 'Accessories'
+		}
+	]}
+	recommendationLayout="compact-list"
+	productsInBubble={true}
+	recommendationTitle="Here are some products I recommend:"
+/>`
+      }
+    }
+  }
 };
 
 export const WithProductsHoverDisabledInWindow: Story = {
-  render: () => ({
-    Component: ChatMessageWithProductsNoHoverInWindow as any,
-  }),
+  args: {
+    variant: 'assistant',
+    showHoverActions: false,
+    products: [
+      {
+        image: 'https://via.placeholder.com/200',
+        title: 'Product 1',
+        price: 29.99,
+        originalPrice: 39.99,
+        rating: 4.5,
+        discount: 25,
+        category: 'Electronics'
+      }
+    ],
+    recommendationLayout: 'compact-list',
+    productsInBubble: true,
+    recommendationTitle: 'Here are some products (hover actions disabled):'
+  },
+  parameters: {
+    docs: {
+      source: {
+        type: 'code',
+        code: `<ChatMessage
+	variant="assistant"
+	showHoverActions={false}
+	products={[
+		{
+			image: 'https://via.placeholder.com/200',
+			title: 'Product 1',
+			price: 29.99,
+			originalPrice: 39.99,
+			rating: 4.5,
+			discount: 25,
+			category: 'Electronics'
+		}
+	]}
+	recommendationLayout="compact-list"
+	productsInBubble={true}
+	recommendationTitle="Here are some products (hover actions disabled):"
+/>`
+      }
+    }
+  }
 };

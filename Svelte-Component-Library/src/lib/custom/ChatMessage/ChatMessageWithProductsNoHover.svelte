@@ -18,7 +18,6 @@
   ]}
   recommendationLayout="compact-list"
   productsInBubble={true}
->
-  Here are some products (hover actions disabled):
-</ChatMessage>
+  recommendationTitle="Here are some products (hover actions disabled):"
+/>
 

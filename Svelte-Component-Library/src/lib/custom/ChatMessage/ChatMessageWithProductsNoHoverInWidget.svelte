@@ -22,9 +22,12 @@
   themeBackgroundColor="#15685E"
 >
   {#snippet children()}
-    <ChatMessage variant="user" sender="You" timestamp="2:30 PM">
-      What products do you have?
-    </ChatMessage>
+    <ChatMessage 
+      variant="user" 
+      sender="You" 
+      timestamp="2:30 PM"
+      messageText="What products do you have?"
+    />
     
     <ChatMessage
       variant="assistant"
@@ -42,9 +45,8 @@
       ]}
       recommendationLayout="compact-list"
       productsInBubble={true}
-    >
-      Here are some products (hover actions disabled):
-    </ChatMessage>
+      recommendationTitle="Here are some products (hover actions disabled):"
+    />
   {/snippet}
 </ChatWidget>
 
