@@ -10,6 +10,7 @@
     children?: Snippet;
     subheaderSlot?: Snippet;
     expandIcon?: 'grid' | 'arrows' | 'maximize' | 'chevrons' | 'plus-minus' | 'corner' | 'diagonal' | 'dots' | 'lines' | 'square';
+    onClearChat?: () => void;
   }
 
   let {
@@ -19,7 +20,8 @@
     subheaderSlot,
     showScrollButton = true,
     children,
-    expandIcon = 'dots'
+    expandIcon = 'dots',
+    onClearChat
   }: ChatWindowProps = $props();
 
   let isExpanded = $state(expanded);
@@ -97,6 +99,20 @@
     >
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M10 14L6 10L7.41 8.59L10 11.17L12.59 8.59L14 10L10 14Z" fill="currentColor"/>
+      </svg>
+    </button>
+  {/if}
+
+  {#if onClearChat}
+    <button
+      class="chat-window__clear-button"
+      onclick={onClearChat}
+      aria-label="Clear chat"
+      type="button"
+    >
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M6 7V15C6 16.1 6.9 17 8 17H12C13.1 17 14 16.1 14 15V7M8 7V5C8 3.9 8.9 3 10 3H10C11.1 3 12 3.9 12 5V7M4 7H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M9 10V13M11 10V13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
       </svg>
     </button>
   {/if}
@@ -338,7 +354,7 @@
 
   .chat-window__scroll-button {
     position: absolute;
-    bottom: 80px;
+    bottom: 12px;
     right: 20px;
     width: 40px;
     height: 40px;
@@ -374,6 +390,34 @@
     background: rgba(255, 255, 255, 1);
     transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  .chat-window__clear-button {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    color: #374151;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 100;
+    padding: 0;
+  }
+
+  .chat-window__clear-button:hover {
+    background: rgba(255, 255, 255, 1);
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
 
   .chat-window__expand-button {
@@ -423,6 +467,8 @@
 
   :global(.dark) .chat-window__scroll-button,
   :global([data-theme="dark"]) .chat-window__scroll-button,
+  :global(.dark) .chat-window__clear-button,
+  :global([data-theme="dark"]) .chat-window__clear-button,
   :global(.dark) .chat-window__expand-button,
   :global([data-theme="dark"]) .chat-window__expand-button {
     background: rgba(31, 41, 55, 0.95);
@@ -432,6 +478,8 @@
 
   :global(.dark) .chat-window__scroll-button:hover,
   :global([data-theme="dark"]) .chat-window__scroll-button:hover,
+  :global(.dark) .chat-window__clear-button:hover,
+  :global([data-theme="dark"]) .chat-window__clear-button:hover,
   :global(.dark) .chat-window__expand-button:hover,
   :global([data-theme="dark"]) .chat-window__expand-button:hover {
     background: rgba(31, 41, 55, 1);
@@ -460,7 +508,7 @@
     }
 
     .chat-window__scroll-button {
-      bottom: 70px;
+      bottom: 12px;
       right: 16px;
       width: 36px;
       height: 36px;

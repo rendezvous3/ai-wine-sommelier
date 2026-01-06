@@ -81,6 +81,12 @@
     handleChat(message);
   }
 
+  // Clear chat function
+  function handleClearChat() {
+    messages = [];
+    localStorage.removeItem(STORAGE_KEY);
+  }
+
   // ------------------------------------------------------
   // MAIN HANDLER (Decision + Stream + Recommendation Tool)
   // ------------------------------------------------------
@@ -228,6 +234,7 @@
   title="Cannavita Budtender"
   themeBackgroundColor="#50ff5a8f"
   showBadge={false}
+  onClearChat={handleClearChat}
 >
   {#snippet children()}
     {#if messages.length === 0}
