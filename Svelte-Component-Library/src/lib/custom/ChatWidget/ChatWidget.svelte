@@ -241,6 +241,7 @@
     overflow: hidden;
     animation: chat-widget-slide-up 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border: 1px solid rgba(0, 0, 0, 0.05);
+    /* Provide positioning context for contained menus - window is already positioned, so it creates containing block */
   }
 
   .chat-widget--bottom-left .chat-widget__window {

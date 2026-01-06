@@ -3,6 +3,7 @@ import ChatHeader from './ChatHeader.svelte';
 import ChatHeaderAllStyles from './ChatHeaderAllStyles.svelte';
 import ChatHeaderWavyFrequencies from './ChatHeaderWavyFrequencies.svelte';
 import ChatHeaderHeightVariants from './ChatHeaderHeightVariants.svelte';
+import ChatHeaderWithWidget from './ChatHeaderWithWidget.svelte';
 
 const meta = {
   title: 'Custom/ChatHeader',
@@ -415,6 +416,20 @@ export const FullExample: Story = {
         story: 'Full example combining multiple features: centered title, left menu position, sidebar mode, spread waves, and large height.'
       },
       layout: 'fullscreen'
+    }
+  }
+};
+
+export const WithWidget: Story = {
+  render: () => ({
+    Component: ChatHeaderWithWidget as any,
+  }),
+  parameters: {
+    layout: 'fullscreen',
+    docs: {
+      description: {
+        story: 'ChatHeader menu tested within ChatWidget context. This demonstrates how menus are properly contained within the chat window (380px wide) instead of covering the entire page. The menu should slide in from the side and be constrained to the widget boundaries. Try different menu modes (dropdown/sidebar) and positions (left/right) to verify proper containment.'
+      }
     }
   }
 };

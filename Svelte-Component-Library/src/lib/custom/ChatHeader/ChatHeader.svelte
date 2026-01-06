@@ -189,7 +189,7 @@
   }
 </script>
 
-<div class={headerClasses}>
+<div class={headerClasses} style="position: relative;">
   {#if hasMenuItems && menuPosition === 'left'}
     <div class={menuWrapperClasses}>
       <button
@@ -346,6 +346,8 @@
     flex-shrink: 0;
     position: relative;
     line-height: 0;
+    overflow: visible;
+    z-index: 10;
   }
 
   /* Height variants */
@@ -709,22 +711,32 @@
 
   /* Menu Sidebar */
   .chat-header__menu-sidebar {
-    position: fixed;
+    position: absolute;
     top: 0;
-    height: 100vh;
     width: 320px;
-    max-width: 85vw;
+    max-width: 85%;
     background: rgba(255, 255, 255, 0.98);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-right: 1px solid rgba(0, 0, 0, 0.1);
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
-    z-index: 10000;
+    z-index: 10002;
     padding: 0;
     overflow-y: auto;
+    overflow-x: hidden;
     display: flex;
     flex-direction: column;
     animation: slide-in-right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  /* When inside a widget container, extend to full widget height */
+  :global(.chat-widget__window) .chat-header__menu-sidebar,
+  :global(.widget-window) .chat-header__menu-sidebar {
+    /* Start from header position (top: 0) - no negative offset */
+    top: 0;
+    /* Use a fixed height that spans the widget container */
+    height: 600px;
+    /* max-height: 100%; */
   }
 
   .chat-header__sidebar-header {
@@ -775,6 +787,7 @@
 
   .chat-header__menu-sidebar--left {
     left: 0;
+    right: auto;
     border-right: 1px solid rgba(0, 0, 0, 0.1);
     border-left: none;
     box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
@@ -783,6 +796,7 @@
 
   .chat-header__menu-sidebar--right {
     right: 0;
+    left: auto;
     border-left: 1px solid rgba(0, 0, 0, 0.1);
     border-right: none;
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
@@ -813,7 +827,7 @@
 
   /* Menu Overlay */
   .chat-header__menu-overlay {
-    position: fixed;
+    position: absolute;
     top: 0;
     left: 0;
     right: 0;
@@ -821,11 +835,19 @@
     background: rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(2px);
     -webkit-backdrop-filter: blur(2px);
-    z-index: 9999;
+    z-index: 10001;
     animation: fade-in 0.2s ease-out;
     border: none;
     padding: 0;
     cursor: pointer;
+  }
+  
+  /* When inside a widget container, extend to full widget height */
+  :global(.chat-widget__window) .chat-header__menu-overlay,
+  :global(.widget-window) .chat-header__menu-overlay {
+    top: 0;
+    height: 600px;
+    max-height: 100%;
   }
 
   @keyframes fade-in {
