@@ -148,5 +148,62 @@ The system is built as **four loosely coupled components** for maximum flexibili
 4. **Never implement unapproved features** — even if they seem related or obvious
 5. **Always ask** if direction is unclear: "Should I proceed with [specific chunk]?"
 
+### Storybook Story Format Guidelines
+**For all new components:** Use `args` format directly without `render` function when possible.
+
+```typescript
+// ✅ Preferred format
+export const MyStory: Story = {
+  args: {
+    expanded: false,
+    showScrollButton: true,
+  },
+};
+
+// ✅ Acceptable: Use args with render when needed
+export const WithCustomContent: Story = {
+  args: {
+    expanded: false,
+    showScrollButton: true,
+  },
+  render: (args) => ({
+    Component: ChatWindow as any,
+    props: args,
+  })
+};
+
+// ❌ Avoid: Render function without args (only use for complex wrapper components)
+export const ComplexDemo: Story = {
+  render: () => ({
+    Component: ComplexWrapperComponent as any,
+  })
+};
+```
+
+**Rule:** Always use the `args` format when possible. Only use `render` functions for complex wrapper components that need custom logic or multiple component interactions.
+
+**Component Props Indentation:** When writing component props in Svelte files, always indent props with one tab (2 spaces) from the component tag. Each prop should be on its own line.
+
+```svelte
+<!-- ✅ Correct indentation -->
+<ChatWindow
+  expanded={false}
+  showScrollButton={true}
+  hasMessages={true}
+  clearButtonIcon="trash"
+>
+
+<!-- ❌ Incorrect: Props aligned to left -->
+<ChatWindow
+expanded={false}
+showScrollButton={true}
+hasMessages={true}
+clearButtonIcon="trash"
+>
+
+<!-- ❌ Incorrect: All props on one line (unless very short) -->
+<ChatWindow expanded={false} showScrollButton={true} hasMessages={true} clearButtonIcon="trash">
+```
+
 ---
 **Follow these rules strictly — they ensure clean, testable, and maintainable progress.**

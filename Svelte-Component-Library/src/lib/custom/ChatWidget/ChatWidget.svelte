@@ -38,6 +38,7 @@
     showBadge?: boolean;
     badgeCount?: number;
     onClearChat?: () => void;
+    hasMessages?: boolean;
   }
 
   let {
@@ -63,7 +64,8 @@
     widgetButtonBackgroundColor,
     showBadge = true,
     badgeCount = 1,
-    onClearChat
+    onClearChat,
+    hasMessages = true
   }: ChatWidgetProps = $props();
 
   // Provide themeBackgroundColor to child components via context
@@ -146,7 +148,7 @@
         headerBackgroundColor={headerBackgroundColor ?? themeBackgroundColor}
       />
       
-      <ChatWindow {expanded} onExpand={handleExpand} subheader={subheader} showScrollButton={true} expandIcon={expandIcon} onClearChat={onClearChat}>
+      <ChatWindow {expanded} onExpand={handleExpand} subheader={subheader} showScrollButton={true} expandIcon={expandIcon} onClearChat={onClearChat} {hasMessages}>
         {#if children}
           {@render children()}
         {/if}

@@ -9,7 +9,11 @@
     <div class="icon-demo">
       <h3>{icon}</h3>
       <div class="window-container">
-        <ChatWindow expandIcon={icon} expanded={false} showScrollButton={false}>
+        <ChatWindow
+          expandIcon={icon}
+          expanded={false}
+          showScrollButton={false}
+        >
           <p>Click the expand button to see the icon change</p>
         </ChatWindow>
       </div>

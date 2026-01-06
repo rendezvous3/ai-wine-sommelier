@@ -235,6 +235,7 @@
   themeBackgroundColor="#50ff5a8f"
   showBadge={false}
   onClearChat={handleClearChat}
+  hasMessages={messages.length > 0}
 >
   {#snippet children()}
     {#if messages.length === 0}

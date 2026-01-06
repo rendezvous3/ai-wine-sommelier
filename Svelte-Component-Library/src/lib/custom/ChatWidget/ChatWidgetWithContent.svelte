@@ -19,7 +19,7 @@
   }
 </script>
 
-<ChatWidget position="bottom-right" isOpen={true} onClearChat={handleClearChat}>
+<ChatWidget position="bottom-right" isOpen={true} onClearChat={handleClearChat} hasMessages={messages.length > 0}>
   <div style="display: flex; flex-direction: column; gap: 12px;">
     {#each messages as msg}
       <ChatBubble variant={msg.variant} sender={msg.sender} timestamp={msg.timestamp}>

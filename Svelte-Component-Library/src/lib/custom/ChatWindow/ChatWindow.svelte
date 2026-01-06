@@ -11,6 +11,8 @@
     subheaderSlot?: Snippet;
     expandIcon?: 'grid' | 'arrows' | 'maximize' | 'chevrons' | 'plus-minus' | 'corner' | 'diagonal' | 'dots' | 'lines' | 'square';
     onClearChat?: () => void;
+    hasMessages?: boolean;
+    clearButtonIcon?: 'trash' | 'x-circle' | 'refresh' | 'erase' | 'cross';
   }
 
   let {
@@ -21,7 +23,9 @@
     showScrollButton = true,
     children,
     expandIcon = 'dots',
-    onClearChat
+    onClearChat,
+    hasMessages = true,
+    clearButtonIcon = 'trash'
   }: ChatWindowProps = $props();
 
   let isExpanded = $state(expanded);
@@ -103,17 +107,43 @@
     </button>
   {/if}
 
-  {#if onClearChat}
+  {#if onClearChat && hasMessages}
     <button
       class="chat-window__clear-button"
       onclick={onClearChat}
       aria-label="Clear chat"
       type="button"
     >
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M6 7V15C6 16.1 6.9 17 8 17H12C13.1 17 14 16.1 14 15V7M8 7V5C8 3.9 8.9 3 10 3H10C11.1 3 12 3.9 12 5V7M4 7H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M9 10V13M11 10V13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
+      {#if clearButtonIcon === 'trash'}
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M6 7V15C6 16.1 6.9 17 8 17H12C13.1 17 14 16.1 14 15V7M8 7V5C8 3.9 8.9 3 10 3H10C11.1 3 12 3.9 12 5V7M4 7H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M9 10V13M11 10V13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      {:else if clearButtonIcon === 'x-circle'}
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="2"/>
+          <path d="M7 7L13 13M13 7L7 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      {:else if clearButtonIcon === 'refresh'}
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 10C3 6.13 6.13 3 10 3C11.5 3 12.87 3.5 13.96 4.36M17 10C17 13.87 13.87 17 10 17C8.5 17 7.13 16.5 6.04 15.64M6.04 15.64L8.5 13M6.04 15.64L6.04 18M13.96 4.36L11.5 7M13.96 4.36L13.96 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      {:else if clearButtonIcon === 'erase'}
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M5 5L15 15M5 15L15 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M3 3L17 17M3 17L17 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+        </svg>
+      {:else if clearButtonIcon === 'cross'}
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M5 5L15 15M15 5L5 15" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      {:else}
+        <!-- Default: trash -->
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M6 7V15C6 16.1 6.9 17 8 17H12C13.1 17 14 16.1 14 15V7M8 7V5C8 3.9 8.9 3 10 3H10C11.1 3 12 3.9 12 5V7M4 7H16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M9 10V13M11 10V13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      {/if}
     </button>
   {/if}
 
@@ -410,7 +440,7 @@
     align-items: center;
     justify-content: center;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 100;
+    z-index: 99;
     padding: 0;
   }
 

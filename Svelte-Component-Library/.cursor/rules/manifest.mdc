@@ -152,6 +152,8 @@ Each component follows this pattern:
 - If styles are being overridden, investigate the root cause (global styles, specificity, inheritance) rather than forcing with `!important`
 
 ### Storybook Stories (CSF3 format)
+**Preferred Format:** Use `args` directly without `render` function when possible. Storybook will automatically use the component from `meta.component`.
+
 ```typescript
 import type { Meta, StoryObj } from '@storybook/svelte';
 import Button from './Button.svelte';
@@ -172,12 +174,57 @@ const meta = {
 export default meta;
 type Story = StoryObj<any>;
 
+// ✅ Preferred: Use args directly
 export const Primary: Story = {
   args: {
     label: 'Primary Button',
     variant: 'primary',
   },
 };
+
+// ✅ Also acceptable: Use args with render when needed
+export const WithCustomContent: Story = {
+  args: {
+    expanded: false,
+    showScrollButton: true,
+  },
+  render: (args) => ({
+    Component: ChatWindow as any,
+    props: args,
+  })
+};
+
+// ❌ Avoid: Render function without args (only use for complex wrapper components)
+export const ComplexDemo: Story = {
+  render: () => ({
+    Component: ComplexWrapperComponent as any,
+  })
+};
+```
+
+**For new components:** Always use the `args` format when possible. Only use `render` functions for complex wrapper components that need custom logic or multiple component interactions.
+
+**Component Props Indentation:** When writing component props in Svelte files, always indent props with one tab (2 spaces) from the component tag. Each prop should be on its own line.
+
+```svelte
+<!-- ✅ Correct indentation -->
+<ChatWindow
+  expanded={false}
+  showScrollButton={true}
+  hasMessages={true}
+  clearButtonIcon="trash"
+>
+
+<!-- ❌ Incorrect: Props aligned to left -->
+<ChatWindow
+expanded={false}
+showScrollButton={true}
+hasMessages={true}
+clearButtonIcon="trash"
+>
+
+<!-- ❌ Incorrect: All props on one line (unless very short) -->
+<ChatWindow expanded={false} showScrollButton={true} hasMessages={true} clearButtonIcon="trash">
 ```
 
 ### Story Component Rules

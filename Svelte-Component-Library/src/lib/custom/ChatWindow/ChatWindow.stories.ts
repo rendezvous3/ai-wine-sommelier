@@ -3,6 +3,7 @@ import ChatWindow from './ChatWindow.svelte';
 import ChatWindowWithMessages from './ChatWindowWithMessages.svelte';
 import ChatWindowWithSubheader from './ChatWindowWithSubheader.svelte';
 import ChatWindowExpandIcons from './ChatWindowExpandIcons.svelte';
+import ChatWindowClearButtonIcons from './ChatWindowClearButtonIcons.svelte';
 
 const meta = {
   title: 'Custom/ChatWindow',
@@ -35,15 +36,16 @@ export const Default: Story = {
     expanded: false,
     showScrollButton: true,
   },
-  render: (args) => ({
-    Component: ChatWindow as any,
-    props: args,
-  })
 };
 
 export const WithMessages: Story = {
-  render: () => ({
+  args: {
+    expanded: false,
+    showScrollButton: true,
+  },
+  render: (args: any) => ({
     Component: ChatWindowWithMessages as any,
+    props: args,
   })
 };
 
@@ -52,18 +54,16 @@ export const Expanded: Story = {
     expanded: true,
     showScrollButton: true,
   },
-  render: () => ({
-    Component: ChatWindow as any,
-    props: {
-      expanded: true,
-      showScrollButton: true,
-    },
-  })
 };
 
 export const WithSubheader: Story = {
-  render: () => ({
+  args: {
+    expanded: false,
+    showScrollButton: true,
+  },
+  render: (args: any) => ({
     Component: ChatWindowWithSubheader as any,
+    props: args,
   })
 };
 
@@ -132,8 +132,26 @@ export const ExpandIconSquare: Story = {
 };
 
 export const AllExpandIcons: Story = {
-  render: () => ({
+  args: {
+    expanded: false,
+    showScrollButton: true,
+  },
+  render: (args: any) => ({
     Component: ChatWindowExpandIcons as any,
+    props: args,
+  })
+};
+
+export const ClearButtonIcons: Story = {
+  args: {
+    expanded: false,
+    showScrollButton: true,
+    hasMessages: true,
+    clearButtonIcon: 'trash',
+  },
+  render: (args: any) => ({
+    Component: ChatWindowClearButtonIcons as any,
+    props: args,
   })
 };
 

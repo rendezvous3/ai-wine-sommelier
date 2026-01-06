@@ -19,9 +19,17 @@
   }
 </script>
 
-<ChatWindow showScrollButton={true} onClearChat={handleClearChat}>
+<ChatWindow
+  showScrollButton={true}
+  onClearChat={handleClearChat}
+  hasMessages={messages.length > 0}
+>
   {#each messages as msg}
-    <ChatBubble variant={msg.variant} sender={msg.sender} timestamp={msg.timestamp}>
+    <ChatBubble
+      variant={msg.variant}
+      sender={msg.sender}
+      timestamp={msg.timestamp}
+    >
       {msg.content}
     </ChatBubble>
   {/each}
