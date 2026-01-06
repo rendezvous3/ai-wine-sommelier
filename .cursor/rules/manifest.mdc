@@ -63,6 +63,12 @@ The system is built as **four loosely coupled components** for maximum flexibili
 - **Import Pattern**: Direct imports from `Svelte-Component-Library/src/lib/custom/` (tree-shaking safe, Storybook files excluded)
 - **Status**: Functional, but work needed to be production UI
 
+### CSS Best Practices
+- **NEVER use `!important`** - Fix CSS specificity issues properly instead
+- **NEVER create classes just to add `!important`** - This is a code smell indicating a deeper CSS architecture problem
+- Use CSS variables, proper specificity, and `color: inherit` to solve styling conflicts
+- If styles are being overridden, investigate the root cause (global styles, specificity, inheritance) rather than forcing with `!important`
+
 ### 4. **Component Library (`Svelte-Component-Library/`)**
 - **Technology**: Svelte 5 (runes) + TypeScript + Storybook
 - **Purpose**: Reusable UI component library for building production-ready chat interfaces

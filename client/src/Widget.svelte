@@ -31,6 +31,19 @@
 
   let productRecommendations: Recommendation[] = [];
 
+  // Menu items for the header
+  const menuItems = [
+    { id: 'settings', label: 'Settings', icon: 'settings', iconType: 'svg' as const },
+    { id: 'help', label: 'Help', icon: 'help', iconType: 'svg' as const },
+    { id: 'about', label: 'About', icon: 'about', iconType: 'svg' as const },
+    { id: 'feedback', label: 'Send Feedback', icon: 'feedback', iconType: 'svg' as const }
+  ];
+
+  function handleMenuItemClick(itemId: string) {
+    console.log('Menu item clicked:', itemId);
+    // Add menu item action handlers here
+  }
+
 
   onMount(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -205,6 +218,10 @@
   position="bottom-right"
   expandIcon="dots"
   headerStyle="wavy"
+  menuItems={menuItems}
+  menuPosition="left"
+  menuMode="sidebar"
+  onMenuItemClick={handleMenuItemClick}
 >
   {#snippet children()}
     {#if messages.length === 0}

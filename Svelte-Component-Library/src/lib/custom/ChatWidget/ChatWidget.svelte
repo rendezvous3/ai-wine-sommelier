@@ -5,6 +5,14 @@
   import ChatWindow from '../ChatWindow/ChatWindow.svelte';
   import ChatInput from '../ChatInput/ChatInput.svelte';
 
+  interface MenuItem {
+    id: string;
+    label: string;
+    icon?: string;
+    iconType?: 'svg' | 'emoji';
+    onClick?: () => void;
+  }
+
   interface ChatWidgetProps {
     isOpen?: boolean;
     position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left';
@@ -18,6 +26,10 @@
     children?: Snippet;
     expandIcon?: 'grid' | 'arrows' | 'maximize' | 'chevrons' | 'plus-minus' | 'corner' | 'diagonal' | 'dots' | 'lines' | 'square';
     headerStyle?: 'flat' | 'wavy' | 'glass' | 'minimal' | 'none';
+    menuItems?: MenuItem[];
+    menuPosition?: 'left' | 'right';
+    menuMode?: 'dropdown' | 'sidebar';
+    onMenuItemClick?: (itemId: string) => void;
   }
 
   let {
@@ -32,7 +44,11 @@
     onClose,
     children,
     expandIcon = 'dots',
-    headerStyle = 'wavy'
+    headerStyle = 'wavy',
+    menuItems,
+    menuPosition = 'left',
+    menuMode = 'sidebar',
+    onMenuItemClick
   }: ChatWidgetProps = $props();
 
   // Use prop directly when parent controls it, otherwise use internal state
@@ -98,6 +114,10 @@
         style={headerStyle}
         darkMode={darkMode}
         onClose={handleClose}
+        menuItems={menuItems}
+        menuPosition={menuPosition}
+        menuMode={menuMode}
+        onMenuItemClick={onMenuItemClick}
       />
       
       <ChatWindow {expanded} onExpand={handleExpand} subheader={subheader} showScrollButton={true} expandIcon={expandIcon}>

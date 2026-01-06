@@ -145,6 +145,11 @@ Each component follows this pattern:
 - No `any` types (use `unknown` if needed)
 - No `@ts-ignore` (use `@ts-expect-error` with comment)
 - Define prop types explicitly
+### CSS Best Practices
+- **NEVER use `!important`** - Fix CSS specificity issues properly instead
+- **NEVER create classes just to add `!important`** - This is a code smell indicating a deeper CSS architecture problem
+- Use CSS variables, proper specificity, and `color: inherit` to solve styling conflicts
+- If styles are being overridden, investigate the root cause (global styles, specificity, inheritance) rather than forcing with `!important`
 
 ### Storybook Stories (CSF3 format)
 ```typescript
