@@ -270,9 +270,11 @@
     position: absolute;
     bottom: 80px;
     right: 0;
-    width: 380px;
+    /* width: 380px; */
+    width: 426px;
     max-width: calc(100vw - 40px);
-    height: 600px;
+    height: 698px;
+    /* height: 600px; */
     max-height: calc(100vh - 120px);
     background: #ffffff;
     border-radius: 20px;
