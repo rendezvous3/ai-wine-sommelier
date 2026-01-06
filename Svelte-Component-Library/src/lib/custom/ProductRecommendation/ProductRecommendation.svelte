@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getContext } from 'svelte';
   import ProductCard from '../ProductCard/ProductCard.svelte';
   import ProductList from '../ProductList/ProductList.svelte';
   import ProductGrid from '../ProductGrid/ProductGrid.svelte';
@@ -19,6 +20,7 @@
     description?: string;
     onAddToCart?: (product: Product) => void;
     onViewDetails?: (product: Product) => void;
+    themeBackgroundColor?: string;
   }
 
   let {
@@ -27,15 +29,46 @@
     title,
     description,
     onAddToCart,
-    onViewDetails
+    onViewDetails,
+    themeBackgroundColor
   }: ProductRecommendationProps = $props();
+
+  // Get themeBackgroundColor from context (provided by ChatWidget) as fallback
+  let contextThemeStore = getContext<{ value: string | undefined } | undefined>('themeBackgroundColor');
+  let effectiveThemeColor = $derived(themeBackgroundColor ?? contextThemeStore?.value);
 
   function handleAddToCart(product: Product) {
     onAddToCart?.(product);
   }
+
+  function getPlaceholderImage(title: string): string {
+    // Generate a simple placeholder SVG based on product title
+    const initials = title
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+    
+    const svg = `
+      <svg width="60" height="60" xmlns="http://www.w3.org/2000/svg">
+        <rect width="60" height="60" fill="#e5e7eb" rx="8"/>
+        <text x="50%" y="50%" font-family="Arial, sans-serif" font-size="20" font-weight="600" fill="#9ca3af" text-anchor="middle" dominant-baseline="central">${initials}</text>
+      </svg>
+    `.trim();
+    
+    return `data:image/svg+xml;base64,${btoa(svg)}`;
+  }
+
+  function hasValidImage(image: string): boolean {
+    return image && image.trim() !== '' && !image.includes('placeholder.com') && !image.startsWith('data:image/svg');
+  }
 </script>
 
-<div class="product-recommendation product-recommendation--{layout}">
+<div 
+  class="product-recommendation product-recommendation--{layout}"
+  style="{effectiveThemeColor ? `--product-recommendation-price-color: ${effectiveThemeColor}; --product-recommendation-button-bg: ${effectiveThemeColor};` : ''}"
+>
   {#if title}
     <h3 class="product-recommendation__title">{title}</h3>
   {/if}
@@ -51,19 +84,35 @@
       <div class="product-recommendation__compact">
         {#each products as product (product.title)}
           <div class="product-recommendation__compact-item">
-            <img src={product.image} alt={product.title} class="product-recommendation__compact-image" />
+            <img 
+              src={hasValidImage(product.image) ? product.image : getPlaceholderImage(product.title)} 
+              alt={product.title} 
+              class="product-recommendation__compact-image"
+              onerror={(e) => {
+                const target = e.target as HTMLImageElement;
+                if (target && !target.src.includes('data:image/svg')) {
+                  target.src = getPlaceholderImage(product.title);
+                }
+              }}
+            />
             <div class="product-recommendation__compact-info">
               <h4 class="product-recommendation__compact-title">{product.title}</h4>
               {#if description}
                 <p class="product-recommendation__compact-description">{description}</p>
               {/if}
-              <div class="product-recommendation__compact-price">${product.price != null ? product.price.toFixed(2) : '0.00'}</div>
+              <div 
+                class="product-recommendation__compact-price"
+                style="{effectiveThemeColor ? `color: ${effectiveThemeColor};` : ''}"
+              >
+                ${product.price != null ? product.price.toFixed(2) : '0.00'}
+              </div>
             </div>
             <button
               class="product-recommendation__compact-button"
               onclick={() => handleAddToCart(product)}
               type="button"
               aria-label="Add {product.title} to cart"
+              style="{effectiveThemeColor ? `background: ${effectiveThemeColor};` : ''}"
             >
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                 <path d="M9 4V14M4 9H14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -183,7 +232,7 @@
   .product-recommendation__compact-price {
     font-size: 16px;
     font-weight: 700;
-    color: #3b82f6;
+    color: var(--product-recommendation-price-color, #3b82f6);
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   }
 
@@ -192,7 +241,7 @@
     height: 32px;
     border-radius: 50%;
     border: none;
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    background: var(--product-recommendation-button-bg, linear-gradient(135deg, #3b82f6 0%, #2563eb 100%));
     color: #ffffff;
     cursor: pointer;
     display: flex;
@@ -206,6 +255,7 @@
   .product-recommendation__compact-button:hover {
     transform: scale(1.1);
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    filter: brightness(1.1);
   }
 
   /* Dark mode */
