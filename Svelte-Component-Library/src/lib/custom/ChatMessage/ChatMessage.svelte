@@ -40,7 +40,7 @@
     onAction,
     userBubbleBackgroundColor,
     themeBackgroundColor,
-    showHoverActions = true
+    showHoverActions = false
   }: ChatMessageProps = $props();
 
   // Get themeBackgroundColor from context (provided by ChatWidget) as fallback
@@ -71,9 +71,18 @@
       actionsTimeout = null;
     }, 200);
   }
+
+  let messageClasses = $derived(
+    [
+      'chat-message',
+      showHoverActions && 'chat-message--hoverable'
+    ]
+      .filter(Boolean)
+      .join(' ')
+  );
 </script>
 
-<div class="chat-message" role="group" onmouseenter={handleMouseEnter} onmouseleave={handleMouseLeave}>
+<div class={messageClasses} role="group" onmouseenter={handleMouseEnter} onmouseleave={handleMouseLeave}>
   {#if products && products.length > 0 && !productsInBubble}
     <div class="chat-message__products-outside">
       <ProductRecommendation
@@ -148,6 +157,9 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+  }
+
+  .chat-message--hoverable {
     cursor: pointer;
   }
 
