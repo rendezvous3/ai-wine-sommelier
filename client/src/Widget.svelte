@@ -231,21 +231,19 @@
 >
   {#snippet children()}
     {#if messages.length === 0}
-      <ChatMessage variant="system">
-        Welcome! Ask me anything about products.
-      </ChatMessage>
+      <ChatMessage variant="system" messageText="Welcome! Ask me anything about products." />
     {/if}
 
     {#each messages as msg}
       <ChatMessage
         variant={msg.role}
+        messageText={msg.content}
         products={msg.recommendations ? convertToProducts(msg.recommendations) : undefined}
+        recommendationTitle={msg.role === 'assistant' && msg.recommendations && msg.recommendations.length > 0 ? "Cannavita Budtender recommendations" : undefined}
         recommendationLayout="compact-list"
         productsInBubble={true}
         showHoverActions={msg.role === 'assistant' && msg.recommendations && msg.recommendations.length > 0}
-      >
-        {msg.content}
-      </ChatMessage>
+      />
     {/each}
   {/snippet}
 </ChatWidget>
