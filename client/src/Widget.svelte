@@ -236,6 +236,7 @@
   showBadge={false}
   onClearChat={handleClearChat}
   hasMessages={messages.length > 0}
+  clearButtonIcon="erase"
 >
   {#snippet children()}
     {#if messages.length === 0}
