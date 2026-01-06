@@ -238,6 +238,7 @@
         products={msg.recommendations ? convertToProducts(msg.recommendations) : undefined}
         recommendationLayout="compact-list"
         productsInBubble={true}
+        showHoverActions={msg.role === 'assistant' && msg.recommendations && msg.recommendations.length > 0}
       >
         {msg.content}
       </ChatMessage>
