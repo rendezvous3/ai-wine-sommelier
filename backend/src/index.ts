@@ -75,6 +75,12 @@ app.post("/chat/decide", async (c) => {
     "what are your hours" → general
     "return policy" → general
     "something for anxiety" → recommendation
+    "something to xyz"
+    "something to keep me going"
+    "something that xyz"
+    "something that doesn't get me too drowsy"
+    "something that states like xyz"
+    "something of effect of xyz"
 
     User: "${last}"
 
