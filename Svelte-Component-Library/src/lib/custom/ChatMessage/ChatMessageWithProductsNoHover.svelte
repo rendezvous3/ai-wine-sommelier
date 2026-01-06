@@ -12,7 +12,8 @@
       price: 29.99,
       originalPrice: 39.99,
       rating: 4.5,
-      discount: 25
+      discount: 25,
+      category: 'Electronics'
     }
   ]}
   recommendationLayout="compact-list"

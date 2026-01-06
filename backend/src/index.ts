@@ -249,6 +249,7 @@ app.post("/chat/recommendations", async (c) => {
       const m = doc.metadata || {};
       return `${i + 1}. "${m.name}" by ${m.brand}
         Price: $${m.price}
+        Category: ${m.category}
         Type: ${m.type}
         Effects: ${m.effects}
         Description: ${doc.pageContent}`;

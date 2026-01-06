@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ChatWindow from '../ChatWindow/ChatWindow.svelte';
   import ChatMessage from './ChatMessage.svelte';
 
   const sampleProducts = [
@@ -28,14 +29,21 @@
   ];
 </script>
 
-<ChatMessage 
-  variant="assistant" 
-  sender="Support Bot" 
-  timestamp="2:30 PM"
-  products={sampleProducts}
-  recommendationLayout="compact-list"
-  productsInBubble={true}
->
-  Check out these quick picks:
-</ChatMessage>
+<ChatWindow showScrollButton={true}>
+  <ChatMessage variant="user" sender="You" timestamp="2:30 PM">
+    I'm looking for some products
+  </ChatMessage>
+  
+  <ChatMessage 
+    variant="assistant" 
+    sender="Support Bot" 
+    timestamp="2:30 PM"
+    products={sampleProducts}
+    recommendationLayout="compact-list"
+    productsInBubble={true}
+    showHoverActions={true}
+  >
+    Check out these quick picks:
+  </ChatMessage>
+</ChatWindow>
 

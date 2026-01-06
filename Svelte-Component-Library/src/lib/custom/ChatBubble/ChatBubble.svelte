@@ -154,6 +154,7 @@
     margin-left: auto;
     border-bottom-right-radius: 6px;
     box-shadow: 0 4px 16px rgba(36, 198, 213, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    max-width: 90%;
   }
 
   .chat-bubble--assistant {

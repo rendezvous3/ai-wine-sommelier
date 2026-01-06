@@ -10,6 +10,13 @@ import ChatMessageUserWithHover from './ChatMessageUserWithHover.svelte';
 import ChatMessageUserWithoutHover from './ChatMessageUserWithoutHover.svelte';
 import ChatMessageWithProductsHover from './ChatMessageWithProductsHover.svelte';
 import ChatMessageWithProductsNoHover from './ChatMessageWithProductsNoHover.svelte';
+import ChatMessageWithProductsCompactInWidget from './ChatMessageWithProductsCompactInWidget.svelte';
+import ChatMessageWithProductsCompactInWindow from './ChatMessageWithProductsCompactInWindow.svelte';
+import ChatMessageWithProductsHoverInWidget from './ChatMessageWithProductsHoverInWidget.svelte';
+import ChatMessageWithProductsHoverInWindow from './ChatMessageWithProductsHoverInWindow.svelte';
+import ChatMessageWithProductsNoHoverInWidget from './ChatMessageWithProductsNoHoverInWidget.svelte';
+import ChatMessageWithProductsNoHoverInWindow from './ChatMessageWithProductsNoHoverInWindow.svelte';
+import ChatWidgetDecorator from '../ChatWidget/ChatWidgetDecorator.svelte';
 
 const meta = {
   title: 'Custom/ChatMessage',
@@ -71,7 +78,7 @@ export const UserWithoutHoverActions: Story = {
   })
 };
 
-export const WithProducts: Story = {
+export const WithProductsCompact: Story = {
   render: () => ({
     Component: ChatMessageWithProductsCompact as any,
   })
@@ -87,4 +94,66 @@ export const WithProductsHoverDisabled: Story = {
   render: () => ({
     Component: ChatMessageWithProductsNoHover as any,
   })
+};
+
+// Stories in ChatWidget context
+export const WithProductsCompactInWidget: Story = {
+  render: () => ({
+    Component: ChatMessageWithProductsCompactInWidget as any,
+  }),
+  parameters: {
+    layout: 'fullscreen',
+  },
+  decorators: [
+    () => ({
+      Component: ChatWidgetDecorator as any,
+    })
+  ],
+};
+
+export const WithProductsHoverEnabledInWidget: Story = {
+  render: () => ({
+    Component: ChatMessageWithProductsHoverInWidget as any,
+  }),
+  parameters: {
+    layout: 'fullscreen',
+  },
+  decorators: [
+    () => ({
+      Component: ChatWidgetDecorator as any,
+    })
+  ],
+};
+
+export const WithProductsHoverDisabledInWidget: Story = {
+  render: () => ({
+    Component: ChatMessageWithProductsNoHoverInWidget as any,
+  }),
+  parameters: {
+    layout: 'fullscreen',
+  },
+  decorators: [
+    () => ({
+      Component: ChatWidgetDecorator as any,
+    })
+  ],
+};
+
+// Stories in ChatWindow context
+export const WithProductsCompactInWindow: Story = {
+  render: () => ({
+    Component: ChatMessageWithProductsCompactInWindow as any,
+  }),
+};
+
+export const WithProductsHoverEnabledInWindow: Story = {
+  render: () => ({
+    Component: ChatMessageWithProductsHoverInWindow as any,
+  }),
+};
+
+export const WithProductsHoverDisabledInWindow: Story = {
+  render: () => ({
+    Component: ChatMessageWithProductsNoHoverInWindow as any,
+  }),
 };
