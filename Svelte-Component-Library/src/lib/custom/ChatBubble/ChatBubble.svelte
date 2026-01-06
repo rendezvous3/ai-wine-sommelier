@@ -9,6 +9,7 @@
     expanded?: boolean;
     expandable?: boolean;
     children?: Snippet;
+    userBubbleBackgroundColor?: string;
   }
 
 
@@ -18,7 +19,8 @@
     timestamp,
     expanded = false,
     expandable = false,
-    children
+    children,
+    userBubbleBackgroundColor
   }: ChatBubbleProps = $props();
 
   let isExpanded = $state(false);
@@ -46,7 +48,7 @@
   }
 </script>
 
-<div class={bubbleClasses}>
+<div class={bubbleClasses} style="{userBubbleBackgroundColor && variant === 'user' ? `--chat-bubble-user-bg-custom: ${userBubbleBackgroundColor};` : ''}">
   {#if sender || timestamp}
     <div class="chat-bubble__header">
       {#if sender}
@@ -147,7 +149,7 @@
 
   /* Variant styles */
   .chat-bubble--user {
-    background: linear-gradient(135deg, #24c6d5 0%, #25b4e4 100%);
+    background: var(--chat-bubble-user-bg-custom, linear-gradient(135deg, #24c6d5 0%, #25b4e4 100%));
     color: var(--chat-bubble-user-text, #ffffff);
     margin-left: auto;
     border-bottom-right-radius: 6px;

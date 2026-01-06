@@ -222,6 +222,8 @@
   menuPosition="left"
   menuMode="sidebar"
   onMenuItemClick={handleMenuItemClick}
+  headerBackgroundColor="#15685E"
+  widgetButtonBackgroundColor="#15685E"
 >
   {#snippet children()}
     {#if messages.length === 0}
@@ -236,6 +238,7 @@
         products={msg.recommendations ? convertToProducts(msg.recommendations) : undefined}
         recommendationLayout="compact-list"
         productsInBubble={true}
+        userBubbleBackgroundColor="#15685E"
       >
         {msg.content}
       </ChatMessage>

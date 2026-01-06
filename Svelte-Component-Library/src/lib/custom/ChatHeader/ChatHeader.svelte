@@ -21,6 +21,7 @@
     menuMode?: 'dropdown' | 'sidebar';
     height?: 'sm' | 'md' | 'lg';
     showIcon?: boolean;
+    headerBackgroundColor?: string;
   }
 
   let {
@@ -34,7 +35,8 @@
     menuPosition = 'right',
     menuMode = 'dropdown',
     height = 'md',
-    showIcon = true
+    showIcon = true,
+    headerBackgroundColor
   }: ChatHeaderProps = $props();
 
   let menuOpen = $state(false);
@@ -189,7 +191,7 @@
   }
 </script>
 
-<div class={headerClasses} style="position: relative;">
+<div class={headerClasses} style="position: relative; {headerBackgroundColor ? `--chat-header-bg: ${headerBackgroundColor};` : ''}">
   {#if hasMenuItems && menuPosition === 'left'}
     <div class={menuWrapperClasses}>
       <button
@@ -445,7 +447,7 @@
 
   /* Header Style: Flat (default gradient) */
   .chat-header--flat {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1e40af 100%);
+    background: var(--chat-header-bg, linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1e40af 100%));
     color: #ffffff;
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
     position: relative;
@@ -472,7 +474,7 @@
 
   /* Header Style: Wavy */
   .chat-header--wavy {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    background: var(--chat-header-bg, linear-gradient(135deg, #3b82f6 0%, #2563eb 100%));
     color: #ffffff;
     padding-bottom: 20px;
     overflow: visible;

@@ -30,6 +30,8 @@
     menuPosition?: 'left' | 'right';
     menuMode?: 'dropdown' | 'sidebar';
     onMenuItemClick?: (itemId: string) => void;
+    headerBackgroundColor?: string;
+    widgetButtonBackgroundColor?: string;
   }
 
   let {
@@ -48,7 +50,9 @@
     menuItems,
     menuPosition = 'left',
     menuMode = 'sidebar',
-    onMenuItemClick
+    onMenuItemClick,
+    headerBackgroundColor,
+    widgetButtonBackgroundColor
   }: ChatWidgetProps = $props();
 
   // Use prop directly when parent controls it, otherwise use internal state
@@ -118,6 +122,7 @@
         menuPosition={menuPosition}
         menuMode={menuMode}
         onMenuItemClick={onMenuItemClick}
+        headerBackgroundColor={headerBackgroundColor}
       />
       
       <ChatWindow {expanded} onExpand={handleExpand} subheader={subheader} showScrollButton={true} expandIcon={expandIcon}>
@@ -141,6 +146,7 @@
     aria-label={isWidgetOpen ? 'Close chat' : 'Open chat'}
     aria-expanded={isWidgetOpen}
     type="button"
+    style="{widgetButtonBackgroundColor ? `--chat-widget-button-bg: ${widgetButtonBackgroundColor};` : ''}"
   >
     {#if isWidgetOpen}
       <svg
@@ -199,7 +205,7 @@
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    background: var(--chat-widget-button-bg, linear-gradient(135deg, #3b82f6 0%, #2563eb 100%));
     border: none;
     box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4), 0 4px 12px rgba(0, 0, 0, 0.15);
     cursor: pointer;

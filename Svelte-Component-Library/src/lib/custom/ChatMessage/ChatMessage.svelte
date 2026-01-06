@@ -22,6 +22,7 @@
     productsInBubble?: boolean;
     onAddToCart?: (product: Product) => void;
     onAction?: (action: string, message: string) => void;
+    userBubbleBackgroundColor?: string;
   }
 
   let {
@@ -33,7 +34,8 @@
     recommendationLayout = 'compact-list',
     productsInBubble = true,
     onAddToCart,
-    onAction
+    onAction,
+    userBubbleBackgroundColor
   }: ChatMessageProps = $props();
 
   let showActions = $state(false);
@@ -54,7 +56,7 @@
     </div>
   {/if}
   
-  <ChatBubble {variant} {sender} {timestamp}>
+  <ChatBubble {variant} {sender} {timestamp} {userBubbleBackgroundColor}>
     {#if children}
       {@render children()}
     {/if}

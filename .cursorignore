@@ -1,6 +1,13 @@
 # Step 1: Ignore everything FIRST
 *
 
+!.cursor/
+!.cursor/rules/
+!.cursor/rules/manifest.mdc
+!Svelte-Component-Library/.cursor/
+!Svelte-Component-Library/.cursor/rules/
+!Svelte-Component-Library/.cursor/rules/manifest.mdc
+
 # Step 2: Allow parent directories (needed to traverse to nested paths)
 !Svelte-Component-Library/
 !client/
