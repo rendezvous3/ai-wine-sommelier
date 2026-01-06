@@ -239,8 +239,10 @@
       const reader = resp.body.getReader();
       const decoder = new TextDecoder("utf-8");
 
-      let botMessage: Message = { role: "assistant", content: "" };
-      messages = [...messages, botMessage];
+      // Store content in a separate variable to avoid mutation issues
+      let botMessageContent = "";
+      // Add initial empty message to array
+      messages = [...messages, { role: "assistant", content: botMessageContent }];
 
       while (true) {
         const { done, value } = await reader.read();
@@ -267,15 +269,19 @@
             const json = JSON.parse(jsonStr);
             const token = json.choices?.[0]?.delta?.content ?? "";
             if (token) {
-              botMessage.content += token;
-              // messages = messages; // trigger Svelte reactivity
-              messages = [...messages];
+              botMessageContent += token;
+              // Create new message object and replace the last message in array
+              // This ensures Svelte 5 reactivity properly tracks the change
+              messages = [
+                ...messages.slice(0, -1),
+                { role: "assistant", content: botMessageContent }
+              ];
             }
           } catch (err) {
             // ignore malformed JSON
             console.error("Stream error:", err);
             messages = [
-              ...messages,
+              ...messages.slice(0, -1),
               { role: "assistant", content: "Sorry, connection lost." },
             ];
             loading = false;
@@ -304,12 +310,16 @@
           );
           const data = await resp.json();
           productRecommendations = data.recommendations || [];
-          let botMessage: Message = {
-            role: "assistant",
-            content: "",
-            recommendations: productRecommendations,
-          };
-          messages = [...messages, botMessage];
+          // Only add message if there are actual recommendations
+          // Avoid creating empty bubbles when API returns empty array
+          if (productRecommendations.length > 0) {
+            let botMessage: Message = {
+              role: "assistant",
+              content: "",
+              recommendations: productRecommendations,
+            };
+            messages = [...messages, botMessage];
+          }
         } catch (err) {
           console.error("Recommendation tool failed:", err);
         }
@@ -344,6 +354,7 @@
   onModeToggle={handleModeToggle}
   modeTogglePosition="lower-left"
   guidedFlowConfig={mode === 'guided-flow' ? guidedFlowConfig : undefined}
+  messagesCount={messages.length}
 >
   {#snippet children()}
     {#if messages.length === 0}

@@ -113,7 +113,7 @@
         {recommendationTitle}
       {/if}
       
-      {#if messageText}
+      {#if messageText !== undefined && messageText !== null}
         {messageText}
       {/if}
       

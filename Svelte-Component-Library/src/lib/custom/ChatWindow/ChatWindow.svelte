@@ -20,6 +20,7 @@
     onModeToggle?: () => void;
     modeTogglePosition?: 'upper-left' | 'upper-right' | 'lower-left';
     guidedFlowConfig?: GuidedFlowConfig;
+    messagesCount?: number;
   }
 
   let {
@@ -36,7 +37,8 @@
     mode = 'chat',
     onModeToggle,
     modeTogglePosition = 'upper-left',
-    guidedFlowConfig
+    guidedFlowConfig,
+    messagesCount = 0
   }: ChatWindowProps = $props();
 
   let isExpanded = $state(expanded);
@@ -58,8 +60,24 @@
     onExpand?.(isExpanded);
   }
 
-  function scrollToBottom() {
-    messagesEndRef?.scrollIntoView({ behavior: 'smooth' });
+  function scrollToBottom(instant = false) {
+    if (messagesContainerRef) {
+      // Use direct scrollTop manipulation for more reliable scrolling
+      // This ensures we scroll to the absolute bottom
+      if (instant) {
+        messagesContainerRef.scrollTop = messagesContainerRef.scrollHeight;
+      } else {
+        // Use requestAnimationFrame to ensure DOM is updated before scrolling
+        requestAnimationFrame(() => {
+          if (messagesContainerRef) {
+            messagesContainerRef.scrollTop = messagesContainerRef.scrollHeight;
+          }
+        });
+      }
+    } else {
+      // Fallback to scrollIntoView if container ref is not available
+      messagesEndRef?.scrollIntoView({ behavior: instant ? 'auto' : 'smooth' });
+    }
   }
 
   function handleScroll() {
@@ -80,9 +98,17 @@
   });
 
   // Auto-scroll to bottom when new messages arrive
+  // Watch messagesCount to detect when messages are added (including recommendations)
   $effect(() => {
-    if (children && messagesEndRef) {
-      scrollToBottom();
+    if (messagesCount > 0 && messagesContainerRef && messagesEndRef && mode === 'chat') {
+      // Use requestAnimationFrame twice to ensure DOM is fully updated
+      // First frame: DOM updates
+      // Second frame: Scroll happens after layout
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          scrollToBottom(true); // Use instant scroll for auto-scroll
+        });
+      });
     }
   });
 </script>
@@ -115,7 +141,7 @@
     <button
       class="chat-window__scroll-button"
       class:chat-window__scroll-button--hidden={!showScrollToBottom}
-      onclick={scrollToBottom}
+      onclick={() => scrollToBottom(false)}
       aria-label="Scroll to bottom"
       type="button"
     >

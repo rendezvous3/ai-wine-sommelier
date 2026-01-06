@@ -44,6 +44,7 @@
     onModeToggle?: () => void;
     modeTogglePosition?: 'upper-left' | 'upper-right' | 'lower-left';
     guidedFlowConfig?: import('../GuidedFlow/types.js').GuidedFlowConfig;
+    messagesCount?: number;
   }
 
   let {
@@ -75,7 +76,8 @@
     mode = 'chat',
     onModeToggle,
     modeTogglePosition = 'upper-left',
-    guidedFlowConfig
+    guidedFlowConfig,
+    messagesCount = 0
   }: ChatWidgetProps = $props();
 
   // Provide themeBackgroundColor to child components via context
@@ -171,6 +173,7 @@
         onModeToggle={onModeToggle}
         modeTogglePosition={modeTogglePosition}
         guidedFlowConfig={guidedFlowConfig}
+        messagesCount={messagesCount}
       >
         {#if children}
           {@render children()}
