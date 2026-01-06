@@ -19,26 +19,43 @@
   });
 
   let currentStep = $derived(config.steps[state.currentStepIndex]);
-  let selectedValues = $derived(state.selections[currentStep?.id] || []);
+  let selectedValues = $derived.by(() => {
+    const values = state.selections[currentStep?.id];
+    if (!values) return [];
+    // Normalize to array: single-select stores single value, multi-select stores array
+    return Array.isArray(values) ? values : [values];
+  });
 
   function canProceed(): boolean {
     if (!currentStep) return false;
     if (currentStep.required === false) return true;
     
     const values = state.selections[currentStep.id];
-    if (!values || (Array.isArray(values) && values.length === 0)) {
+    if (!values) {
+      return false;
+    }
+    
+    // Normalize to array for checking
+    const normalizedValues = Array.isArray(values) ? values : [values];
+    if (normalizedValues.length === 0) {
       return false;
     }
     
     if (currentStep.type === 'multi-select' && currentStep.maxSelections) {
-      return Array.isArray(values) && values.length > 0 && values.length <= currentStep.maxSelections;
+      return normalizedValues.length > 0 && normalizedValues.length <= currentStep.maxSelections;
     }
     
     return true;
   }
 
   function handleSelect(value: any) {
-    state.selections[currentStep.id] = value;
+    // For single-select, store as single value; for multi-select, store as array
+    if (currentStep.type === 'single-select') {
+      state.selections[currentStep.id] = value;
+    } else {
+      // Multi-select: value is already an array from FlowStep
+      state.selections[currentStep.id] = value;
+    }
     state.completedSteps.add(state.currentStepIndex);
   }
 

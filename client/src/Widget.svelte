@@ -2,13 +2,15 @@
   import { onMount } from "svelte";
   import ChatWidget from "../../Svelte-Component-Library/src/lib/custom/ChatWidget/ChatWidget.svelte";
   import ChatMessage from "../../Svelte-Component-Library/src/lib/custom/ChatMessage/ChatMessage.svelte";
+  import type { GuidedFlowConfig } from "../../Svelte-Component-Library/src/lib/custom/GuidedFlow/types.js";
 
-  let isOpen = false;
+  let isOpen = $state(false);
+  let mode = $state<'chat' | 'guided-flow'>('chat');
 
   const BASE_URL = import.meta.env.VITE_BASE_API_URL;
   const storeName = import.meta.env.VITE_STORE_NAME;
 
-  let isInitialized = false;
+  let isInitialized = $state(false);
 
   const STORAGE_KEY = `widget_chat_${storeName}`;
   interface Message {
@@ -26,11 +28,11 @@
     category?: string;
   }
 
-  let messages: Message[] = [];
-  let input = "";
-  let loading = false;
+  let messages = $state<Message[]>([]);
+  let input = $state("");
+  let loading = $state(false);
 
-  let productRecommendations: Recommendation[] = [];
+  let productRecommendations = $state<Recommendation[]>([]);
 
   // Menu items for the header
   const menuItems = [
@@ -59,9 +61,11 @@
     isInitialized = true;
   });
 
-  $: if (isInitialized) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
-  }
+  $effect(() => {
+    if (isInitialized) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    }
+  });
 
   // Convert Recommendation to Product format for ChatMessage
   function convertToProducts(recommendations: Recommendation[]) {
@@ -86,6 +90,105 @@
     messages = [];
     localStorage.removeItem(STORAGE_KEY);
   }
+
+  // Guided Flow configuration
+  const guidedFlowSteps = [
+    {
+      id: 'product-type',
+      title: 'What product type are you interested in?',
+      subtitle: '(Select one)',
+      type: 'single-select' as const,
+      required: true,
+      options: [
+        {
+          id: 'flower',
+          label: 'Flower',
+          value: 'flower',
+          icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 10C20 10 15 5 10 10C10 15 15 20 20 25C25 20 30 15 30 10C25 5 20 10 20 10Z" fill="currentColor" opacity="0.3"/><path d="M20 8C20 8 14 2 8 8C8 14 14 20 20 28C26 20 32 14 32 8C26 2 20 8 20 8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        },
+        {
+          id: 'prerolls',
+          label: 'Prerolls',
+          value: 'prerolls',
+          icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="18" width="16" height="4" rx="2" fill="currentColor"/><circle cx="20" cy="20" r="2" fill="currentColor"/></svg>'
+        },
+        {
+          id: 'vape-cart',
+          label: 'Vape Cart',
+          value: 'vape-cart',
+          icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="16" y="10" width="8" height="20" rx="1" stroke="currentColor" stroke-width="2"/><path d="M18 12H22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+        },
+        {
+          id: 'edible',
+          label: 'Edible',
+          value: 'edible',
+          icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="14" width="20" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M14 18H26" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+        }
+      ]
+    },
+    {
+      id: 'feelings',
+      title: 'How would you like to feel?',
+      subtitle: '(Up to 2)',
+      type: 'multi-select' as const,
+      maxSelections: 2,
+      required: true,
+      options: [
+        {
+          id: 'calm',
+          label: 'Calm',
+          value: 'calm',
+          icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" stroke="currentColor" stroke-width="2"/><path d="M16 20H24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+        },
+        {
+          id: 'creative',
+          label: 'Creative',
+          value: 'creative',
+          icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" stroke="currentColor" stroke-width="2"/><path d="M20 12V16M20 24V28M12 20H16M24 20H28" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+        },
+        {
+          id: 'energized',
+          label: 'Energized',
+          value: 'energized',
+          icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 8L24 16L32 18L26 24L28 32L20 28L12 32L14 24L8 18L16 16L20 8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        },
+        {
+          id: 'focused',
+          label: 'Focused',
+          value: 'focused',
+          icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="10" stroke="currentColor" stroke-width="2"/><circle cx="20" cy="20" r="4" fill="currentColor"/></svg>'
+        },
+        {
+          id: 'relaxed',
+          label: 'Relaxed',
+          value: 'relaxed',
+          icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 24C12 24 16 20 20 24C24 20 28 24 28 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="20" cy="20" r="8" stroke="currentColor" stroke-width="2"/></svg>'
+        }
+      ]
+    }
+  ];
+
+  function handleModeToggle() {
+    mode = mode === 'chat' ? 'guided-flow' : 'chat';
+  }
+
+  function handleFlowComplete(selections: Record<string, any>) {
+    console.log('Flow completed:', selections);
+    // Switch back to chat mode
+    mode = 'chat';
+    // Optionally send selections to API or add a message
+    // For now, just switch back to chat
+  }
+
+  function handleFlowClose() {
+    mode = 'chat';
+  }
+
+  const guidedFlowConfig: GuidedFlowConfig = {
+    steps: guidedFlowSteps,
+    onComplete: handleFlowComplete,
+    onClose: handleFlowClose
+  };
 
   // ------------------------------------------------------
   // MAIN HANDLER (Decision + Stream + Recommendation Tool)
@@ -219,7 +322,7 @@
 </script>
 
 <!-- Replace UI with ChatWidget from Component Library -->
-<!-- background colors: "#15685E" #F4C37D #6ed39f80 "#8aff5ec9" "#50ff5a8f" -->
+<!-- background colors: "#15685E" #F4C37D #6ed39f80 "#8aff5ec9" "#50ff5a8f "#1ba4298f" "#1e8e298f" -->
 <ChatWidget
   isOpen={isOpen}
   onToggle={() => (isOpen = !isOpen)}
@@ -232,11 +335,15 @@
   menuMode="sidebar"
   onMenuItemClick={handleMenuItemClick}
   title="Cannavita Budtender"
-  themeBackgroundColor="#50ff5a8f"
+  themeBackgroundColor="#1ba4298f"
   showBadge={false}
   onClearChat={handleClearChat}
   hasMessages={messages.length > 0}
   clearButtonIcon="erase"
+  mode={mode}
+  onModeToggle={handleModeToggle}
+  modeTogglePosition="lower-left"
+  guidedFlowConfig={mode === 'guided-flow' ? guidedFlowConfig : undefined}
 >
   {#snippet children()}
     {#if messages.length === 0}

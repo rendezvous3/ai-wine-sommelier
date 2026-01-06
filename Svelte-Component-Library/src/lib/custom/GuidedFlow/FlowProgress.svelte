@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { getContext } from 'svelte';
+
   interface FlowProgressProps {
     currentStep: number;
     totalSteps: number;
@@ -10,16 +12,20 @@
   }: FlowProgressProps = $props();
 
   let progressPercentage = $derived((currentStep / totalSteps) * 100);
+
+  // Get themeBackgroundColor from context (provided by ChatWidget)
+  let contextThemeStore = getContext<{ value: string | undefined } | undefined>('themeBackgroundColor');
+  let effectiveThemeColor = $derived(contextThemeStore?.value || '#3b82f6');
 </script>
 
-<div class="flow-progress">
+<div class="flow-progress" style="--flow-theme-color: {effectiveThemeColor};">
   <div class="flow-progress__header">
     <span class="flow-progress__label">Step {currentStep} of {totalSteps}</span>
   </div>
   <div class="flow-progress__bar">
     <div
       class="flow-progress__fill"
-      style="width: {progressPercentage}%"
+      style="width: {progressPercentage}%; background: {effectiveThemeColor};"
     ></div>
   </div>
   <div class="flow-progress__steps">
@@ -67,7 +73,7 @@
 
   .flow-progress__fill {
     height: 100%;
-    background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+    background: var(--flow-theme-color, linear-gradient(90deg, #3b82f6 0%, #2563eb 100%));
     border-radius: 2px;
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
@@ -93,16 +99,16 @@
   }
 
   .flow-progress__step--completed .flow-progress__step-indicator {
-    background: #3b82f6;
+    background: var(--flow-theme-color, #3b82f6);
     width: 12px;
     height: 12px;
   }
 
   .flow-progress__step--active .flow-progress__step-indicator {
-    background: #3b82f6;
+    background: var(--flow-theme-color, #3b82f6);
     width: 12px;
     height: 12px;
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--flow-theme-color, #3b82f6) 20%, transparent);
   }
 
   /* Dark mode */
@@ -131,7 +137,7 @@
   :global([data-theme="dark"]) .flow-progress__step--completed .flow-progress__step-indicator,
   :global(.dark) .flow-progress__step--active .flow-progress__step-indicator,
   :global([data-theme="dark"]) .flow-progress__step--active .flow-progress__step-indicator {
-    background: #3b82f6;
+    background: var(--flow-theme-color, #3b82f6);
   }
 </style>
 

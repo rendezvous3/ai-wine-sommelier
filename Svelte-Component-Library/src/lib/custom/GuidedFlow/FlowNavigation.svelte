@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getContext } from 'svelte';
   import Button from '../Button/Button.svelte';
   import ChatModeToggle from '../ChatModeToggle/ChatModeToggle.svelte';
 
@@ -22,9 +23,13 @@
 
   let canGoBack = $derived(currentStep > 1);
   let isLastStep = $derived(currentStep === totalSteps);
+
+  // Get themeBackgroundColor from context (provided by ChatWidget)
+  let contextThemeStore = getContext<{ value: string | undefined } | undefined>('themeBackgroundColor');
+  let effectiveThemeColor = $derived(contextThemeStore?.value || '#3b82f6');
 </script>
 
-<div class="flow-navigation">
+<div class="flow-navigation" style="--flow-theme-color: {effectiveThemeColor};">
   {#if onSwitchToChat}
     <div class="flow-navigation__chat-toggle">
       <ChatModeToggle
@@ -49,13 +54,15 @@
   <div class="flow-navigation__spacer"></div>
 
   <div class="flow-navigation__next-wrapper">
-    <Button
-      label={isLastStep ? 'Complete' : 'Next'}
-      variant="primary"
-      size="md"
-      disabled={!canGoNext}
-      onclick={onNext}
-    />
+    <div class="flow-navigation__next-button-wrapper" style="--btn-primary-bg: {effectiveThemeColor}; --btn-primary-hover: {effectiveThemeColor}; --btn-primary-text: #ffffff; --btn-primary-shadow: color-mix(in srgb, {effectiveThemeColor} 30%, transparent);">
+      <Button
+        label={isLastStep ? 'Complete' : 'Next'}
+        variant="primary"
+        size="md"
+        disabled={!canGoNext}
+        onclick={onNext}
+      />
+    </div>
   </div>
 </div>
 
@@ -78,6 +85,20 @@
   .flow-navigation__next-wrapper {
     display: flex;
     align-items: center;
+  }
+
+  .flow-navigation__next-button-wrapper {
+    display: flex;
+    align-items: center;
+  }
+
+  .flow-navigation__next-button-wrapper :global(.btn--primary) {
+    background-color: var(--btn-primary-bg, #3b82f6);
+  }
+
+  .flow-navigation__next-button-wrapper :global(.btn--primary:hover:not(:disabled)) {
+    background-color: var(--btn-primary-hover, #2563eb);
+    box-shadow: 0 4px 12px var(--btn-primary-shadow, rgba(59, 130, 246, 0.3));
   }
 
   .flow-navigation__spacer {

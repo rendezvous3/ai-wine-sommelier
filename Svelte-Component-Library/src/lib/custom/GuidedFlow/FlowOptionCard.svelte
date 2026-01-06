@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { getContext } from 'svelte';
   import type { FlowOption } from './types.js';
 
   interface FlowOptionCardProps {
@@ -24,6 +25,10 @@
       .filter(Boolean)
       .join(' ')
   );
+
+  // Get themeBackgroundColor from context (provided by ChatWidget)
+  let contextThemeStore = getContext<{ value: string | undefined } | undefined>('themeBackgroundColor');
+  let effectiveThemeColor = $derived(contextThemeStore?.value || '#3b82f6');
 </script>
 
 <button
@@ -32,6 +37,7 @@
   disabled={disabled}
   type="button"
   aria-pressed={selected}
+  style="--flow-theme-color: {effectiveThemeColor};"
 >
   {#if option.icon}
     <div class="flow-option-card__icon">
@@ -71,16 +77,17 @@
   }
 
   .flow-option-card:hover:not(.flow-option-card--disabled) {
-    border-color: #3b82f6;
-    background: #f0f9ff;
+    border-color: var(--flow-theme-color, #3b82f6);
+    background: color-mix(in srgb, var(--flow-theme-color, #3b82f6) 5%, white);
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--flow-theme-color, #3b82f6) 15%, transparent);
   }
 
   .flow-option-card--selected {
-    border-color: #3b82f6;
-    background: #eff6ff;
-    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+    border-color: var(--flow-theme-color, #3b82f6);
+    background: color-mix(in srgb, var(--flow-theme-color, #3b82f6) 5%, white);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--flow-theme-color, #3b82f6) 15%, transparent);
   }
 
   .flow-option-card--disabled {
@@ -95,7 +102,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #3b82f6;
+    color: var(--flow-theme-color, #3b82f6);
   }
 
   .flow-option-card__icon svg {
@@ -128,7 +135,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #3b82f6;
+    color: var(--flow-theme-color, #3b82f6);
     background: #ffffff;
     border-radius: 50%;
   }
@@ -158,13 +165,15 @@
   :global(.dark) .flow-option-card:hover:not(.flow-option-card--disabled),
   :global([data-theme="dark"]) .flow-option-card:hover:not(.flow-option-card--disabled) {
     background: #374151;
-    border-color: #3b82f6;
+    border-color: var(--flow-theme-color, #3b82f6);
   }
 
   :global(.dark) .flow-option-card--selected,
   :global([data-theme="dark"]) .flow-option-card--selected {
-    background: #1e3a8a;
-    border-color: #3b82f6;
+    background: color-mix(in srgb, var(--flow-theme-color, #3b82f6) 20%, #374151);
+    border-color: var(--flow-theme-color, #3b82f6);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--flow-theme-color, #3b82f6) 15%, transparent);
   }
 </style>
 
