@@ -1,0 +1,123 @@
+[
+  {
+    "id": "brand-flav-001",
+    "name": "FLAV",
+    "tagline": "DO YOURSELF A FLAVOR",
+    "description": "Through combining an obsession for innovation, knowledge of cannabis science, and precision production processes, Flav provides a complete product line to consumers under the trusted Flav brand as well as white label production capabilities for their partner brands.",
+    "logo": "Flav"
+  },
+  {
+    "id": "brand-ttm-001",
+    "name": "TO THE MOON",
+    "tagline": "To The Moon!",
+    "description": "From NYC To The Moon! 'To The Moon' is a street brand established in 2012 by Gazoo, an alien artist whose art first crash landed onto the streets of Manhattan. Gazoo's powerful 'To The Moon' tagline quickly resonated throughout New York City, motivating, uplifting, and encouraging many to adopt it into their lifestyles. With the unwavering support of the community and the strength of close partnerships, Gazoo leveraged his art to ignite a movement that cemented itself as a true New York legacy brand. Our products are each a unique work of art curated for those who dream big, seek creativity, and strive for a higher self. Join us on this journey: elevate to new heights, and follow your path 'To The Moon.'",
+    "logo": "To The Moon!",
+    "origin": "NYC",
+    "founded": 2012,
+    "founder": "Gazoo"
+  },
+  {
+    "id": "brand-ayrloom-001",
+    "name": "AYRLOOM",
+    "tagline": "adjust your altitude",
+    "description": "From the family that brought you Beak & Skiff & 1911 Established, ayrloom™ showcases the fifth generation's commitment to quality, innovation and sustaining over 1,000 acres of land in upstate New York. 110+ years of agricultural experience coupled with a passion for cannabis results in products that would make their great-great grandfathers proud. The team at ayrloom™ offers a full line of products to incorporate into daily routines, and they invite you to ADJUST YOUR ALTITUDE with them.",
+    "logo": "ayrloom",
+    "origin": "Upstate New York",
+    "founded": 1911,
+    "familyOwned": true,
+    "generation": "Fifth generation"
+  },
+  {
+    "id": "brand-wyld-001",
+    "name": "WYLD",
+    "tagline": "Wyld Works",
+    "description": "Wyld was founded in 2016 to create best-in-class cannabis edibles using real fruit and natural flavors. What began as three college friends over a two-burner stove is now a best-selling edibles brand. Wyld has made this journey by remaining independent, and staying true to their vision of a better definition of success. Wyld embraces challenges, tests boundaries, and lives life to the fullest. They have focused on building a strong community of retailers, budtenders, and consumers who all agree on one thing: Wyld Works. Real fruit. Real flavor. Real quality. That's the Wyld way. Grab a box today and find out why Wyld is America's top-selling edible!",
+    "logo": "WYLD",
+    "founded": 2016,
+    "founders": "Three college friends",
+    "philosophy": "Real fruit. Real flavor. Real quality. That's the Wyld way."
+  },
+  {
+    "id": "brand-mfny-001",
+    "name": "MFNY",
+    "tagline": "Ever Upward",
+    "description": "Marijuana Farms New York is New York's very own premier adult-use cannabis brand and state licensed operation located in Hudson Valley, New York: we are full-cycle and single-source which means we are in full control of the quality every step of the way: from seed to your local shelf. New Yorkers are people from all generations, origins, and walks of life sharing space and creative energy–from the stimulation of the city to the lushness of the land. And cannabis has the amazing ability to elevate everything New Yorkers do; encouraging connection, building community, and heightening creativity. What's our big MF-ing difference? All our non-flower products include live resin or rosin that offer the full expression of the plant's terpenes, trichomes, and cannabinoids (you'll never see us using distillates). It's just one of the ways we honor the plant and its power–all so we can deliver the very best to New Yorkers. We stay True-to-Plant: With all our products, we respect and stay true to the authenticity of the plant, the terpenes, and the legacy of the farmers and breeders who created each strain. We believe in \"Fire In, Fire Out\": The golden rule of cannabis extraction which means that the quality of the final product is determined by the quality of the starting material. We will always be Single-Source: All our products are sourced, grown, and produced in-house at our farm in New York's Hudson Valley. This is cannabis by New Yorkers, for New Yorkers. We aim to elevate every product: We spend the time and energy to extract pure and potent concentrate (rosin and resin) that showcases the plant's naturally-produced flavor profile and tastes. We also infuse these concentrates into our edibles and offer them in vaping forms. MFNY products are available exclusively at legal dispensaries in NY State. When you buy our products at legal dispensaries, you're helping to support the work it takes to provide safe, effective cannabis products to more New Yorkers. More important, the communities disproportionately affected by the War on Drugs also benefit.",
+    "logo": "mfny",
+    "origin": "Hudson Valley, New York",
+    "fullCycle": true,
+    "singleSource": true,
+    "philosophy": "True-to-Plant, Fire In Fire Out, Single-Source"
+  },
+  {
+    "id": "brand-dank-001",
+    "name": "DANK BY DEFINITION",
+    "tagline": "DANK. BY DEFINITION.",
+    "logo": "dank."
+  },
+  {
+    "id": "brand-ghost-001",
+    "name": "GHOST",
+    "tagline": "ghost.",
+    "description": "At Ghost, we go beyond mere production; we deliver a comprehensive vaping experience. Our dedicated team works tirelessly, overseeing each stage of product creation, from the delicate extraction process to the meticulous crafting of our vaping hardware. This unwavering commitment to quality ensures that every customer receives a product that exceeds expectations. The experience is enhanced with the artful blending of terpenes, creating a symphony of flavors and aromas that serve to heighten the user's enjoyment. In addition, our packaging is designed not only to protect our products but also to create an appealing, sensory-unpacking experience. From day one, our mission has been to bring the incredible benefits of cannabis to as many people as possible. As we move forward, we remain committed to this mission. Through constant innovation, a commitment to sustainability, and a focus on quality, we aim to redefine what's possible with cannabis vaping. Join us in our journey and discover a vaping experience unlike any other, right here at Ghost.",
+    "logo": "ghost."
+  },
+  {
+    "id": "brand-kiva-001",
+    "name": "KIVA",
+    "tagline": "Higher standards since day one",
+    "description": "Higher standards since day one. In 2010, a young cannabis-loving couple set out on a mission to create a better edible experience for legal consumers. Scott Palmer and Kristi Knoblich Palmer were inspired by a visit to a local chocolatier, and soon started crafting the first Kiva bars in their home kitchen. They didn't realize it at the time, but they weren't just creating a premium edible product, they were setting the gold standard for the entire legal cannabis industry. In the last decade, customer support has turned this family-owned business into the #1 edibles brand in the country. Today, they are proud to employ 200+ passionate people, and have added Terra, Petra and Camino to their happy family of premium cannabis products.",
+    "logo": "KIVA CONFECTIONS",
+    "founded": 2010,
+    "founders": "Scott Palmer and Kristi Knoblich Palmer",
+    "familyOwned": true
+  },
+  {
+    "id": "brand-botanist-001",
+    "name": "THE BOTANIST",
+    "tagline": "Go Beyond",
+    "description": "Whether you are a dreamer, an adventurer, or a healer at heart, we're with you on a journey of cannabis discovery. We are modern explorers, shaping a new vision for cannabis and what it can do for you. Our curated line of cannabis products empowers you to live life on your terms. Chill. Seek. Be. Go Beyond.",
+    "logo": "The Botanist"
+  },
+  {
+    "id": "brand-headheal-001",
+    "name": "HEAD & HEAL",
+    "tagline": "Farmer Owned",
+    "description": "Head & Heal was founded by Allan Gandelman, an organic vegetable farmer. He began experiencing symptoms of Lyme disease in 2017. Traditional treatments were ineffective, leading him to explore alternative remedies. He started making Rick Simpson Oil (RSO) in his own kitchen and within a few short weeks began experiencing relief. In an effort to share his formulations with his community, he obtained one of the first cannabis licenses in the state of New York and started Head & Heal. Now, Head & Heal operates a nutraceutical-grade extraction facility, focusing on safe and clean full-spectrum cannabis extracts. Their four formulations—Max Strength, Sleep, Focus, and Relief—provide targeted options for customers seeking alternative methods of cannabis consumption. Head & Heal also has a line of low potency THC products that can be shipped nationwide including gummies, topicals, and pet products.",
+    "logo": "HEAD & HEAL",
+    "founder": "Allan Gandelman",
+    "founded": 2017,
+    "origin": "New York State",
+    "farmerOwned": true
+  },
+  {
+    "id": "brand-rove-001",
+    "name": "ROVE",
+    "tagline": "-Ten Gears-",
+    "description": "WHO WE ARE: OUR VISION - At Rove, we believe in honesty, simplicity and transparency. Our goal is to provide customers with the highest quality products that taste great and are created with them in mind. Welcome to our brand, where the best is always getting better. OUR PRODUCTS - Creating the ultimate individualized cannabis experience means perfection in every step of the process. From cultivation to cartridge, we do everything in house, and take pride in bringing our consumers high quality, great tasting, transparent products. OUR STORY - Rove was born at the intersection of art and science. Our team of long time industry enthusiasts, boasting a combined wealth of experience in cultivation, extraction and laboratory science, joined together with a mission to produce better, tastier, more honest cannabis products.",
+    "logo": "ROVE",
+    "email": "info@rovebrand.com",
+    "inHouse": true
+  },
+  {
+    "id": "brand-40tons-001",
+    "name": "40 TONS",
+    "tagline": "A Social Impact Brand",
+    "description": "40 Tons is a legacy certified brand committed to social impact. A percentage of proceeds goes towards cannabis restorative justice programs, supporting communities disproportionately affected by the War on Drugs.",
+    "logo": "40RTY TONS™",
+    "legacyCertified": true,
+    "socialImpact": true
+  },
+  {
+    "id": "brand-offhours-001",
+    "name": "OFF HOURS",
+    "tagline": "offline.",
+    "logo": "Off hours"
+  },
+  {
+    "id": "brand-hepworth-001",
+    "name": "HEPWORTH",
+    "tagline": "Hepworth",
+    "logo": "Hepworth"
+  }
+]
+

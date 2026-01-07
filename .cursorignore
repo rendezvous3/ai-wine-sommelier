@@ -11,12 +11,14 @@
 # Step 2: Allow parent directories (needed to traverse to nested paths)
 !Svelte-Component-Library/
 !client/
+!vectorizer/
 
 # Step 3: Allow the specific source directories you want
 !Svelte-Component-Library/src/
 !Svelte-Component-Library/src/**
 !client/src/
 !client/src/**
+!vectorizer/**
 
 # Step 4: Then add specific ignore patterns for things you don't want even in allowed dirs
 node_modules/
@@ -42,7 +44,7 @@ node_modules/
 **/.netlify/
 **/storybook-static/
 
-# Python Virtual Environment
+# Python Virtual Environment (exclude from vectorizer)
 vectorizer/venv/
 vectorizer/.venv/
 vectorizer/env/
@@ -90,4 +92,3 @@ backend/.dev.vars
 # Misc
 **/.history
 **/.git.backup/
-
