@@ -6,6 +6,7 @@
     option: FlowOption;
     selected?: boolean;
     disabled?: boolean;
+    compact?: boolean;
     onclick?: () => void;
   }
 
@@ -13,12 +14,14 @@
     option,
     selected = false,
     disabled = false,
+    compact = false,
     onclick
   }: FlowOptionCardProps = $props();
 
   let cardClasses = $derived(
     [
       'flow-option-card',
+      compact && 'flow-option-card--compact',
       selected && 'flow-option-card--selected',
       disabled && 'flow-option-card--disabled'
     ]
@@ -46,7 +49,7 @@
   {/if}
   <div class="flow-option-card__content">
     <span class="flow-option-card__label">{option.label}</span>
-    {#if option.description}
+    {#if option.description && !compact}
       <span class="flow-option-card__description">{option.description}</span>
     {/if}
   </div>
@@ -93,6 +96,38 @@
   .flow-option-card--disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .flow-option-card--compact {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 16px 12px;
+    min-height: auto;
+    aspect-ratio: 1;
+  }
+
+  .flow-option-card--compact .flow-option-card__icon {
+    width: 32px;
+    height: 32px;
+    margin-bottom: 8px;
+  }
+
+  .flow-option-card--compact .flow-option-card__content {
+    align-items: center;
+    gap: 0;
+  }
+
+  .flow-option-card--compact .flow-option-card__label {
+    font-size: 14px;
+    text-align: center;
+  }
+
+  .flow-option-card--compact .flow-option-card__checkmark {
+    position: absolute;
+    top: 8px;
+    right: 8px;
   }
 
   .flow-option-card__icon {

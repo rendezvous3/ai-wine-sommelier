@@ -56,7 +56,7 @@
   <div class="flow-navigation__next-wrapper">
     <div class="flow-navigation__next-button-wrapper" style="--btn-primary-bg: {effectiveThemeColor}; --btn-primary-hover: {effectiveThemeColor}; --btn-primary-text: #ffffff; --btn-primary-shadow: color-mix(in srgb, {effectiveThemeColor} 30%, transparent);">
       <Button
-        label={isLastStep ? 'Complete' : 'Next'}
+        label={isLastStep ? 'See Best Matches' : 'Next'}
         variant="primary"
         size="md"
         disabled={!canGoNext}
@@ -90,6 +90,12 @@
   .flow-navigation__next-button-wrapper {
     display: flex;
     align-items: center;
+  }
+
+  .flow-navigation__next-button-wrapper :global(.btn) {
+    min-width: 120px;
+    height: 36px;
+    padding: 8px 16px;
   }
 
   .flow-navigation__next-button-wrapper :global(.btn--primary) {

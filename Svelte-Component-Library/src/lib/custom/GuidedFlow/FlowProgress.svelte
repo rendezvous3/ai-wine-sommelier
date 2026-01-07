@@ -19,9 +19,6 @@
 </script>
 
 <div class="flow-progress" style="--flow-theme-color: {effectiveThemeColor};">
-  <div class="flow-progress__header">
-    <span class="flow-progress__label">Step {currentStep} of {totalSteps}</span>
-  </div>
   <div class="flow-progress__bar">
     <div
       class="flow-progress__fill"
@@ -47,19 +44,6 @@
     padding: 16px 20px;
     background: #ffffff;
     border-bottom: 1px solid #e5e7eb;
-  }
-
-  .flow-progress__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-  }
-
-  .flow-progress__label {
-    font-size: 14px;
-    font-weight: 500;
-    color: #6b7280;
   }
 
   .flow-progress__bar {
@@ -116,11 +100,6 @@
   :global([data-theme="dark"]) .flow-progress {
     background: #1f2937;
     border-bottom-color: #374151;
-  }
-
-  :global(.dark) .flow-progress__label,
-  :global([data-theme="dark"]) .flow-progress__label {
-    color: #9ca3af;
   }
 
   :global(.dark) .flow-progress__bar,

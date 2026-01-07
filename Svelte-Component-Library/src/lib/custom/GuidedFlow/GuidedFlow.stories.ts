@@ -123,6 +123,89 @@ const sampleSteps = [
         icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 12L24 20L32 22L26 28L28 36L20 32L12 36L14 28L8 22L16 20L20 12Z" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
       }
     ]
+  },
+  {
+    id: 'potency',
+    title: 'How potent would you like it?',
+    subtitle: '(Select one)',
+    type: 'single-select' as const,
+    required: true,
+    options: [
+      {
+        id: 'mild',
+        label: 'Mild',
+        value: 'mild',
+        description: '<13%',
+        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="18" width="20" height="4" rx="2" fill="#3b82f6"/></svg>'
+      },
+      {
+        id: 'moderate',
+        label: 'Moderate',
+        value: 'moderate',
+        description: '13-18%',
+        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="16" width="20" height="8" rx="2" fill="#3b82f6"/></svg>'
+      },
+      {
+        id: 'strong',
+        label: 'Strong',
+        value: 'strong',
+        description: '18-22%',
+        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="14" width="20" height="12" rx="2" fill="#3b82f6"/></svg>'
+      },
+      {
+        id: 'very-strong',
+        label: 'Very Strong',
+        value: 'very-strong',
+        description: '22-28%',
+        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="12" width="20" height="16" rx="2" fill="#3b82f6"/></svg>'
+      },
+      {
+        id: 'extreme',
+        label: 'Extreme',
+        value: 'extreme',
+        description: '>28%',
+        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="20" height="20" rx="2" fill="#3b82f6"/></svg>'
+      }
+    ]
+  },
+  {
+    id: 'price-range',
+    title: 'What price are you looking for each product?',
+    subtitle: '(Select one)',
+    type: 'single-select' as const,
+    required: true,
+    options: [
+      {
+        id: 'no-preference',
+        label: 'No Preference',
+        value: 'no-preference',
+        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" stroke="#3b82f6" stroke-width="2"/><path d="M16 20H24" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/></svg>'
+      },
+      {
+        id: 'low',
+        label: '$0-25',
+        value: 'low',
+        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 16L20 10L28 16V28C28 29.1 27.1 30 26 30H14C12.9 30 12 29.1 12 28V16Z" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 22L20 18L24 22" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      },
+      {
+        id: 'medium',
+        label: '$25-50',
+        value: 'medium',
+        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 16L20 10L28 16V28C28 29.1 27.1 30 26 30H14C12.9 30 12 29.1 12 28V16Z" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 22L20 18L24 22M20 18V26" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      },
+      {
+        id: 'high',
+        label: '$50-75',
+        value: 'high',
+        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 16L20 10L28 16V28C28 29.1 27.1 30 26 30H14C12.9 30 12 29.1 12 28V16Z" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 22L20 18L24 22M20 18V26M16 26H24" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      },
+      {
+        id: 'premium',
+        label: '$75+',
+        value: 'premium',
+        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 16L20 10L28 16V28C28 29.1 27.1 30 26 30H14C12.9 30 12 29.1 12 28V16Z" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 22L20 18L24 22M20 18V26M16 26H24M18 24H22" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      }
+    ]
   }
 ];
 
@@ -177,6 +260,24 @@ export const MultiSelect: Story = {
 export const InChatWidget: Story = {
   render: () => ({
     Component: ChatWidgetWithGuidedFlow as any,
+  })
+};
+
+export const WithAllSteps: Story = {
+  args: {
+    config: {
+      steps: sampleSteps,
+      onComplete: (selections: Record<string, any>) => {
+        console.log('All steps completed:', selections);
+      },
+      onClose: () => {
+        console.log('Flow closed');
+      }
+    }
+  },
+  render: (args: any) => ({
+    Component: GuidedFlow as any,
+    props: args,
   })
 };
 
