@@ -163,7 +163,7 @@
       type="button"
     >
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M10 14L6 10L7.41 8.59L10 11.17L12.59 8.59L14 10L10 14Z" fill="currentColor"/>
+        <path d="M5 8L10 13L15 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>
     </button>
   {/if}
@@ -380,6 +380,7 @@
     overflow: hidden;
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
+    margin-top: -2px; /* Overlap wavy border to prevent background showing */
   }
 
   .chat-window--expanded {

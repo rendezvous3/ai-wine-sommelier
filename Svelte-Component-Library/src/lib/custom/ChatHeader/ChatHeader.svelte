@@ -203,8 +203,8 @@
         type="button"
       >
         <svg
-          width="20"
-          height="20"
+          width="24"
+          height="24"
           viewBox="0 0 20 20"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
@@ -219,7 +219,7 @@
   
   <div class={contentClasses}>
     {#if showIcon}
-      <WidgetIcon type="message-bubble" size="sm" color={iconColor} />
+      <WidgetIcon type="message-bubble" size="md" color={iconColor} />
     {/if}
     <span class="chat-header__title">{title}</span>
   </div>
@@ -236,8 +236,8 @@
           type="button"
         >
           <svg
-            width="20"
-            height="20"
+            width="24"
+            height="24"
             viewBox="0 0 20 20"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
@@ -258,8 +258,8 @@
       >
         <div class="chat-header__close-icon">
           <svg
-            width="20"
-            height="20"
+            width="24"
+            height="24"
             viewBox="0 0 20 20"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
@@ -362,7 +362,7 @@
   }
 
   .chat-header--md {
-    padding: 16px 20px;
+    padding: 18px 20px;
   }
 
   .chat-header--md .chat-header__title {
@@ -441,8 +441,8 @@
   }
 
   .chat-header__close-icon svg {
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
   }
 
   /* Header Style: Flat (default gradient) */
@@ -483,10 +483,10 @@
 
   .chat-header__wavy-border {
     position: absolute;
-    bottom: -1px;
+    bottom: -2px;
     left: 0;
     width: 100%;
-    height: 20px;
+    height: 22px;
     fill: currentColor;
     pointer-events: none;
     z-index: 1;

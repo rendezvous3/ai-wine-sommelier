@@ -164,6 +164,7 @@
         menuMode={menuMode}
         onMenuItemClick={onMenuItemClick}
         headerBackgroundColor={headerBackgroundColor ?? themeBackgroundColor}
+        height="lg"
       />
       
       <ChatWindow
