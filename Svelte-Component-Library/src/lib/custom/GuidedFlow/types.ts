@@ -16,9 +16,11 @@ export interface FlowStep {
   required?: boolean;
 }
 
+import type { TransformedMetadata } from './utils.js';
+
 export interface GuidedFlowConfig {
   steps: FlowStep[];
-  onComplete?: (selections: Record<string, any>) => void;
+  onComplete?: (selections: Record<string, any>, metadata?: TransformedMetadata) => void;
   onClose?: () => void;
   onStepChange?: (stepIndex: number, stepId: string) => void;
 }

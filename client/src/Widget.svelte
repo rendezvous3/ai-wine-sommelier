@@ -285,8 +285,13 @@
     mode = mode === 'chat' ? 'guided-flow' : 'chat';
   }
 
-  function handleFlowComplete(selections: Record<string, any>) {
+  function handleFlowComplete(selections: Record<string, any>, metadata?: import('../../Svelte-Component-Library/src/lib/custom/GuidedFlow/utils.js').TransformedMetadata) {
     console.log('Flow completed:', selections);
+    if (metadata) {
+      console.log('Transformed Metadata:', metadata.metadata);
+      console.log('Query:', metadata.query);
+      console.log('Filters:', metadata.filters);
+    }
     // Switch back to chat mode
     mode = 'chat';
     // Optionally send selections to API or add a message

@@ -3,6 +3,7 @@
   import FlowStep from './FlowStep.svelte';
   import FlowProgress from './FlowProgress.svelte';
   import FlowNavigation from './FlowNavigation.svelte';
+  import { transformSelectionsToMetadata } from './utils.js';
 
   interface GuidedFlowProps {
     config: GuidedFlowConfig;
@@ -66,8 +67,17 @@
       state.currentStepIndex++;
       config.onStepChange?.(state.currentStepIndex, currentStep.id);
     } else {
-      // Completed
-      config.onComplete?.(state.selections);
+      // Completed - transform selections and log
+      const transformed = transformSelectionsToMetadata(state.selections, config.steps);
+      
+      console.log('=== GuidedFlow Selections ===');
+      console.log('Raw Selections:', state.selections);
+      console.log('Metadata:', transformed.metadata);
+      console.log('Query:', transformed.query);
+      console.log('Filters:', transformed.filters);
+      console.log('============================');
+      
+      config.onComplete?.(state.selections, transformed);
     }
   }
 
@@ -81,12 +91,15 @@
   function handleSwitchToChat() {
     config.onClose?.();
   }
+
 </script>
 
 <div class="guided-flow">
   <FlowProgress
     currentStep={state.currentStepIndex + 1}
     totalSteps={config.steps.length}
+    onBack={handleBack}
+    onSwitchToChat={handleSwitchToChat}
   />
 
   {#if currentStep}

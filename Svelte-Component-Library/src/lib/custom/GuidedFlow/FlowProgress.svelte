@@ -4,12 +4,26 @@
   interface FlowProgressProps {
     currentStep: number;
     totalSteps: number;
+    onBack?: () => void;
+    onSwitchToChat?: () => void;
   }
 
   let {
     currentStep,
-    totalSteps
+    totalSteps,
+    onBack,
+    onSwitchToChat
   }: FlowProgressProps = $props();
+
+  let canGoBack = $derived(currentStep > 1);
+  
+  function handleBackClick() {
+    if (canGoBack && onBack) {
+      onBack();
+    } else if (onSwitchToChat) {
+      onSwitchToChat();
+    }
+  }
 
   let progressPercentage = $derived((currentStep / totalSteps) * 100);
 
@@ -19,6 +33,20 @@
 </script>
 
 <div class="flow-progress" style="--flow-theme-color: {effectiveThemeColor};">
+  {#if (canGoBack && onBack) || onSwitchToChat}
+    <button
+      class="flow-progress__back-button"
+      onclick={handleBackClick}
+      aria-label={canGoBack ? 'Previous step' : 'Back to chat'}
+      type="button"
+    >
+      <!-- Always show arrow icon -->
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 14L8 10L12 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  {/if}
+  
   <div class="flow-progress__bar">
     <div
       class="flow-progress__fill"
@@ -44,6 +72,7 @@
     padding: 16px 20px;
     background: #ffffff;
     border-bottom: 1px solid #e5e7eb;
+    position: relative;
   }
 
   .flow-progress__bar {
@@ -117,6 +146,56 @@
   :global(.dark) .flow-progress__step--active .flow-progress__step-indicator,
   :global([data-theme="dark"]) .flow-progress__step--active .flow-progress__step-indicator {
     background: var(--flow-theme-color, #3b82f6);
+  }
+
+  .flow-progress__back-button {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    color: #374151;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 10;
+    padding: 0;
+  }
+
+  .flow-progress__back-button:hover {
+    background: rgba(255, 255, 255, 1);
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .flow-progress__back-button:active {
+    transform: scale(0.95);
+  }
+
+  .flow-progress__back-button svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Dark mode */
+  :global(.dark) .flow-progress__back-button,
+  :global([data-theme="dark"]) .flow-progress__back-button {
+    background: rgba(31, 41, 55, 0.95);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #f9fafb;
+  }
+
+  :global(.dark) .flow-progress__back-button:hover,
+  :global([data-theme="dark"]) .flow-progress__back-button:hover {
+    background: rgba(31, 41, 55, 1);
   }
 </style>
 
