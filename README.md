@@ -70,6 +70,32 @@ vectorize_index_name = "products-demo-2"
 cfVect.create_index(index_name=vectorize_index_name, wait=True)
 ```
 
+Import products and prepare documents with Document
+do not specify an id in metadata
+
+```python
+  from langchain_core.documents import Document
+
+  with open("dummy_products.json", "r") as f:
+    products = json.load(f)
+
+    documents = [
+    Document(
+        page_content=f"{p['name']}. {p['description']}. Effects: {', '.join(p['effects'])}. Flavor: {', '.join(p['flavor'])}",
+        metadata={
+            # "id": p["id"],
+            "name": p["name"],
+            "category": p["category"],
+            "type": p["type"],
+            "brand": p["brand"],
+            "effects": ", ".join(p["effects"]),
+            "flavor": ", ".join(p["flavor"]),
+        },
+    )
+    for p in products
+  ]
+```
+
 Prepare Data: Edit dummy_products.json with real products (or integrate e-commerce API later).
 
 This embeds products using Cloudflare Workers AI (@cf/baai/bge-large-en-v1.5).
