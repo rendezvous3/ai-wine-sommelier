@@ -67,7 +67,7 @@ Embedding Process - Create Index (Create a Vector DB Table)
 vectorize_index_name = "products-demo-2"
 
 # ONLY RUN ONCE INITIALLY to create the Vector DB Table
-# cfVect.create_index(index_name=vectorize_index_name, wait=True)
+cfVect.create_index(index_name=vectorize_index_name, wait=True)
 ```
 
 Prepare Data: Edit dummy_products.json with real products (or integrate e-commerce API later).
