@@ -63,7 +63,7 @@ source .venv/bin/activate
 
 
 Embedding Process - Create Index (Create a Vector DB Table)
-```
+```bash
 vectorize_index_name = "products-demo-2"
 
 # ONLY RUN ONCE INITIALLY to create the Vector DB Table
