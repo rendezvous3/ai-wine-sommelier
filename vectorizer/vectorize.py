@@ -48,6 +48,7 @@ print("documents", documents)
 
 vectorize_index_name = "products-demo-1"
 # vectorize_index_name = "test-langchain-cloudflare"
+# vectorize_index_name = "products-demo-2"
 
 # ONLY RUN ONCE INITIALLY to create the Vector DB Table
 # cfVect.create_index(index_name=vectorize_index_name, wait=True)
