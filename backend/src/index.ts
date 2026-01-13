@@ -50,7 +50,7 @@ app.get('/', (c) => {
     return c.text('hello world')
 });
 
-app.post("/chat/decide", async (c) => {
+app.post("/chat/intent", async (c) => {
   const body = await c.req.json();
   const messages = body.messages || [];
   const last = messages[messages.length - 1]?.content || "";
@@ -112,7 +112,7 @@ app.post("/chat/decide", async (c) => {
   text = data.choices?.[0]?.message?.content || "";
 
   } catch (err) {
-    const formatError = `/decide api error: ${err}`;
+    const formatError = `/intent api error: ${err}`;
     console.error(formatError);
     return c.json({ error: formatError }, 503);
     // return c.json({ intent: "general" });

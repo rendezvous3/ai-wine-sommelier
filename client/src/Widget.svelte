@@ -375,8 +375,8 @@
     // STEP 1 — Intent Classifier
     let intent = "general";
     try {
-      const decide = await fetch(`${BASE_URL}/decide`, {
-        // const decide = await fetch("http://localhost:8787/chat/decide", {
+      const decide = await fetch(`${BASE_URL}/intent`, {
+        // const decide = await fetch("http://localhost:8787/chat/intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

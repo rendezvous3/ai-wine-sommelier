@@ -33,7 +33,7 @@ The system is built as **four loosely coupled components** for maximum flexibili
 - **Technology**: TypeScript + Hono + Cloudflare Workers
 - **Purpose**: Serverless API handling all business logic
 - **Routes**:
-  - `/chat/decide`: Fast intent classifier (general vs recommendation)
+  - `/chat/intent`: Fast intent classifier (general vs recommendation)
   - `/chat/stream`: Streaming conversational agent (Maitre D role) using Groq Llama 3.3 70B
   - `/chat/recommendations`: RAG-powered recommendation engine using Cloudflare Vectorize + Groq
 - **Key Features**:
