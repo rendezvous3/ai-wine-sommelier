@@ -53,78 +53,171 @@ app.get('/', (c) => {
 app.post("/chat/intent", async (c) => {
   const body = await c.req.json();
   const messages = body.messages || [];
-  const last = messages[messages.length - 1]?.content || "";
+  
+  // Get last 5 messages for context, or all if less than 5
+  const lastMessages = messages.slice(-7);
+  const lastMessage = lastMessages[lastMessages.length - 1]?.content || "";
+  
+  // Format conversation history for context
+  const conversationHistory = lastMessages.length > 1 
+    ? formatConversationHistory(lastMessages.slice(0, -1))
+    : "";
 
   const API_KEY = c.env.GROQ_API_KEY;
   const MODEL = AGENT_ROLE_MODEL.INTENT;
 
   const prompt = `
-    You are an intent classifier for premium cannabis dispensary
-    Be able to diffirentiate between Possible intents:
-    - "general"   → normal conversation, business enguiry, location 
-    - "recommendation" → product recommendations needed, 
-    be mindful of effects and flavors, edibles, pre-rools, flowers
-    - "recommendation examples" → need/looking for/give me
-    something for/suggest/how about for/anything for/ sleep/going out/appetite/upity mood/party/staying up/celebrating
+You are the Brain of a Cannabis Dispensary AI.
+Analyze the conversation history and the latest user message.
 
-    Classify intent: return ONLY "recommendation" or "general"
+Review the conversation. Extract the current active preferences. 
+If a user changes their mind (e.g., from Flower to Pre-roll), the new choice replaces the old one. 
+If they add a preference (e.g., 'And make it strong'), append it.
 
-    Examples:
-    "best indica" → recommendation
-    "what strains for sleep" → recommendation
-    "what are your hours" → general
-    "return policy" → general
-    "something for anxiety" → recommendation
-    "something to xyz"
-    "something to keep me going"
-    "something that xyz"
-    "something that doesn't get me too drowsy"
-    "something that states like xyz"
-    "something of effect of xyz"
+Return ONLY valid JSON with:
+1. "intent": "recommendation" or "general"
+2. "filters": { 
+    "category": (flower, preroll, edible, concentrate, tincture, vape) or null,
+    "type": (indica, sativa, hybrid) or null,
+    "thc_min": (number) or null,
+    "thc_max": (number) or null,
+    "subcategory": (string) or null,
+    "effects": (array of strings) or null,
+    "flavor": (array of strings) or null,
+    "brand": (string) or null,
+    "price_min": (number) or null,
+    "price_max": (number) or null
+}
+3. "semantic_search": "3-5 keywords describing desired mood/effect/flavor" or empty string
 
-    User: "${last}"
+Category mapping:
+- "flower", "buds", "weed" → "flower"
+- "preroll", "pre-roll", "joint" → "preroll"
+- "edible", "edibles", "gummies", "chocolates" → "edible"
+- "concentrate", "concentrates", "wax", "shatter" → "concentrate"
+- "tincture", "tinctures", "oil" → "tincture"
+- "vape", "vapes", "cartridge" → "vape"
 
-    Respond with only the word.
+Type mapping:
+- "indica", "indica-dominant" → "indica"
+- "sativa", "sativa-dominant" → "sativa"
+- "hybrid" → "hybrid"
 
-    Return ONLY:
-    {"intent": "general"} OR {"intent": "recommendation"}
+THC level extraction:
+- "strong", "high thc", "potent" → thc_min: 20
+- "mild", "low thc" → thc_max: 15
+- Explicit percentages → extract directly (e.g., "20%" → thc_min: 20)
+- Ranges like "18-22%" → thc_min: 18, thc_max: 22
 
-    User says: "${last}"`;
+Examples:
+- "I want a strong flower for sleep, no couch-lock"
+  Result: {
+    "intent": "recommendation",
+    "filters": { "category": "flower", "type": "indica", "thc_min": 20 },
+    "semantic_search": "sleepy relaxed nighttime functional"
+  }
+
+- "What are your hours?"
+  Result: {
+    "intent": "general",
+    "filters": {},
+    "semantic_search": ""
+  }
+
+- "Show me edibles"
+  Result: {
+    "intent": "recommendation",
+    "filters": { "category": "edible" },
+    "semantic_search": "edible products"
+  }
+
+- "I want something for anxiety, maybe a sativa"
+  Result: {
+    "intent": "recommendation",
+    "filters": { "type": "sativa" },
+    "semantic_search": "anxiety relief calming focused"
+  }
+
+${conversationHistory ? `Conversation history:\n${conversationHistory}\n\n` : ""}
+
+Latest user message: "${lastMessage}"
+
+Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
 
   let text;
   try {
     const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${API_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: [{ role: "system", content: prompt }],
-      temperature: 0,
-      max_tokens: 10,
-      stream: false
-    })
-  });
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [{ role: "system", content: prompt }],
+        temperature: 0,
+        max_tokens: 500,
+        stream: false
+      })
+    });
 
-  const data = await resp.json();
-  text = data.choices?.[0]?.message?.content || "";
+    const data = await resp.json();
+    text = data.choices?.[0]?.message?.content || "";
 
   } catch (err) {
     const formatError = `/intent api error: ${err}`;
     console.error(formatError);
-    return c.json({ error: formatError }, 503);
-    // return c.json({ intent: "general" });
+    return c.json({ 
+      intent: "general", 
+      filters: {}, 
+      semantic_search: "" 
+    }, 503);
   }
 
-
-
+  // Parse and validate response
   try {
-    const parsed = JSON.parse(text);
-    return c.json(parsed);
+    // Strip markdown code blocks if present
+    let cleanedText = text.trim();
+    if (cleanedText.startsWith('```json')) {
+      cleanedText = cleanedText.replace(/^```json\s*/i, '').replace(/\s*```$/g, '');
+    } else if (cleanedText.startsWith('```')) {
+      cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/g, '');
+    }
+    cleanedText = cleanedText.trim();
+
+    const parsed = JSON.parse(cleanedText);
+    
+    // Validate and normalize response structure
+    const response = {
+      intent: parsed.intent === "recommendation" ? "recommendation" : "general",
+      filters: parsed.filters || {},
+      semantic_search: parsed.semantic_search || ""
+    };
+
+    // Ensure filters object has correct structure (null for missing values)
+    const normalizedFilters: Record<string, any> = {};
+    const filterFields = ["category", "type", "thc_min", "thc_max", "subcategory", "effects", "flavor", "brand", "price_min", "price_max"];
+    
+    for (const field of filterFields) {
+      if (response.filters[field] !== undefined && response.filters[field] !== null) {
+        normalizedFilters[field] = response.filters[field];
+      }
+    }
+
+    return c.json({
+      intent: response.intent,
+      filters: normalizedFilters,
+      semantic_search: response.semantic_search
+    });
   } catch (err) {
-    return c.json({ intent: "general" });
+    console.error("Failed to parse intent response:", err);
+    console.error("Raw response:", text);
+    // Fallback to general intent with empty filters
+    return c.json({ 
+      intent: "general", 
+      filters: {}, 
+      semantic_search: "" 
+    });
   }
 });
 
