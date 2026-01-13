@@ -12,6 +12,7 @@
 !Svelte-Component-Library/
 !client/
 !vectorizer/
+!backend/
 
 # Step 3: Allow the specific source directories you want
 !Svelte-Component-Library/src/
@@ -19,6 +20,8 @@
 !client/src/
 !client/src/**
 !vectorizer/**
+!backend/src/
+!backend/src/**
 
 # Step 4: Then add specific ignore patterns for things you don't want even in allowed dirs
 node_modules/

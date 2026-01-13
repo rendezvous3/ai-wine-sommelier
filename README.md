@@ -63,6 +63,9 @@ source .venv/bin/activate
 
 
 Embedding Process - Create Index (Create a Vector DB Table)
+
+STEP 1
+
 ```python
 vectorize_index_name = "products-demo-2"
 
@@ -73,27 +76,66 @@ cfVect.create_index(index_name=vectorize_index_name, wait=True)
 Import products and prepare documents with Document
 do not specify an id in metadata
 
+STEP 2
+
 ```python
-  from langchain_core.documents import Document
+from langchain_core.documents import Document
 
-  with open("dummy_products.json", "r") as f:
-    products = json.load(f)
+with open("dummy_products.json", "r") as f:
+  products = json.load(f)
 
-    documents = [
-    Document(
-        page_content=f"{p['name']}. {p['description']}. Effects: {', '.join(p['effects'])}. Flavor: {', '.join(p['flavor'])}",
-        metadata={
-            # "id": p["id"],
-            "name": p["name"],
-            "category": p["category"],
-            "type": p["type"],
-            "brand": p["brand"],
-            "effects": ", ".join(p["effects"]),
-            "flavor": ", ".join(p["flavor"]),
-        },
-    )
-    for p in products
-  ]
+  documents = [
+  Document(
+      page_content=f"{p['name']}. {p['description']}. Effects: {', '.join(p['effects'])}. Flavor: {', '.join(p['flavor'])}",
+      metadata={
+          # "id": p["id"],
+          "name": p["name"],
+          "category": p["category"],
+          "type": p["type"],
+          "brand": p["brand"],
+          "effects": ", ".join(p["effects"]),
+          "flavor": ", ".join(p["flavor"]),
+      },
+  )
+  for p in products
+]
+```
+
+STEP 3 - cfVect.add_documents (needs ids)
+
+Run 
+
+```python
+  ids = [p["id"] for p in products]
+  r = cfVect.add_documents(index_name=vectorize_index_name, documents=documents, ids=ids)
+```
+
+STEP 4 - Ensure that in Cloudflare dashboard (May need a few minutes)
+Storage & databases
+Vectorize -> Stored Vectores is updated
+
+STEP 5
+
+wrangler.toml
+
+```bash
+name = "ecom-chat-backend"
+main = "src/index.ts"
+compatibility_date = "2025-11-24"
+
+[vars]
+# These will be overridden by .env in dev, and by Cloudflare dashboard in prod
+CEREBRAS_API_KEY = "replace-me-in-dashboard"
+
+[[vectorize]]
+binding = "VECTORIZE_INDEX"
+
+## UDPATE the index name
+index_name = "products-demo-2"
+
+[ai]
+binding = "AI"
+
 ```
 
 Prepare Data: Edit dummy_products.json with real products (or integrate e-commerce API later).

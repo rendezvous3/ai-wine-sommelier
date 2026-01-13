@@ -91,8 +91,6 @@ app.post("/chat/decide", async (c) => {
 
     User says: "${last}"`;
 
-  console.log("/decide route called", prompt);
-
   let text;
   try {
     const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -109,8 +107,6 @@ app.post("/chat/decide", async (c) => {
       stream: false
     })
   });
-
-  console.log("/decide route resp", resp);
 
   const data = await resp.json();
   text = data.choices?.[0]?.message?.content || "";
@@ -157,8 +153,6 @@ app.post("/chat/stream", async (c) => {
   // const conversation_history = formatConversationHistory(lastMessages);
   // const user_message = lastMessages[lastMessages.length - 1]?.content || "";
 
-  // console.log("conversation_history", conversation_history);
-
   const prompt = generatePrompt(
     MODEL_PROVIDER.LLAMA,
     user_message,
@@ -184,8 +178,6 @@ app.post("/chat/stream", async (c) => {
     ...cleanMessages
   ];
 
-  // console.log("/stream messagesForLLM ", messagesForLLM);
-
   let response;
   try {
   response = await fetch(`${BASE_URL}/chat/completions`, {
@@ -202,8 +194,6 @@ app.post("/chat/stream", async (c) => {
       stream: true
     })
   });
-
-  console.log("/stream route ", response);
 
   } catch (err) {
     const formatError = `"Groq Stream Error: ${err}`
@@ -225,7 +215,22 @@ app.post("/chat/stream", async (c) => {
 app.post("/chat/recommendations", async (c) => {
   const body = await c.req.json();
   const messages = body.messages || [];
-  const user_message = messages[messages.length - 1]?.content || "";
+  // const user_message = messages[messages.length - 1]?.content || "";
+
+  const lastMessages = messages.slice(-5);
+  const enrichedHistory = lastMessages.map(msg => {
+    if (msg.recommendations?.length > 0) {
+      const names = msg.recommendations.map(p => p.name).join(", ");
+      return {
+        role: "assistant",
+        content: `${msg.content}\n\nI recommended: ${names}.`
+      };
+    }
+    return { role: msg.role, content: msg.content };
+  });
+
+  const conversation_history = formatConversationHistory(enrichedHistory);
+  const user_message = enrichedHistory[enrichedHistory.length - 1]?.content || "";
 
   let searchResults;
   try {
@@ -238,54 +243,78 @@ app.post("/chat/recommendations", async (c) => {
       index: c.env.VECTORIZE_INDEX
     });
 
-    searchResults = await store.similaritySearch(user_message, 8);
+    const enrichedQuery = `
+    The most important segment is that if user is asking for category or subcategory, you should search for the products that match the category or subcategory.
+    As an example if user has expressed desire for edibles, you should search for the products that are edibles.
+    Equaly important is the desired effect. We can't recommend products that have the opposite effect.
+    If desire is euphoria, energy, uplifted we should recommend products Sativa or Hybrid products with mentioned such effect.
+    If the desire is relaxed, sleep, calm, we should recommend products Indica or Hybrid products with mentioned such effect.
+    Conversation history: ${conversation_history}
+    User message: ${user_message}
+    `;
+    // searchResults = await store.similaritySearch(user_message, 5);
+    searchResults = await store.similaritySearch(enrichedQuery, 8);
   } catch (err) {
     console.error("Vector search error:", err);
     return c.json({ recommendations: [] }, 200);
   }
 
-  const productContext = searchResults
-    .map((doc, i) => {
-      const m = doc.metadata || {};
-      return `${i + 1}. "${m.name}" by ${m.brand}
-        Price: $${m.price}
-        Category: ${m.category}
-        Type: ${m.type}
-        Effects: ${m.effects}
-        Description: ${doc.pageContent}`;
-    })
-    .join("\n\n");
+  const results = searchResults
+  .map((doc, i) => { 
+    return {
+      ...doc.metadata,
+    }
+  })
 
   const API_KEY = c.env.GROQ_API_KEY;
   const MODEL = AGENT_ROLE_MODEL.RECCOMEND;
 
   const llmPrompt = `
-    You are a recommendation engine. 
-    Rewrite the products into a clean JSON list:
+    You are a recommendation engine.
+    Your task is to filter out wrongly retrieved products from the similarity search results.
+    The most important segment is that if user is asking for category or subcategory, you should search for the products that match the category or subcategory.
+    As an example if user has expressed desire for edibles, you should search for the products that are edibles.
+    Same for pre-rolls, flowers, concentrates, etc.
+
+    Examples: 
+    "I'm looking for some edibles." → Edibles. (NOT Pre-Rolls or Flowers or Concentrates or etc.)
+    "I would like some Pre-Rolls and edibles with XYZ effect" → Pre-Rolls and Edibles. (NOT Flowers or Concentrates or etc.)
+    "What are your strongest concentrate options?" → Concentrates. (NOT Pre-Rolls or Flowers or Edibles or etc.)
+
+    Equaly important is the desired effect. We can't recommend products that have the opposite effect.
+
+    If desire is euphoria, energy, uplifted we should recommend products Sativa or Hybrid products with mentioned such effect. Avoid Indica.
+    these must not include effects like calm, relaxed, sleepy.
+
+    Example: "I'm looking for something to keep me energetic and uplifted." → Sativa or Hybrid products with mentioned such effect. Avoid Indica.
+    effects: euphoria, energy, uplifted (at least one of these) not sleepy
+
+    If the desire is relaxed, sleep, calm, we should recommend products Indica or Hybrid products with mentioned such effect.
+    these must not include effects like euphoria, energy, uplifted. Avoid Sativa.
+    effects: calm, sleep, relaxed (at least one of these) not energized or uplifted
+
+    if user has expressed desire for indica, you should search for the products that are indica.
+    if user has expressed desire for sativa, you should search for the products that are sativa.
+    if user has expressed desire for hybrid, you should search for the products that are hybrid.
+
+    Filter out the products that don't match the user's desire. Return Valid JSON. Make no changes to result JSON schema.
+    Just filter out the products not matching and return it as is
+
+    Similarity search results:
+    ${JSON.stringify(results)}
 
     Format:
     {
-      "recommendations": [
-        {
-          "name": "",
-          "brand": "",
-          "category": "",
-          "price": 0,
-          "type": "",
-          "effects": "",
-          "description": "",
-          "match_reason": ""
-        }
-      ]
+      "recommendations": [results[1], results[3], results[5], ...]
     }
 
-    Products to analyze:
-    ${productContext}
+    Conversation history:
+    ${conversation_history}
 
     User message:
     "${user_message}"
 
-    Return ONLY valid JSON.
+    Return ONLY valid JSON. Do not wrap the response in markdown code blocks. Return raw JSON only.
     `;
 
   const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -298,14 +327,13 @@ app.post("/chat/recommendations", async (c) => {
       model: MODEL,
       messages: [{ role: "system", content: llmPrompt }],
       temperature: 0.1,
-      max_tokens: 500,
+      max_tokens: 3000,
       stream: false
     })
   });
 
   const data = await resp.json();
   const text = data.choices?.[0]?.message?.content || "";
-
   try {
     const parsed = JSON.parse(text);
     return c.json(parsed, 200);
@@ -374,26 +402,19 @@ app.post("/chat/recommendations", async (c) => {
 //     })
 //     .join("\n\n");
     
-//   console.log("Products Stringified Context", productsContext);
-//   console.log("Similarity Search Results", results);
-//   console.log("User Message", user_message);
 
 //   const lastMessagesForLLM = messages.slice(-15);
 //   const conversation_history = formatConversationHistory(lastMessagesForLLM);
 
-//   console.log("lastMessagesForLLM ", lastMessagesForLLM);
-//   console.log("conversation_history ", conversation_history);
 
 //   // Grok Suggested Template
 //   const PROMPT = generatePrompt(MODEL_PROVIDER.LLAMA, user_message, conversation_history, productsContext);
-//   console.log("PROMPT", PROMPT);
 
 //   const messagesForLLM = [
 //     { role: "system", content: PROMPT },
 //     ...lastMessagesForLLM,
 //   ];
 
-//   // console.log("PROMPT", PROMPT);
 
 //   // Cerebras models
 //   // const MODEL = "qwen-3-32b";
@@ -425,8 +446,6 @@ app.post("/chat/recommendations", async (c) => {
 //           // stop: ["<think>", "</think>", "<|im_end|>"], // Add this line
 //         })
 //       });
-
-//       console.log("response ", response.body);
 
 //       if (!response.ok) {
 //         const err = await response.text();
