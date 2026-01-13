@@ -285,17 +285,66 @@
     mode = mode === 'chat' ? 'guided-flow' : 'chat';
   }
 
-  function handleFlowComplete(selections: Record<string, any>, metadata?: import('../../Svelte-Component-Library/src/lib/custom/GuidedFlow/utils.js').TransformedMetadata) {
+  async function handleFlowComplete(selections: Record<string, any>, metadata?: import('../../Svelte-Component-Library/src/lib/custom/GuidedFlow/utils.js').TransformedMetadata) {
     console.log('Flow completed:', selections);
     if (metadata) {
       console.log('Transformed Metadata:', metadata.metadata);
       console.log('Query:', metadata.query);
       console.log('Filters:', metadata.filters);
     }
-    // Switch back to chat mode
+
+    if (!metadata || !metadata.query) {
+      console.error('No query available from GuidedFlow');
+      mode = 'chat';
+      return;
+    }
+
+    // Switch to chat mode first
     mode = 'chat';
-    // Optionally send selections to API or add a message
-    // For now, just switch back to chat
+    
+    // Add query as user message
+    const queryMessage: Message = {
+      role: "user",
+      content: metadata.query
+    };
+    messages = [...messages, queryMessage];
+    loading = true;
+
+    // Call recommendations API
+    try {
+      const resp = await fetch(
+        `${BASE_URL}/recommendations`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: [queryMessage]
+          }),
+        }
+      );
+      
+      const data = await resp.json();
+      productRecommendations = data.recommendations || [];
+      
+      // Add recommendations as assistant message
+      if (productRecommendations.length > 0) {
+        const botMessage: Message = {
+          role: "assistant",
+          content: "",
+          recommendations: productRecommendations,
+        };
+        messages = [...messages, botMessage];
+      }
+    } catch (err) {
+      console.error("Recommendations API failed:", err);
+      // Optionally add an error message
+      messages = [...messages, {
+        role: "assistant",
+        content: "Sorry, I couldn't fetch recommendations right now. Please try again."
+      }];
+    } finally {
+      loading = false;
+    }
   }
 
   function handleFlowClose() {
