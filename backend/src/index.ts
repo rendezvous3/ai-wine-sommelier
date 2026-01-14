@@ -84,7 +84,8 @@ Return ONLY valid JSON with:
 2. "filters": { 
     "category": (flower, prerolls, edibles, concentrates, tincture, vaporizers) or null,
     "type": (indica, sativa, hybrid) or null,
-    "thc_percentage": (number) or null,
+    "thc_percentage_min": (number) or null,
+    "thc_percentage_max": (number) or null,
     "subcategory": (string) or null,
     "effects": (array of strings) or null,
     "flavor": (array of strings) or null,
@@ -365,8 +366,15 @@ app.post("/chat/recommendations", async (c) => {
       }
     }
 
-    if (filters.thc_percentage !== null && filters.thc_percentage !== undefined) {
-      vectorizeFilters.thc_percentage = filters.thc_percentage;
+    if (filters.thc_percentage_min !== null && filters.thc_percentage_min !== undefined || 
+        filters.thc_percentage_max !== null && filters.thc_percentage_max !== undefined) {
+      vectorizeFilters.thc_percentage = {};
+      if (filters.thc_percentage_min !== null && filters.thc_percentage_min !== undefined) {
+        vectorizeFilters.thc_percentage["$gte"] = filters.thc_percentage_min;
+      }
+      if (filters.thc_percentage_max !== null && filters.thc_percentage_max !== undefined) {
+        vectorizeFilters.thc_percentage["$lte"] = filters.thc_percentage_max;
+      }
     }
 
     // Boolean
@@ -377,7 +385,7 @@ app.post("/chat/recommendations", async (c) => {
     // Use filters if any exist, otherwise no filter
     const filterToUse = Object.keys(vectorizeFilters).length > 0 ? vectorizeFilters : undefined;
 
-    // return c.json({ filterToUse: vectorizeFilters }, 200);
+    // return c.json({ queryString: queryString, filterToUse: vectorizeFilters }, 200);
     
     searchResults = await store.similaritySearch(queryString, 10, filterToUse);
     // searchResults = await store.similaritySearch(queryString, 10, { "effects": { "$in": ["energetic", "happy"] } });
