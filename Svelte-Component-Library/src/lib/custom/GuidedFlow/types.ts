@@ -23,6 +23,7 @@ export interface GuidedFlowConfig {
   onComplete?: (selections: Record<string, any>, metadata?: TransformedMetadata) => void;
   onClose?: () => void;
   onStepChange?: (stepIndex: number, stepId: string) => void;
+  onSelectionChange?: (selections: Record<string, any>) => void;
 }
 
 export interface FlowState {

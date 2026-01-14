@@ -79,6 +79,15 @@ Can't use preroll for prerolls or edibles for edibles.
 
 must use one of the following keywords for category: flower, prerolls, edibles, concentrates, tincture, vaporizers
 
+THC Potency Classification (category-specific scales):
+- Flower/Prerolls: Mild (<13%), Balanced (13-18%), Moderate (18-22%), Strong (22-28%), Very Strong (>28%)
+- Vaporizers/Concentrates: Mild (<66%), Balanced (66-75%), Moderate (75-85%), Strong (85-90%), Very Strong (>90%)
+
+When extracting THC preferences, use thc_percentage_min and thc_percentage_max based on the category:
+- If category is "flower" or "prerolls", use Flower/Prerolls scale
+- If category is "vaporizers" or "concentrates", use Vaporizers/Concentrates scale
+- If no category is specified, default to Flower/Prerolls scale
+
 Return ONLY valid JSON with:
 1. "intent": "recommendation" or "general"
 2. "filters": { 
@@ -101,10 +110,10 @@ Type mapping:
 - "hybrid" → "hybrid"
 
 Examples:
-- "I want a flower for sleep, no couch-lock"
+- "I want a flower for sleep, no couch-lock, something strong"
   Result: {
     "intent": "recommendation",
-    "filters": { "category": "flower", "type": "indica", "thc_percentage": 27 },
+    "filters": { "category": "flower", "type": "indica", "thc_percentage_min": 22, "thc_percentage_max": 28 },
     "semantic_search": "sleepy relaxed nighttime functional"
   }
 
@@ -422,7 +431,19 @@ ${filters?.effects?.length ? `- Requested Effects: ${JSON.stringify(filters.effe
 ${filters?.flavor?.length ? `- Requested Flavors: ${JSON.stringify(filters.flavor)}` : ''}
 ${filters?.category ? `- Category: ${filters.category}` : ''}
 ${filters?.type ? `- Type: ${filters.type}` : ''}
-${filters?.thc_percentage ? `- THC Percentage: ${filters.thc_percentage}%` : ''}
+${filters?.thc_percentage_min !== undefined || filters?.thc_percentage_max !== undefined ? (() => {
+  const min = filters?.thc_percentage_min;
+  const max = filters?.thc_percentage_max;
+  let rangeStr = '';
+  if (min !== undefined && max !== undefined) {
+    rangeStr = `${min}%-${max}%`;
+  } else if (min !== undefined) {
+    rangeStr = `>${min}%`;
+  } else if (max !== undefined) {
+    rangeStr = `<${max}%`;
+  }
+  return `- THC Percentage Range: ${rangeStr}`;
+})() : ''}
 ${filters?.price_min || filters?.price_max ? `- Price Range: $${filters.price_min || 0} - $${filters.price_max || '∞'}` : ''}
 
 **Note**: Effects and flavors are provided here because the vector database cannot filter on array fields. Consider them along with all other factors when ranking.
@@ -432,7 +453,7 @@ ${JSON.stringify(results)}
 
 ### INSTRUCTIONS:
 1. Analyze the User Request holistically - consider category, type, effects, flavors, price, THC level, and any other preferences.
-2. Evaluate each candidate product based on ALL relevant fields: category, type, subcategory, description, effects, flavors, price, THC percentage, brand, etc.
+2. Evaluate each candidate product based on ALL relevant fields: category, type, subcategory, description, effects, flavors, price, THC percentage (considering min/max ranges), brand, etc.
 3. Rank products from BEST overall match to LEAST match, considering how well each product satisfies the complete user request.
 4. If a product clearly contradicts the user's request (e.g., user wants "not sleepy" but product says "heavy sedative"), remove it entirely.
 5. Return ONLY a JSON object with a "ranked_names" array containing product names in order of best match.

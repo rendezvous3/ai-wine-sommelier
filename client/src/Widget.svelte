@@ -3,6 +3,7 @@
   import ChatWidget from "../../Svelte-Component-Library/src/lib/custom/ChatWidget/ChatWidget.svelte";
   import ChatMessage from "../../Svelte-Component-Library/src/lib/custom/ChatMessage/ChatMessage.svelte";
   import type { GuidedFlowConfig } from "../../Svelte-Component-Library/src/lib/custom/GuidedFlow/types.js";
+  import { getTHCScaleForCategory } from "../../Svelte-Component-Library/src/lib/custom/GuidedFlow/thcScales.js";
 
   let isOpen = $state(false);
   let mode = $state<'chat' | 'guided-flow'>('chat');
@@ -26,6 +27,7 @@
     image: string;
     description: string;
     category?: string;
+    type?: string;
   }
 
   let messages = $state<Message[]>([]);
@@ -76,7 +78,8 @@
       originalPrice: undefined,
       rating: undefined,
       discount: undefined,
-      category: rec.category
+      category: rec.category,
+      type: rec.type
     }));
   }
 
@@ -91,10 +94,42 @@
     localStorage.removeItem(STORAGE_KEY);
   }
 
-  // Guided Flow configuration
-  const guidedFlowSteps = [
+  // Track selected category for dynamic THC scale
+  let selectedCategory = $state<string | null>(null);
+
+  // Helper function to create THC percentage options from scale
+  function createTHCOptions(scale: ReturnType<typeof getTHCScaleForCategory>) {
+    return scale.map(option => ({
+      id: option.id,
+      label: option.label,
+      value: option.value,
+      description: option.description,
+      icon: getTHCIcon(option.id)
+    }));
+  }
+
+  // Helper function to get icon for THC percentage option
+  function getTHCIcon(id: string): string {
+    const icons: Record<string, string> = {
+      'mild': '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="18" width="20" height="4" rx="2" fill="currentColor"/></svg>',
+      'balanced': '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="16" width="20" height="8" rx="2" fill="currentColor"/></svg>',
+      'moderate': '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="14" width="20" height="12" rx="2" fill="currentColor"/></svg>',
+      'strong': '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="12" width="20" height="16" rx="2" fill="currentColor"/></svg>',
+      'very-strong': '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="20" height="20" rx="2" fill="currentColor"/></svg>'
+    };
+    return icons[id] || icons['mild'];
+  }
+
+  // Get THC percentage options based on selected category
+  const thcPercentageOptions = $derived.by(() => {
+    const scale = getTHCScaleForCategory(selectedCategory);
+    return createTHCOptions(scale);
+  });
+
+  // Guided Flow configuration - make steps reactive
+  const guidedFlowSteps = $derived([
     {
-      id: 'product-type',
+      id: 'category',
       title: 'What product type are you interested in?',
       subtitle: '(Select one)',
       type: 'single-select' as const,
@@ -115,19 +150,25 @@
         {
           id: 'vape-cart',
           label: 'Vape Cart',
-          value: 'vape-cart',
+          value: 'vaporizers',
           icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="16" y="10" width="8" height="20" rx="1" stroke="currentColor" stroke-width="2"/><path d="M18 12H22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
         },
         {
           id: 'edible',
           label: 'Edible',
-          value: 'edible',
+          value: 'edibles',
           icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="14" width="20" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M14 18H26" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+        },
+        {
+          id: 'concentrates',
+          label: 'Concentrates',
+          value: 'concentrates',
+          icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" stroke="currentColor" stroke-width="2"/><path d="M16 16L24 24M24 16L16 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
         }
       ]
     },
     {
-      id: 'feelings',
+      id: 'effects',
       title: 'How would you like to feel?',
       subtitle: '(Up to 2)',
       type: 'multi-select' as const,
@@ -197,51 +238,15 @@
       ]
     },
     {
-      id: 'potency',
+      id: 'thc-percentage',
       title: 'How potent would you like it?',
       subtitle: '(Select one)',
       type: 'single-select' as const,
       required: true,
-      options: [
-        {
-          id: 'mild',
-          label: 'Mild',
-          value: 'mild',
-          description: '<13%',
-          icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="18" width="20" height="4" rx="2" fill="currentColor"/></svg>'
-        },
-        {
-          id: 'moderate',
-          label: 'Moderate',
-          value: 'moderate',
-          description: '13-18%',
-          icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="16" width="20" height="8" rx="2" fill="currentColor"/></svg>'
-        },
-        {
-          id: 'strong',
-          label: 'Strong',
-          value: 'strong',
-          description: '18-22%',
-          icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="14" width="20" height="12" rx="2" fill="currentColor"/></svg>'
-        },
-        {
-          id: 'very-strong',
-          label: 'Very Strong',
-          value: 'very-strong',
-          description: '22-28%',
-          icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="12" width="20" height="16" rx="2" fill="currentColor"/></svg>'
-        },
-        {
-          id: 'extreme',
-          label: 'Extreme',
-          value: 'extreme',
-          description: '>28%',
-          icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="20" height="20" rx="2" fill="currentColor"/></svg>'
-        }
-      ]
+      options: thcPercentageOptions
     },
     {
-      id: 'price-range',
+      id: 'price',
       title: 'What price are you looking for each product?',
       subtitle: '(Select one)',
       type: 'single-select' as const,
@@ -250,36 +255,39 @@
         {
           id: 'no-preference',
           label: 'No Preference',
-          value: 'no-preference',
+          value: null,
           icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" stroke="currentColor" stroke-width="2"/><path d="M16 20H24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
         },
         {
           id: 'low',
           label: '$0-25',
-          value: 'low',
+          value: { price_min: 0, price_max: 25 },
           icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 16L20 10L28 16V28C28 29.1 27.1 30 26 30H14C12.9 30 12 29.1 12 28V16Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 22L20 18L24 22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
         },
         {
           id: 'medium',
           label: '$25-50',
-          value: 'medium',
+          value: { price_min: 25, price_max: 50 },
           icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 16L20 10L28 16V28C28 29.1 27.1 30 26 30H14C12.9 30 12 29.1 12 28V16Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 22L20 18L24 22M20 18V26" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
         },
         {
           id: 'high',
           label: '$50-75',
-          value: 'high',
+          value: { price_min: 50, price_max: 75 },
           icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 16L20 10L28 16V28C28 29.1 27.1 30 26 30H14C12.9 30 12 29.1 12 28V16Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 22L20 18L24 22M20 18V26M16 26H24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
         },
         {
           id: 'premium',
           label: '$75+',
-          value: 'premium',
+          value: { price_min: 75, price_max: null },
           icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 16L20 10L28 16V28C28 29.1 27.1 30 26 30H14C12.9 30 12 29.1 12 28V16Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 22L20 18L24 22M20 18V26M16 26H24M18 24H22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
         }
       ]
     }
-  ];
+  ]);
+
+  // Combine all steps (price is already included in guidedFlowSteps)
+  const allGuidedFlowSteps = $derived(guidedFlowSteps);
 
   function handleModeToggle() {
     mode = mode === 'chat' ? 'guided-flow' : 'chat';
@@ -353,11 +361,19 @@
     mode = 'chat';
   }
 
-  const guidedFlowConfig: GuidedFlowConfig = {
-    steps: guidedFlowSteps,
+  function handleSelectionChange(selections: Record<string, any>) {
+    // Track category selection for dynamic THC percentage scale
+    if (selections['category']) {
+      selectedCategory = selections['category'];
+    }
+  }
+
+  const guidedFlowConfig: GuidedFlowConfig = $derived({
+    steps: allGuidedFlowSteps,
     onComplete: handleFlowComplete,
-    onClose: handleFlowClose
-  };
+    onClose: handleFlowClose,
+    onSelectionChange: handleSelectionChange
+  });
 
   // ------------------------------------------------------
   // MAIN HANDLER (Decision + Stream + Recommendation Tool)

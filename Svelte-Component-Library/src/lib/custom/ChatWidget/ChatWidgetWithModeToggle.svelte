@@ -7,7 +7,7 @@
 
   const sampleSteps = [
     {
-      id: 'product-type',
+      id: 'category',
       title: 'What product type are you interested in?',
       subtitle: '(Select one)',
       type: 'single-select' as const,
@@ -28,19 +28,25 @@
         {
           id: 'vape-cart',
           label: 'Vape Cart',
-          value: 'vape-cart',
+          value: 'vaporizers',
           icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="16" y="10" width="8" height="20" rx="1" stroke="#3b82f6" stroke-width="2"/><path d="M18 12H22" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/></svg>'
         },
         {
           id: 'edible',
           label: 'Edible',
-          value: 'edible',
+          value: 'edibles',
           icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="14" width="20" height="16" rx="2" stroke="#3b82f6" stroke-width="2"/><path d="M14 18H26" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/></svg>'
+        },
+        {
+          id: 'concentrates',
+          label: 'Concentrates',
+          value: 'concentrates',
+          icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" stroke="#3b82f6" stroke-width="2"/><path d="M16 16L24 24M24 16L16 24" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/></svg>'
         }
       ]
     },
     {
-      id: 'feelings',
+      id: 'effects',
       title: 'How would you like to feel?',
       subtitle: '(Up to 2)',
       type: 'multi-select' as const,

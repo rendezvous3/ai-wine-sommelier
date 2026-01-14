@@ -12,6 +12,7 @@
     rating?: number;
     discount?: number;
     category?: string;
+    type?: string;
   }
 
   interface ProductRecommendationProps {
@@ -98,9 +99,14 @@
             />
             <div class="product-recommendation__compact-info">
               <h4 class="product-recommendation__compact-title">{product.title}</h4>
-              {#if product.category}
-                <span class="product-recommendation__compact-category">{product.category}</span>
-              {/if}
+              <div class="product-recommendation__compact-meta">
+                {#if product.category}
+                  <span class="product-recommendation__compact-category">{product.category}</span>
+                {/if}
+                {#if product.type}
+                  <span class="product-recommendation__compact-type">{product.type}</span>
+                {/if}
+              </div>
               {#if description}
                 <p class="product-recommendation__compact-description">{description}</p>
               {/if}
@@ -223,15 +229,28 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   }
 
-  .product-recommendation__compact-category {
+  .product-recommendation__compact-meta {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 0 0 2px 0;
+    flex-wrap: wrap;
+  }
+
+  .product-recommendation__compact-category,
+  .product-recommendation__compact-type {
     font-size: 11px;
     font-weight: 500;
     color: #6b7280;
-    margin: 0 0 2px 0;
-    display: block;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  }
+
+  .product-recommendation__compact-type {
+    padding: 2px 6px;
+    background: rgba(107, 114, 128, 0.1);
+    border-radius: 4px;
   }
 
   .product-recommendation__compact-description {

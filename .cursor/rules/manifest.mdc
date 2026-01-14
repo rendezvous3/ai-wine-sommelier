@@ -67,7 +67,8 @@ The system is built as **four loosely coupled components** for maximum flexibili
   "filters": {
     "category": "flower" | "prerolls" | "edibles" | "concentrates" | "tincture" | "vaporizers" | null,
     "type": "indica" | "sativa" | "hybrid" | null,
-    "thc_percentage": number | null,
+    "thc_percentage_min": number | null,
+    "thc_percentage_max": number | null,
     "subcategory": string | null,
     "effects": string[] | null,
     "flavor": string[] | null,
@@ -102,7 +103,7 @@ The system is built as **four loosely coupled components** for maximum flexibili
 1. **Metadata Filtering** (Vectorize): Applies exact-match filters for filterable fields:
    - `category`, `type`, `subcategory`, `brand` (string fields)
    - `price` (range queries with `$gte`/`$lte`)
-   - `thc_percentage` (exact number match)
+   - `thc_percentage` (range queries with `$gte`/`$lte` using `thc_percentage_min` and `thc_percentage_max`)
    - `inStock` (boolean)
    - **Note**: `effects` and `flavor` are **excluded** from metadata filters (see limitations below)
 
@@ -141,6 +142,32 @@ The system is built as **four loosely coupled components** for maximum flexibili
   2. Use LLM re-ranking for **general best-match ranking** (primary purpose)
   3. The re-ranking prompt includes user-requested effects and flavors as one factor among many, ensuring they're considered despite Vectorize limitations
 - **Result**: Accurate recommendations that consider all user preferences (category, type, price, effects, flavors, etc.) while still benefiting from fast metadata filtering for exact matches on non-array fields
+
+#### THC Classification System
+
+The system uses **category-specific THC potency scales** to standardize THC percentage classifications across the UI, API, and recommendation engine.
+
+**Flower & Prerolls Scale**:
+- **Mild**: <13%
+- **Balanced**: 13-18%
+- **Moderate**: 18-22%
+- **Strong**: 22-28%
+- **Very Strong**: >28%
+
+**Vaporizers & Concentrates Scale**:
+- **Mild**: <66%
+- **Balanced**: 66-75%
+- **Moderate**: 75-85%
+- **Strong**: 85-90%
+- **Very Strong**: >90%
+
+**Implementation**:
+- **GuidedFlow UI**: Users select potency labels (Mild, Balanced, Moderate, Strong, Very Strong) which are converted to `thc_percentage_min` and `thc_percentage_max` ranges based on the selected product category
+- **Intent API**: Extracts THC preferences from conversation using category-specific scales, returning `thc_percentage_min` and `thc_percentage_max` in filters
+- **Recommendations API**: Uses `thc_percentage_min` and `thc_percentage_max` for range-based metadata filtering in Vectorize
+- **Re-ranking**: Considers THC percentage ranges when evaluating product matches
+
+**Conversion Logic**: The `transformSelectionsToMetadata` function in `Svelte-Component-Library/src/lib/custom/GuidedFlow/utils.ts` uses the `potencyToTHCRange` utility from `thcScales.ts` to convert potency selections to min/max ranges based on the selected category.
 
 ### 3. **Frontend Widget (`client/src/Widget.svelte`)**
 - **Technology**: Svelte 5 (runes) + TypeScript + Vite

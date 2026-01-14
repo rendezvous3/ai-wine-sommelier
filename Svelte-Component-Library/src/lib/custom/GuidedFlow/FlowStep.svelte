@@ -14,14 +14,40 @@
     onSelect
   }: FlowStepProps = $props();
 
+  // Deep equality check for objects
+  function deepEqual(a: any, b: any): boolean {
+    if (a === b) return true;
+    if (a == null || b == null) return a === b;
+    if (typeof a !== 'object' || typeof b !== 'object') return false;
+    
+    const keysA = Object.keys(a);
+    const keysB = Object.keys(b);
+    
+    if (keysA.length !== keysB.length) return false;
+    
+    for (const key of keysA) {
+      if (!keysB.includes(key)) return false;
+      if (!deepEqual(a[key], b[key])) return false;
+    }
+    
+    return true;
+  }
+
   function handleOptionClick(optionValue: any) {
     if (step.type === 'single-select') {
       onSelect(optionValue);
     } else {
       // Multi-select
-      const isSelected = selectedValues.includes(optionValue);
+      const isSelected = isOptionSelected(optionValue);
       if (isSelected) {
-        onSelect(selectedValues.filter(v => v !== optionValue));
+        // Remove using deep equality
+        onSelect(selectedValues.filter(v => {
+          if (v === null && optionValue === null) return false;
+          if (typeof v === 'object' && typeof optionValue === 'object') {
+            return !deepEqual(v, optionValue);
+          }
+          return v !== optionValue;
+        }));
       } else {
         const newSelections = [...selectedValues, optionValue];
         if (!step.maxSelections || newSelections.length <= step.maxSelections) {
@@ -33,14 +59,29 @@
 
   function isOptionSelected(optionValue: any): boolean {
     if (step.type === 'single-select') {
-      return selectedValues.length > 0 && selectedValues[0] === optionValue;
+      if (selectedValues.length === 0) return false;
+      const selected = selectedValues[0];
+      // Handle null values
+      if (selected === null && optionValue === null) return true;
+      // Use deep equality for objects
+      if (typeof selected === 'object' && typeof optionValue === 'object') {
+        return deepEqual(selected, optionValue);
+      }
+      return selected === optionValue;
     }
-    return selectedValues.includes(optionValue);
+    // Multi-select: use deep equality for array includes
+    return selectedValues.some(v => {
+      if (v === null && optionValue === null) return true;
+      if (typeof v === 'object' && typeof optionValue === 'object') {
+        return deepEqual(v, optionValue);
+      }
+      return v === optionValue;
+    });
   }
 
   function isOptionDisabled(optionValue: any): boolean {
     if (step.type === 'multi-select' && step.maxSelections) {
-      const isSelected = selectedValues.includes(optionValue);
+      const isSelected = isOptionSelected(optionValue);
       return !isSelected && selectedValues.length >= step.maxSelections;
     }
     return false;
