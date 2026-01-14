@@ -73,10 +73,31 @@ vectorize_index_name = "products-demo-2"
 cfVect.create_index(index_name=vectorize_index_name, wait=True)
 ```
 
+STEP 2
+
+We must Create metadata indexes in order to be able to filter metadata
+
+```bash
+
+npx wrangler vectorize create-metadata-index products-demo-3 --property-name=category --type=string
+npx wrangler vectorize create-metadata-index products-demo-3 --property-name=type --type=string
+npx wrangler vectorize create-metadata-index products-demo-3 --property-name=brand --type=string
+npx wrangler vectorize create-metadata-index products-demo-3 --property-name=subcategory --type=string
+npx wrangler vectorize create-metadata-index products-demo-3 --property-name=effects --type=string
+npx wrangler vectorize create-metadata-index products-demo-3 --property-name=flavor --type=string
+npx wrangler vectorize create-metadata-index products-demo-3 --property-name=price --type=number
+npx wrangler vectorize create-metadata-index products-demo-3 --property-name=thc_percentage --type=number
+npx wrangler vectorize create-metadata-index products-demo-3 --property-name=cbd_percentage --type=number
+npx wrangler vectorize create-metadata-index products-demo-3 --property-name=total_weight_grams --type=number
+npx wrangler vectorize create-metadata-index products-demo-3 --property-name=pack_count --type=number
+npx wrangler vectorize create-metadata-index products-demo-3 --property-name=inStock --type=boolean
+
+```
+
 Import products and prepare documents with Document
 do not specify an id in metadata
 
-STEP 2
+STEP 3
 
 ```python
 from langchain_core.documents import Document
@@ -101,7 +122,7 @@ with open("dummy_products.json", "r") as f:
 ]
 ```
 
-STEP 3 - cfVect.add_documents (needs ids)
+STEP 4 - cfVect.add_documents (needs ids)
 
 Run 
 
@@ -110,7 +131,7 @@ Run
   r = cfVect.add_documents(index_name=vectorize_index_name, documents=documents, ids=ids)
 ```
 
-STEP 4 - Ensure that in Cloudflare dashboard (May need a few minutes)
+STEP 7 - Ensure that in Cloudflare dashboard (May need a few minutes)
 Storage & databases
 Vectorize -> Stored Vectores is updated
 

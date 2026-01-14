@@ -74,13 +74,17 @@ Review the conversation. Extract the current active preferences.
 If a user changes their mind (e.g., from Flower to Pre-roll), the new choice replaces the old one. 
 If they add a preference (e.g., 'And make it strong'), append it.
 
+For category you must use exact keyword. This is absolutely crucial.
+Can't use preroll for prerolls or edibles for edibles.
+
+must use one of the following keywords for category: flower, prerolls, edibles, concentrates, tincture, vaporizers
+
 Return ONLY valid JSON with:
 1. "intent": "recommendation" or "general"
 2. "filters": { 
-    "category": (flower, preroll, edible, concentrate, tincture, vape) or null,
+    "category": (flower, prerolls, edibles, concentrates, tincture, vaporizers) or null,
     "type": (indica, sativa, hybrid) or null,
-    "thc_min": (number) or null,
-    "thc_max": (number) or null,
+    "thc_percentage": (number) or null,
     "subcategory": (string) or null,
     "effects": (array of strings) or null,
     "flavor": (array of strings) or null,
@@ -90,30 +94,16 @@ Return ONLY valid JSON with:
 }
 3. "semantic_search": "3-5 keywords describing desired mood/effect/flavor" or empty string
 
-Category mapping:
-- "flower", "buds", "weed" → "flower"
-- "preroll", "pre-roll", "joint" → "preroll"
-- "edible", "edibles", "gummies", "chocolates" → "edible"
-- "concentrate", "concentrates", "wax", "shatter" → "concentrate"
-- "tincture", "tinctures", "oil" → "tincture"
-- "vape", "vapes", "cartridge" → "vape"
-
 Type mapping:
 - "indica", "indica-dominant" → "indica"
 - "sativa", "sativa-dominant" → "sativa"
 - "hybrid" → "hybrid"
 
-THC level extraction:
-- "strong", "high thc", "potent" → thc_min: 20
-- "mild", "low thc" → thc_max: 15
-- Explicit percentages → extract directly (e.g., "20%" → thc_min: 20)
-- Ranges like "18-22%" → thc_min: 18, thc_max: 22
-
 Examples:
-- "I want a strong flower for sleep, no couch-lock"
+- "I want a flower for sleep, no couch-lock"
   Result: {
     "intent": "recommendation",
-    "filters": { "category": "flower", "type": "indica", "thc_min": 20 },
+    "filters": { "category": "flower", "type": "indica", "thc_percentage": 27 },
     "semantic_search": "sleepy relaxed nighttime functional"
   }
 
@@ -127,7 +117,7 @@ Examples:
 - "Show me edibles"
   Result: {
     "intent": "recommendation",
-    "filters": { "category": "edible" },
+    "filters": { "category": "edibles" },
     "semantic_search": "edible products"
   }
 
@@ -308,7 +298,8 @@ app.post("/chat/stream", async (c) => {
 app.post("/chat/recommendations", async (c) => {
   const body = await c.req.json();
   const messages = body.messages || [];
-  // const user_message = messages[messages.length - 1]?.content || "";
+  const filters = body.filters || {};
+  const semantic_search = body.semantic_search || "";
 
   const lastMessages = messages.slice(-5);
   const enrichedHistory = lastMessages.map(msg => {
@@ -336,79 +327,113 @@ app.post("/chat/recommendations", async (c) => {
       index: c.env.VECTORIZE_INDEX
     });
 
-    const enrichedQuery = `
-    The most important segment is that if user is asking for category or subcategory, you should search for the products that match the category or subcategory.
-    As an example if user has expressed desire for edibles, you should search for the products that are edibles.
-    Equaly important is the desired effect. We can't recommend products that have the opposite effect.
-    If desire is euphoria, energy, uplifted we should recommend products Sativa or Hybrid products with mentioned such effect.
-    If the desire is relaxed, sleep, calm, we should recommend products Indica or Hybrid products with mentioned such effect.
-    Conversation history: ${conversation_history}
-    User message: ${user_message}
-    `;
-    // searchResults = await store.similaritySearch(user_message, 5);
-    searchResults = await store.similaritySearch(enrichedQuery, 8);
+    // Use semantic_search if provided, otherwise fallback to user_message
+    const queryString = semantic_search || user_message;
+    
+    // Convert filters to Vectorize format
+    const vectorizeFilters: Record<string, any> = {};
+
+    // Direct string fields
+    if (filters.category) vectorizeFilters.category = filters.category;
+    if (filters.type) {
+      if (Array.isArray(filters.type)) {
+        vectorizeFilters.type = { "$in": filters.type };
+      } else {
+        vectorizeFilters.type = filters.type;
+      }
+    }
+    if (filters.subcategory) vectorizeFilters.subcategory = filters.subcategory;
+    if (filters.brand) vectorizeFilters.brand = filters.brand;
+
+    // Array fields (effects, flavor) - use $in operator
+    // if (filters.effects && Array.isArray(filters.effects) && filters.effects.length > 0) {
+    //   vectorizeFilters.effects = { "$in": filters.effects };
+    // }
+    // if (filters.flavor && Array.isArray(filters.flavor) && filters.flavor.length > 0) {
+    //   vectorizeFilters.flavor = { "$in": filters.flavor };
+    // }
+
+    // Numeric ranges
+    if (filters.price_min !== null && filters.price_min !== undefined || 
+        filters.price_max !== null && filters.price_max !== undefined) {
+      vectorizeFilters.price = {};
+      if (filters.price_min !== null && filters.price_min !== undefined) {
+        vectorizeFilters.price["$gte"] = filters.price_min;
+      }
+      if (filters.price_max !== null && filters.price_max !== undefined) {
+        vectorizeFilters.price["$lte"] = filters.price_max;
+      }
+    }
+
+    if (filters.thc_percentage !== null && filters.thc_percentage !== undefined) {
+      vectorizeFilters.thc_percentage = filters.thc_percentage;
+    }
+
+    // Boolean
+    if (filters.inStock !== null && filters.inStock !== undefined) {
+      vectorizeFilters.inStock = filters.inStock;
+    }
+
+    // Use filters if any exist, otherwise no filter
+    const filterToUse = Object.keys(vectorizeFilters).length > 0 ? vectorizeFilters : undefined;
+
+    // return c.json({ filterToUse: vectorizeFilters }, 200);
+    
+    searchResults = await store.similaritySearch(queryString, 10, filterToUse);
+    // searchResults = await store.similaritySearch(queryString, 10, { "effects": { "$in": ["energetic", "happy"] } });
   } catch (err) {
     console.error("Vector search error:", err);
     return c.json({ recommendations: [] }, 200);
   }
 
-  const results = searchResults
-  .map((doc, i) => { 
+// Transform searchResults to metadata format
+  const results = searchResults.map((doc) => {
+    const productId = doc.metadata?.id;
     return {
+      id: productId || "", // Use metadata.id (should always be present after fix)
       ...doc.metadata,
-    }
-  })
+    };
+  });
+
+  // Create product map for name-based lookup
+  const productMap = new Map(results.map((r, i) => [r.name, r]));
 
   const API_KEY = c.env.GROQ_API_KEY;
   const MODEL = AGENT_ROLE_MODEL.RECCOMEND;
 
-  const llmPrompt = `
-    You are a recommendation engine.
-    Your task is to filter out wrongly retrieved products from the similarity search results.
-    The most important segment is that if user is asking for category or subcategory, you should search for the products that match the category or subcategory.
-    As an example if user has expressed desire for edibles, you should search for the products that are edibles.
-    Same for pre-rolls, flowers, concentrates, etc.
+  const reRankPrompt = `
+You are a Master Budtender. Your goal is to rank cannabis products based on how perfectly they match a user's specific request.
 
-    Examples: 
-    "I'm looking for some edibles." → Edibles. (NOT Pre-Rolls or Flowers or Concentrates or etc.)
-    "I would like some Pre-Rolls and edibles with XYZ effect" → Pre-Rolls and Edibles. (NOT Flowers or Concentrates or etc.)
-    "What are your strongest concentrate options?" → Concentrates. (NOT Pre-Rolls or Flowers or Edibles or etc.)
+Cloudflare Vectorize Database is not good at filtering by effects or flavor.
+Please ensure that your taking into account if any effects or flavors are requested
+make sure to include them in the ranking.
 
-    Equaly important is the desired effect. We can't recommend products that have the opposite effect.
+### USER Requested Effects: (if any):
+${JSON.stringify(filters?.effects)}
 
-    If desire is euphoria, energy, uplifted we should recommend products Sativa or Hybrid products with mentioned such effect. Avoid Indica.
-    these must not include effects like calm, relaxed, sleepy.
+### USER Requested Flavors: (if any):
+${JSON.stringify(filters?.flavor)}
 
-    Example: "I'm looking for something to keep me energetic and uplifted." → Sativa or Hybrid products with mentioned such effect. Avoid Indica.
-    effects: euphoria, energy, uplifted (at least one of these) not sleepy
+### USER REQUEST:
+"${user_message}"
 
-    If the desire is relaxed, sleep, calm, we should recommend products Indica or Hybrid products with mentioned such effect.
-    these must not include effects like euphoria, energy, uplifted. Avoid Sativa.
-    effects: calm, sleep, relaxed (at least one of these) not energized or uplifted
+### CANDIDATE PRODUCTS (JSON):
+${JSON.stringify(results)}
 
-    if user has expressed desire for indica, you should search for the products that are indica.
-    if user has expressed desire for sativa, you should search for the products that are sativa.
-    if user has expressed desire for hybrid, you should search for the products that are hybrid.
+### INSTRUCTIONS:
+1. Analyze the User Request for specific "vibe" keywords (e.g., "creative," "no couch-lock," "citrus flavor").
+2. Evaluate the Candidates based on their 'effects', 'type', 'category', and 'description' fields.
+3. Sort the products from BEST match to LEAST match.
+4. If a product clearly contradicts the user's request (e.g., user wants "not sleepy" but product says "heavy sedative"), remove it entirely.
+5. Return ONLY a JSON object with a "ranked_names" array containing product names in order of best match.
 
-    Filter out the products that don't match the user's desire. Return Valid JSON. Make no changes to result JSON schema.
-    Just filter out the products not matching and return it as is
+### RESPONSE FORMAT (STRICT):
+{
+  "ranked_names": ["Product Name 1", "Product Name 2", "Product Name 3", ...]
+}
 
-    Similarity search results:
-    ${JSON.stringify(results)}
-
-    Format:
-    {
-      "recommendations": [results[1], results[3], results[5], ...]
-    }
-
-    Conversation history:
-    ${conversation_history}
-
-    User message:
-    "${user_message}"
-
-    Return ONLY valid JSON. Do not wrap the response in markdown code blocks. Return raw JSON only.
-    `;
+Return ONLY valid JSON. Do not wrap in markdown code blocks.
+`;
 
   const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -418,7 +443,7 @@ app.post("/chat/recommendations", async (c) => {
     },
     body: JSON.stringify({
       model: MODEL,
-      messages: [{ role: "system", content: llmPrompt }],
+      messages: [{ role: "system", content: reRankPrompt }],
       temperature: 0.1,
       max_tokens: 3000,
       stream: false
@@ -426,13 +451,62 @@ app.post("/chat/recommendations", async (c) => {
   });
 
   const data = await resp.json();
-  const text = data.choices?.[0]?.message?.content || "";
+  let text = data.choices?.[0]?.message?.content || "";
+  
+  // Strip markdown code blocks if present
+  text = text.trim();
+  if (text.startsWith('```json')) {
+    text = text.replace(/^```json\s*/i, '').replace(/\s*```$/g, '');
+  } else if (text.startsWith('```')) {
+    text = text.replace(/^```\s*/, '').replace(/\s*```$/g, '');
+  }
+  text = text.trim();
+
+  // Extract JSON object from response (LLM may include extra text)
+  // Look for the first { and find the matching closing }
+  let jsonText = text;
+  const firstBrace = text.indexOf('{');
+  if (firstBrace !== -1) {
+    let braceCount = 0;
+    let endBrace = -1;
+    for (let i = firstBrace; i < text.length; i++) {
+      if (text[i] === '{') braceCount++;
+      if (text[i] === '}') braceCount--;
+      if (braceCount === 0) {
+        endBrace = i + 1;
+        break;
+      }
+    }
+    if (endBrace > firstBrace) {
+      jsonText = text.substring(firstBrace, endBrace);
+    }
+  }
+
   try {
-    const parsed = JSON.parse(text);
-    return c.json(parsed, 200);
+    const parsed = JSON.parse(jsonText);
+    const rankedNames = parsed.ranked_names || [];
+    
+    // Map ranked names back to full product objects
+    const rankedProducts = rankedNames
+      .map((name: string) => productMap.get(name))
+      .filter((product: any) => product !== undefined);
+    
+    // If re-ranking failed or returned empty, fallback to original search results
+    if (rankedProducts.length === 0) {
+      return c.json({ 
+        recommendations: results 
+      }, 200);
+    }
+    
+    return c.json({ recommendations: rankedProducts }, 200);
   } catch (err) {
     console.error("Invalid JSON from LLM:", text);
-    return c.json({ recommendations: [] }, 200);
+    console.error("Extracted JSON:", jsonText);
+    console.error("Error:", err);
+    // Fallback to original search results if re-ranking fails
+    return c.json({ 
+      recommendations: results 
+    }, 200);
   }
 });
 

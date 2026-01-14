@@ -2,7 +2,7 @@ import type { FlowStep } from './types.js';
 
 export interface TransformedMetadata {
   metadata: Record<string, any>;
-  query: string;
+  guidedFlowQuery: string;
   filters: Record<string, any>;
 }
 
@@ -123,7 +123,7 @@ export function transformSelectionsToMetadata(
 
   return {
     metadata,
-    query,
+    guidedFlowQuery: query,
     filters
   };
 }

@@ -63,8 +63,8 @@
 
   $effect(() => {
     if (isInitialized) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
-    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+  }
   });
 
   // Convert Recommendation to Product format for ChatMessage
@@ -289,11 +289,11 @@
     console.log('Flow completed:', selections);
     if (metadata) {
       console.log('Transformed Metadata:', metadata.metadata);
-      console.log('Query:', metadata.query);
+      console.log('Query:', metadata.guidedFlowQuery);
       console.log('Filters:', metadata.filters);
     }
 
-    if (!metadata || !metadata.query) {
+    if (!metadata || !metadata.guidedFlowQuery) {
       console.error('No query available from GuidedFlow');
       mode = 'chat';
       return;
@@ -305,7 +305,7 @@
     // Add query as user message
     const queryMessage: Message = {
       role: "user",
-      content: metadata.query
+      content: metadata.guidedFlowQuery
     };
     messages = [...messages, queryMessage];
     loading = true;
@@ -318,7 +318,9 @@
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            messages: [queryMessage]
+            messages: [queryMessage],
+            filters: metadata.filters || {},
+            semantic_search: metadata.guidedFlowQuery || ""
           }),
         }
       );
@@ -374,6 +376,8 @@
 
     // STEP 1 — Intent Classifier
     let intent = "general";
+    let intentFilters: Record<string, any> = {};
+    let semanticSearch = "";
     try {
       const decide = await fetch(`${BASE_URL}/intent`, {
         // const decide = await fetch("http://localhost:8787/chat/intent", {
@@ -383,6 +387,11 @@
       });
       const d = await decide.json();
       intent = d.intent || "general";
+      // Capture filters and semantic_search when intent is recommendation
+      if (d.intent === "recommendation") {
+        intentFilters = d.filters || {};
+        semanticSearch = d.semantic_search || "";
+      }
     } catch (err) {
       console.warn("Decision failed, defaulting to general.");
     }
@@ -465,6 +474,11 @@
     if (intent === "recommendation") {
       recPromise = (async () => {
         try {
+          const recPayload = {
+            ...payload,
+            filters: intentFilters,
+            semantic_search: semanticSearch
+          };
           const resp = await fetch(
             `${BASE_URL}/recommendations`,
             // const resp = await fetch(
@@ -472,7 +486,7 @@
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
+              body: JSON.stringify(recPayload),
             }
           );
           const data = await resp.json();
@@ -480,12 +494,12 @@
           // Only add message if there are actual recommendations
           // Avoid creating empty bubbles when API returns empty array
           if (productRecommendations.length > 0) {
-            let botMessage: Message = {
-              role: "assistant",
-              content: "",
-              recommendations: productRecommendations,
-            };
-            messages = [...messages, botMessage];
+          let botMessage: Message = {
+            role: "assistant",
+            content: "",
+            recommendations: productRecommendations,
+          };
+          messages = [...messages, botMessage];
           }
         } catch (err) {
           console.error("Recommendation tool failed:", err);
