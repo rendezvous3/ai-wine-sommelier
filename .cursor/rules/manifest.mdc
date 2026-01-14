@@ -33,15 +33,114 @@ The system is built as **four loosely coupled components** for maximum flexibili
 - **Technology**: TypeScript + Hono + Cloudflare Workers
 - **Purpose**: Serverless API handling all business logic
 - **Routes**:
-  - `/chat/intent`: Fast intent classifier (general vs recommendation)
+  - `/chat/intent`: Structured intent extractor that classifies intent and extracts filters + semantic search query
   - `/chat/stream`: Streaming conversational agent (Maitre D role) using Groq Llama 3.3 70B
-  - `/chat/recommendations`: RAG-powered recommendation engine using Cloudflare Vectorize + Groq
+  - `/chat/recommendations`: Hybrid RAG-powered recommendation engine using Cloudflare Vectorize metadata filtering + semantic search + LLM re-ranking
 - **Key Features**:
   - Zero first-token cutoffs (robust buffered SSE parsing)
   - Full context memory (remembers and references past recommendations)
   - Clean separation: general chat never recommends products
+  - Structured intent extraction with metadata filters
+  - Hybrid filtering approach: metadata filters for exact matches, semantic search + re-ranking for nuanced fields
   - CORS enabled for widget embedding
-- **Status**: Production-ready, no streaming bugs, full context awareness
+- **Status**: Production-ready, no streaming bugs, full context awareness, metadata filtering operational
+
+#### API Endpoint Details
+
+##### `/chat/intent` - Structured Intent Extractor
+**Purpose**: Analyzes conversation history to determine user intent and extract structured filters and semantic search query.
+
+**Input**:
+```json
+{
+  "messages": [
+    { "role": "user", "content": "..." },
+    { "role": "assistant", "content": "..." }
+  ]
+}
+```
+
+**Output**:
+```json
+{
+  "intent": "recommendation" | "general",
+  "filters": {
+    "category": "flower" | "prerolls" | "edibles" | "concentrates" | "tincture" | "vaporizers" | null,
+    "type": "indica" | "sativa" | "hybrid" | null,
+    "thc_percentage": number | null,
+    "subcategory": string | null,
+    "effects": string[] | null,
+    "flavor": string[] | null,
+    "brand": string | null,
+    "price_min": number | null,
+    "price_max": number | null
+  },
+  "semantic_search": "3-5 keywords describing desired mood/effect/flavor"
+}
+```
+
+**Key Features**:
+- Uses last 7 messages for context
+- Extracts structured filters from conversation history
+- Generates semantic search query for nuanced preferences (mood, effects, flavors)
+- Returns filters even when intent is "recommendation" (used by `/recommendations` endpoint)
+- Robust JSON parsing with markdown stripping and fallback handling
+
+##### `/chat/recommendations` - Hybrid RAG Recommendation Engine
+**Purpose**: Retrieves and ranks products using a hybrid approach combining metadata filtering, semantic search, and LLM re-ranking.
+
+**Input**:
+```json
+{
+  "messages": [...],
+  "filters": { /* from /intent endpoint */ },
+  "semantic_search": "..." /* from /intent endpoint */
+}
+```
+
+**Flow**:
+1. **Metadata Filtering** (Vectorize): Applies exact-match filters for filterable fields:
+   - `category`, `type`, `subcategory`, `brand` (string fields)
+   - `price` (range queries with `$gte`/`$lte`)
+   - `thc_percentage` (exact number match)
+   - `inStock` (boolean)
+   - **Note**: `effects` and `flavor` are **excluded** from metadata filters (see limitations below)
+
+2. **Semantic Search** (Vectorize): Uses `semantic_search` query (or falls back to `user_message`) to find semantically similar products based on embeddings.
+
+3. **LLM Re-ranking**: Takes top 10 search results and re-ranks them using Groq Llama 3.3 70B for best overall match. The re-ranker evaluates:
+   - Overall semantic match quality with user request
+   - Product category, type, subcategory alignment
+   - Product description relevance
+   - Price and THC percentage preferences
+   - **Effects and flavors** (included because Vectorize can't filter on these array fields)
+   - Contradictions (e.g., user wants "not sleepy" but product is "heavy sedative")
+   
+   **Note**: Effects and flavors are considered during re-ranking not because they're special, but because Vectorize metadata filtering limitations prevent us from filtering on array fields. The re-ranker's primary purpose is to find the best overall matches, with effects/flavors being one factor among many.
+
+**Output**:
+```json
+{
+  "recommendations": [
+    {
+      "id": "demo-prod-001",
+      "name": "...",
+      "category": "...",
+      "effects": ["energetic", "creative"],
+      "flavor": ["citrus", "sweet"],
+      ...
+    }
+  ]
+}
+```
+
+**Vector DB Limitations & Workaround**:
+- **Problem**: Cloudflare Vectorize metadata filtering does **not support filtering on array fields** (like `effects` and `flavor`). When metadata stores `effects: ["energetic", "creative"]` as an array, the `$in` operator checks if the entire array value matches, not individual elements.
+- **Solution**: Exclude `effects` and `flavor` from metadata filters. Instead:
+  1. Use semantic search to find products with similar effects/flavors (via embeddings)
+  2. Use LLM re-ranking for **general best-match ranking** (primary purpose)
+  3. The re-ranking prompt includes user-requested effects and flavors as one factor among many, ensuring they're considered despite Vectorize limitations
+- **Result**: Accurate recommendations that consider all user preferences (category, type, price, effects, flavors, etc.) while still benefiting from fast metadata filtering for exact matches on non-array fields
 
 ### 3. **Frontend Widget (`client/src/Widget.svelte`)**
 - **Technology**: Svelte 5 (runes) + TypeScript + Vite
@@ -112,6 +211,8 @@ The system is built as **four loosely coupled components** for maximum flexibili
 - **Never use injection hacks** — keep conversational text and structured recommendation data completely separate (no <recs> tags in stream)
 - **Always enrich history for context** — when a message has recommendations, include a natural summary in the conversation history sent to the LLM (e.g., "I recommended: Gelato Cake, Granddaddy Purple.")
 - **Always maintain correct message order** — recommendations must appear in the exact conversation position where they were made (as part of the same assistant message)
+- **Never filter `effects` or `flavor` via metadata filters** — Vectorize doesn't support array element filtering. These fields are stored as arrays in metadata but must be handled via semantic search + LLM re-ranking instead
+- **Always pass filters and semantic_search from `/intent` to `/recommendations`** — The intent endpoint extracts structured filters and semantic search query that must be passed to the recommendations endpoint for optimal results
 
 ### Component Library Integration Rules
 - **Import patterns** — Always import directly from `.svelte` files (e.g., `import ChatWidget from '../Svelte-Component-Library/src/lib/custom/ChatWidget/ChatWidget.svelte'`), never import `.stories.ts` files

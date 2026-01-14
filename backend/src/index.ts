@@ -404,26 +404,28 @@ app.post("/chat/recommendations", async (c) => {
   const reRankPrompt = `
 You are a Master Budtender. Your goal is to rank cannabis products based on how perfectly they match a user's specific request.
 
-Cloudflare Vectorize Database is not good at filtering by effects or flavor.
-Please ensure that your taking into account if any effects or flavors are requested
-make sure to include them in the ranking.
-
-### USER Requested Effects: (if any):
-${JSON.stringify(filters?.effects)}
-
-### USER Requested Flavors: (if any):
-${JSON.stringify(filters?.flavor)}
+Rank products by overall best match considering ALL factors: category, type, description, price, THC percentage, effects, flavors, and any other preferences mentioned.
 
 ### USER REQUEST:
 "${user_message}"
+
+### USER PREFERENCES (from conversation):
+${filters?.effects?.length ? `- Requested Effects: ${JSON.stringify(filters.effects)}` : ''}
+${filters?.flavor?.length ? `- Requested Flavors: ${JSON.stringify(filters.flavor)}` : ''}
+${filters?.category ? `- Category: ${filters.category}` : ''}
+${filters?.type ? `- Type: ${filters.type}` : ''}
+${filters?.thc_percentage ? `- THC Percentage: ${filters.thc_percentage}%` : ''}
+${filters?.price_min || filters?.price_max ? `- Price Range: $${filters.price_min || 0} - $${filters.price_max || '∞'}` : ''}
+
+**Note**: Effects and flavors are provided here because the vector database cannot filter on array fields. Consider them along with all other factors when ranking.
 
 ### CANDIDATE PRODUCTS (JSON):
 ${JSON.stringify(results)}
 
 ### INSTRUCTIONS:
-1. Analyze the User Request for specific "vibe" keywords (e.g., "creative," "no couch-lock," "citrus flavor").
-2. Evaluate the Candidates based on their 'effects', 'type', 'category', and 'description' fields.
-3. Sort the products from BEST match to LEAST match.
+1. Analyze the User Request holistically - consider category, type, effects, flavors, price, THC level, and any other preferences.
+2. Evaluate each candidate product based on ALL relevant fields: category, type, subcategory, description, effects, flavors, price, THC percentage, brand, etc.
+3. Rank products from BEST overall match to LEAST match, considering how well each product satisfies the complete user request.
 4. If a product clearly contradicts the user's request (e.g., user wants "not sleepy" but product says "heavy sedative"), remove it entirely.
 5. Return ONLY a JSON object with a "ranked_names" array containing product names in order of best match.
 
