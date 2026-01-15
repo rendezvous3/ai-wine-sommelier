@@ -47,6 +47,17 @@
       sliderValue = valueToPosition(value);
     }
   });
+
+  // Auto-select Medium (default) when value is null on mount
+  let hasAutoSelected = $state(false);
+  $effect(() => {
+    if (!hasAutoSelected && value === null && options.length > 0) {
+      const defaultPosition = 1; // Medium (middle position)
+      const defaultValue = positionToValue(defaultPosition);
+      onValueChange(defaultValue);
+      hasAutoSelected = true;
+    }
+  });
 </script>
 
 <div class="flow-slider">
@@ -137,6 +148,7 @@
     border: 3px solid #ffffff;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     transition: all 0.2s ease;
+    margin-top: -8px; /* Center 24px thumb on 8px track */
   }
 
   .flow-slider__input::-webkit-slider-thumb:hover {
@@ -153,6 +165,7 @@
     border: 3px solid #ffffff;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     transition: all 0.2s ease;
+    margin-top: -8px; /* Center 24px thumb on 8px track */
   }
 
   .flow-slider__input::-moz-range-thumb:hover {

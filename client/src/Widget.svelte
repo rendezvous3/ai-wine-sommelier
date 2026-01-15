@@ -362,19 +362,19 @@
           id: 'low',
           label: 'Low',
           value: 'low',
-          description: '<5mg'
+          description: '<5 mg'
         },
         {
           id: 'medium',
           label: 'Medium',
           value: 'medium',
-          description: '5-9mg'
+          description: '5-9 mg'
         },
         {
           id: 'high',
           label: 'High',
           value: 'high',
-          description: '10mg'
+          description: '10 mg'
         }
       ]
     },
