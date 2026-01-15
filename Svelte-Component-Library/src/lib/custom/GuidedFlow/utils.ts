@@ -20,6 +20,27 @@ function dosageToRange(dosage: string): { min: number | null, max: number | null
 }
 
 /**
+ * Deep equality check for objects (used for price range comparisons)
+ */
+function deepEqual(a: any, b: any): boolean {
+  if (a === b) return true;
+  if (a == null || b == null) return a === b;
+  if (typeof a !== 'object' || typeof b !== 'object') return false;
+  
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  
+  if (keysA.length !== keysB.length) return false;
+  
+  for (const key of keysA) {
+    if (!keysB.includes(key)) return false;
+    if (!deepEqual(a[key], b[key])) return false;
+  }
+  
+  return true;
+}
+
+/**
  * Transforms raw GuidedFlow selections into clean metadata, query string, and filters
  * for vector database queries.
  */
@@ -42,7 +63,15 @@ export function transformSelectionsToMetadata(
     // Find the selected option(s) in the step config
     // Ensure we always work with an array for consistent processing
     const selectedValues = Array.isArray(value) ? value : [value];
-    const selectedOptions = step.options.filter(opt => selectedValues.includes(opt.value));
+    // Use deep equality for objects (like price ranges), regular equality for primitives
+    const selectedOptions = step.options.filter(opt => {
+      return selectedValues.some(selectedVal => {
+        if (typeof selectedVal === 'object' && typeof opt.value === 'object' && selectedVal !== null && opt.value !== null) {
+          return deepEqual(selectedVal, opt.value);
+        }
+        return selectedVal === opt.value;
+      });
+    });
 
     if (selectedOptions.length === 0) continue;
 
@@ -65,22 +94,43 @@ export function transformSelectionsToMetadata(
       } else if (stepId === 'thc-percentage') {
         // THC percentage will be converted to thc_percentage_min/max later
         filters['thc-percentage'] = option.value;
+        // Label already includes description like "Very Strong (>28%)", add "THC percentage"
         queryParts.push(`${label} THC percentage`);
       } else if (stepId === 'dosage-per-piece') {
         // Dosage will be converted to thc_per_unit_mg_min/max later
         filters['dosage-per-piece'] = option.value;
-        queryParts.push(`${label} dosage per piece`);
+        // Label includes description like "Low (<5mg)", add "THC" to description part
+        let dosageLabel = label;
+        if (option.description) {
+          // Replace description with "THC" version: "<5mg" -> "<5mg THC"
+          dosageLabel = label.replace(`(${option.description})`, `(${option.description} THC)`);
+        }
+        queryParts.push(`${dosageLabel} dosage per piece`);
       } else if (stepId === 'price') {
-        // Price value is already an object with price_min/price_max
-        if (option.value && typeof option.value === 'object') {
+        // Price value is already an object with price_min/price_max, or null for "No Preference"
+        if (option.value === null) {
+          // "No Preference" case - don't set price filters, but add to query
+          metadata[stepId] = 'with no price range preference';
+          queryParts.push('with no price range preference');
+        } else if (option.value && typeof option.value === 'object') {
           if (option.value.price_min !== null && option.value.price_min !== undefined) {
             filters['price_min'] = option.value.price_min;
           }
           if (option.value.price_max !== null && option.value.price_max !== undefined) {
             filters['price_max'] = option.value.price_max;
           }
+          // Build price range string for query
+          const priceMin = option.value.price_min ?? 0;
+          const priceMax = option.value.price_max;
+          let priceLabel = '';
+          if (priceMax !== null && priceMax !== undefined) {
+            priceLabel = `priced $${priceMin}-$${priceMax}`;
+          } else {
+            priceLabel = `priced $${priceMin}+`;
+          }
+          metadata[stepId] = priceLabel;
+          queryParts.push(priceLabel);
         }
-        queryParts.push(`priced ${label}`);
       } else {
         filters[stepId] = option.value;
         queryParts.push(label);
@@ -200,18 +250,22 @@ export function transformSelectionsToMetadata(
     query += ` that ${effectsArray.length === 1 ? 'makes' : 'make'} me feel ${effectsStr}`;
   }
   
-  // Add THC percentage (for non-edibles)
+  // Add THC percentage (for non-edibles only - Flower, Prerolls, Vaporizers, Concentrates)
   if (metadata['thc-percentage']) {
-    query += `, with ${metadata['thc-percentage']}`;
+    // metadata['thc-percentage'] already includes description like "Very Strong (>28%)"
+    query += `, with ${metadata['thc-percentage']} THC percentage`;
   }
   
-  // Add dosage per piece (for edibles)
+  // Add dosage per piece (for edibles only)
   if (metadata['dosage-per-piece']) {
-    query += `, with ${metadata['dosage-per-piece']} dosage per piece`;
+    // metadata['dosage-per-piece'] is like "Low (<5mg)" or "High (10mg)", add "THC" to description
+    const dosageLabel = metadata['dosage-per-piece'].replace(/(<\d+mg|>\d+mg|\d+-\d+mg|\d+mg)/, '$1 THC');
+    query += `, with ${dosageLabel} dosage per piece`;
   }
   
-  // Add price
+  // Add price preference (applies to both standard and edible flows)
   if (metadata['price']) {
+    // metadata['price'] is already formatted correctly from queryParts
     query += `, ${metadata['price']}`;
   }
 
