@@ -287,3 +287,106 @@ export const WithAllSteps: Story = {
   })
 };
 
+const edibleFlowSteps = [
+  sampleSteps[0], // category
+  {
+    id: 'subcategory',
+    title: 'Which kinds of edibles would you like?',
+    subtitle: '(Select up to 2)',
+    type: 'multi-select' as const,
+    maxSelections: 2,
+    required: true,
+    options: [
+      {
+        id: 'chews',
+        label: 'Chews',
+        value: 'Chews',
+        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="16" width="16" height="8" rx="2" stroke="#3b82f6" stroke-width="2"/><path d="M16 20H24" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/></svg>'
+      },
+      {
+        id: 'chocolates',
+        label: 'Chocolates',
+        value: 'Chocolates',
+        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="14" width="20" height="12" rx="2" stroke="#3b82f6" stroke-width="2"/><path d="M14 18H26M14 22H26" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/></svg>'
+      },
+      {
+        id: 'cooking-baking',
+        label: 'Cooking/Baking',
+        value: 'CookingBaking',
+        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="12" width="16" height="16" rx="2" stroke="#3b82f6" stroke-width="2"/><path d="M16 16H24M16 20H24M16 24H20" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/></svg>'
+      },
+      {
+        id: 'drinks',
+        label: 'Drinks',
+        value: 'Drinks',
+        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 10C16 10 18 8 20 8C22 8 24 10 24 10V28C24 30 22 32 20 32C18 32 16 30 16 28V10Z" stroke="#3b82f6" stroke-width="2"/><path d="M18 14H22M18 18H22" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/></svg>'
+      },
+      {
+        id: 'gummies',
+        label: 'Gummies',
+        value: 'Gummies',
+        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="4" fill="#3b82f6" opacity="0.3"/><circle cx="24" cy="16" r="4" fill="#3b82f6" opacity="0.3"/><circle cx="16" cy="24" r="4" fill="#3b82f6" opacity="0.3"/><circle cx="24" cy="24" r="4" fill="#3b82f6" opacity="0.3"/><circle cx="16" cy="16" r="4" stroke="#3b82f6" stroke-width="2"/><circle cx="24" cy="16" r="4" stroke="#3b82f6" stroke-width="2"/><circle cx="16" cy="24" r="4" stroke="#3b82f6" stroke-width="2"/><circle cx="24" cy="24" r="4" stroke="#3b82f6" stroke-width="2"/></svg>'
+      },
+      {
+        id: 'live-resin-gummies',
+        label: 'Live Resin Gummies',
+        value: 'Live Resin Gummies',
+        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="4" fill="#3b82f6" opacity="0.3"/><circle cx="24" cy="16" r="4" fill="#3b82f6" opacity="0.3"/><circle cx="16" cy="24" r="4" fill="#3b82f6" opacity="0.3"/><circle cx="24" cy="24" r="4" fill="#3b82f6" opacity="0.3"/><circle cx="16" cy="16" r="4" stroke="#3b82f6" stroke-width="2"/><circle cx="24" cy="16" r="4" stroke="#3b82f6" stroke-width="2"/><circle cx="16" cy="24" r="4" stroke="#3b82f6" stroke-width="2"/><circle cx="24" cy="24" r="4" stroke="#3b82f6" stroke-width="2"/><path d="M20 12V28" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/></svg>'
+      },
+      {
+        id: 'live-rosin-gummies',
+        label: 'Live Rosin Gummies',
+        value: 'Live Rosin Gummies',
+        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="4" fill="#3b82f6" opacity="0.3"/><circle cx="24" cy="16" r="4" fill="#3b82f6" opacity="0.3"/><circle cx="16" cy="24" r="4" fill="#3b82f6" opacity="0.3"/><circle cx="24" cy="24" r="4" fill="#3b82f6" opacity="0.3"/><circle cx="16" cy="16" r="4" stroke="#3b82f6" stroke-width="2"/><circle cx="24" cy="16" r="4" stroke="#3b82f6" stroke-width="2"/><circle cx="16" cy="24" r="4" stroke="#3b82f6" stroke-width="2"/><circle cx="24" cy="24" r="4" stroke="#3b82f6" stroke-width="2"/><path d="M12 20H28" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/></svg>'
+      }
+    ]
+  },
+  sampleSteps[1], // effects
+  {
+    id: 'dosage-per-piece',
+    title: 'Dosage per piece',
+    subtitle: '',
+    type: 'slider' as const,
+    required: true,
+    options: [
+      {
+        id: 'low',
+        label: 'Low',
+        value: 'low',
+        description: '<5mg'
+      },
+      {
+        id: 'medium',
+        label: 'Medium',
+        value: 'medium',
+        description: '5-9mg'
+      },
+      {
+        id: 'high',
+        label: 'High',
+        value: 'high',
+        description: '10mg'
+      }
+    ]
+  },
+  sampleSteps[3] // price
+];
+
+export const EdibleFlow: Story = {
+  args: {
+    config: {
+      steps: edibleFlowSteps,
+      onComplete: (selections: Record<string, any>) => {
+        console.log('Edible flow completed:', selections);
+      },
+      onClose: () => {
+        console.log('Flow closed');
+      }
+    }
+  },
+  render: (args: any) => ({
+    Component: GuidedFlow as any,
+    props: args,
+  })
+};
+

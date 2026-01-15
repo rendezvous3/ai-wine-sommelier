@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { FlowStep as FlowStepType } from './types.js';
   import FlowOptionCard from './FlowOptionCard.svelte';
+  import FlowSlider from './FlowSlider.svelte';
 
   interface FlowStepProps {
     step: FlowStepType;
@@ -88,6 +89,10 @@
   }
 
   let useGridLayout = $derived(step.options.length >= 6);
+
+  function handleSliderChange(value: string) {
+    onSelect(value);
+  }
 </script>
 
 <div class="flow-step">
@@ -98,17 +103,25 @@
     {/if}
   </div>
 
-  <div class="flow-step__options" class:flow-step__options--grid={useGridLayout}>
-    {#each step.options as option}
-      <FlowOptionCard
-        option={option}
-        selected={isOptionSelected(option.value)}
-        disabled={isOptionDisabled(option.value)}
-        compact={useGridLayout}
-        onclick={() => handleOptionClick(option.value)}
-      />
-    {/each}
-  </div>
+  {#if step.type === 'slider'}
+    <FlowSlider
+      value={selectedValues.length > 0 ? selectedValues[0] : null}
+      onValueChange={handleSliderChange}
+      options={step.options}
+    />
+  {:else}
+    <div class="flow-step__options" class:flow-step__options--grid={useGridLayout}>
+      {#each step.options as option}
+        <FlowOptionCard
+          option={option}
+          selected={isOptionSelected(option.value)}
+          disabled={isOptionDisabled(option.value)}
+          compact={useGridLayout}
+          onclick={() => handleOptionClick(option.value)}
+        />
+      {/each}
+    </div>
+  {/if}
 </div>
 
 <style>

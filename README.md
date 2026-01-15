@@ -88,6 +88,9 @@ npx wrangler vectorize create-metadata-index products-demo-3 --property-name=fla
 npx wrangler vectorize create-metadata-index products-demo-3 --property-name=price --type=number
 npx wrangler vectorize create-metadata-index products-demo-3 --property-name=thc_percentage --type=number
 npx wrangler vectorize create-metadata-index products-demo-3 --property-name=cbd_percentage --type=number
+npx wrangler vectorize create-metadata-index products-demo-3 --property-name=thc_per_unit_mg --type=number
+npx wrangler vectorize create-metadata-index products-demo-3 --property-name=thc_per_serving_mg --type=number
+npx wrangler vectorize create-metadata-index products-demo-3 --property-name=cbg_per_serving_mg --type=number
 npx wrangler vectorize create-metadata-index products-demo-3 --property-name=total_weight_grams --type=number
 npx wrangler vectorize create-metadata-index products-demo-3 --property-name=pack_count --type=number
 npx wrangler vectorize create-metadata-index products-demo-3 --property-name=inStock --type=boolean

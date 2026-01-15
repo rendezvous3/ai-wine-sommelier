@@ -10,7 +10,7 @@ export interface FlowStep {
   id: string;
   title: string;
   subtitle?: string; // e.g., "(Select one)" or "(Up to 2)"
-  type: 'single-select' | 'multi-select';
+  type: 'single-select' | 'multi-select' | 'slider';
   maxSelections?: number; // for multi-select
   options: FlowOption[];
   required?: boolean;

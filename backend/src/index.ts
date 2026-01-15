@@ -344,7 +344,14 @@ app.post("/chat/recommendations", async (c) => {
     const vectorizeFilters: Record<string, any> = {};
 
     // Direct string fields
-    if (filters.category) vectorizeFilters.category = filters.category;
+    // if (filters.category) vectorizeFilters.category = filters.category;
+    if (filters.category) {
+      if (Array.isArray(filters.category)) {
+        vectorizeFilters.category = { "$in": filters.category };
+      } else {
+        vectorizeFilters.category = filters.category;
+      }
+    }
     if (filters.type) {
       if (Array.isArray(filters.type)) {
         vectorizeFilters.type = { "$in": filters.type };
@@ -352,7 +359,14 @@ app.post("/chat/recommendations", async (c) => {
         vectorizeFilters.type = filters.type;
       }
     }
-    if (filters.subcategory) vectorizeFilters.subcategory = filters.subcategory;
+    // if (filters.subcategory) vectorizeFilters.subcategory = filters.subcategory;
+    if (filters.subcategory) {
+      if (Array.isArray(filters.subcategory)) {
+        vectorizeFilters.subcategory = { "$in": filters.subcategory };
+      } else {
+        vectorizeFilters.subcategory = filters.subcategory;
+      }
+    }
     if (filters.brand) vectorizeFilters.brand = filters.brand;
 
     // Array fields (effects, flavor) - use $in operator
@@ -383,6 +397,17 @@ app.post("/chat/recommendations", async (c) => {
       }
       if (filters.thc_percentage_max !== null && filters.thc_percentage_max !== undefined) {
         vectorizeFilters.thc_percentage["$lte"] = filters.thc_percentage_max;
+      }
+    }
+
+    if (filters.thc_per_unit_mg_min !== null && filters.thc_per_unit_mg_min !== undefined || 
+        filters.thc_per_unit_mg_max !== null && filters.thc_per_unit_mg_max !== undefined) {
+      vectorizeFilters.thc_per_unit_mg = {};
+      if (filters.thc_per_unit_mg_min !== null && filters.thc_per_unit_mg_min !== undefined) {
+        vectorizeFilters.thc_per_unit_mg["$gte"] = filters.thc_per_unit_mg_min;
+      }
+      if (filters.thc_per_unit_mg_max !== null && filters.thc_per_unit_mg_max !== undefined) {
+        vectorizeFilters.thc_per_unit_mg["$lte"] = filters.thc_per_unit_mg_max;
       }
     }
 

@@ -1,6 +1,8 @@
 # Step 1: Ignore everything FIRST
 *
 
+!README.md
+
 !.cursor/
 !.cursor/rules/
 !.cursor/rules/manifest.mdc

@@ -8,6 +8,18 @@ export interface TransformedMetadata {
 }
 
 /**
+ * Converts dosage selection to thc_per_unit_mg range
+ */
+function dosageToRange(dosage: string): { min: number | null, max: number | null } {
+  switch(dosage) {
+    case 'low': return { min: 1, max: 4.99 };
+    case 'medium': return { min: 5, max: 9.99 };
+    case 'high': return { min: 10, max: null };
+    default: return { min: null, max: null };
+  }
+}
+
+/**
  * Transforms raw GuidedFlow selections into clean metadata, query string, and filters
  * for vector database queries.
  */
@@ -35,7 +47,7 @@ export function transformSelectionsToMetadata(
     if (selectedOptions.length === 0) continue;
 
     // Build metadata with human-readable labels
-    if (step.type === 'single-select') {
+    if (step.type === 'single-select' || step.type === 'slider') {
       const option = selectedOptions[0];
       let label = option.label;
       
@@ -54,6 +66,10 @@ export function transformSelectionsToMetadata(
         // THC percentage will be converted to thc_percentage_min/max later
         filters['thc-percentage'] = option.value;
         queryParts.push(`${label} THC percentage`);
+      } else if (stepId === 'dosage-per-piece') {
+        // Dosage will be converted to thc_per_unit_mg_min/max later
+        filters['dosage-per-piece'] = option.value;
+        queryParts.push(`${label} dosage per piece`);
       } else if (stepId === 'price') {
         // Price value is already an object with price_min/price_max
         if (option.value && typeof option.value === 'object') {
@@ -85,6 +101,16 @@ export function transformSelectionsToMetadata(
           const lastLabel = labelsCopy.pop();
           queryParts.push(`make me feel ${labelsCopy.join(', ')} and ${lastLabel}`);
         }
+      } else if (stepId === 'subcategory') {
+        // Subcategory multi-select
+        filters['subcategory'] = selectedOptions.map(opt => opt.value);
+        if (labels.length === 1) {
+          queryParts.push(`${labels[0]} edibles`);
+        } else {
+          const labelsCopy = [...labels];
+          const lastLabel = labelsCopy.pop();
+          queryParts.push(`${labelsCopy.join(', ')} and ${lastLabel} edibles`);
+        }
       } else {
         filters[stepId] = selectedOptions.map(opt => opt.value);
         queryParts.push(labels.join(', '));
@@ -111,11 +137,41 @@ export function transformSelectionsToMetadata(
     delete filters['thc-percentage'];
   }
 
+  // Convert dosage-per-piece to thc_per_unit_mg_min/max if dosage-per-piece is selected
+  if (filters['dosage-per-piece']) {
+    const dosageValue = filters['dosage-per-piece'];
+    const dosageRange = dosageToRange(dosageValue);
+    
+    // Add thc_per_unit_mg_min and thc_per_unit_mg_max to filters
+    if (dosageRange.min !== null) {
+      filters['thc_per_unit_mg_min'] = dosageRange.min;
+    }
+    if (dosageRange.max !== null) {
+      filters['thc_per_unit_mg_max'] = dosageRange.max;
+    }
+    
+    // Remove dosage-per-piece from filters (we've converted it to thc_per_unit_mg_min/max)
+    delete filters['dosage-per-piece'];
+  }
+
   // Build natural language query
   let query = 'Looking for ';
   
-  // Add category first if available
-  if (metadata['category']) {
+  // Add subcategory first if available (for edibles)
+  if (metadata['subcategory']) {
+    const subcategoryArray = Array.isArray(metadata['subcategory']) 
+      ? metadata['subcategory'] 
+      : [metadata['subcategory']];
+    
+    if (subcategoryArray.length === 1) {
+      query += subcategoryArray[0] + ' edibles';
+    } else {
+      const labelsCopy = [...subcategoryArray];
+      const lastLabel = labelsCopy.pop();
+      query += `${labelsCopy.join(', ')} and ${lastLabel} edibles`;
+    }
+  } else if (metadata['category']) {
+    // Add category if no subcategory
     query += metadata['category'] + ' products';
   } else {
     query += 'products';
@@ -144,9 +200,14 @@ export function transformSelectionsToMetadata(
     query += ` that ${effectsArray.length === 1 ? 'makes' : 'make'} me feel ${effectsStr}`;
   }
   
-  // Add THC percentage
+  // Add THC percentage (for non-edibles)
   if (metadata['thc-percentage']) {
     query += `, with ${metadata['thc-percentage']}`;
+  }
+  
+  // Add dosage per piece (for edibles)
+  if (metadata['dosage-per-piece']) {
+    query += `, with ${metadata['dosage-per-piece']} dosage per piece`;
   }
   
   // Add price

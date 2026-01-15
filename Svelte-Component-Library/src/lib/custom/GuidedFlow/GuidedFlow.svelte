@@ -59,8 +59,8 @@
   }
 
   function handleSelect(value: any) {
-    // For single-select, store as single value; for multi-select, store as array
-    if (currentStep.type === 'single-select') {
+    // For single-select and slider, store as single value; for multi-select, store as array
+    if (currentStep.type === 'single-select' || currentStep.type === 'slider') {
       state.selections[currentStep.id] = value;
     } else {
       // Multi-select: value is already an array from FlowStep

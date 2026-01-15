@@ -194,9 +194,9 @@ for i, (p, doc) in enumerate(zip(products, documents)):
         raise ValueError(f"ID mismatch at index {i}: product_id={product_id}, metadata_id={metadata_id}")
 
 # print("Examples for embeddings")
-print("ids", ids)
+# print("ids", ids)
 # print("---------------------------------")
-print("documents", documents)
+# print("documents", documents)
 
 
 # STEP 1 - Create the Vector DB Table - chose index name
@@ -222,22 +222,22 @@ r = cfVect.add_documents(index_name=vectorize_index_name, documents=documents, i
 # )
 
 # Fetch all indeces, Vector DB table info
-response = requests.get(
-    f"https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/vectorize/v2/indexes",
-    headers={
-        "Authorization": f"Bearer {API_TOKEN}",  # ← THIS IS THE KEY LINE
-        "Content-Type": "application/json",
-    },
-)
-
-# Fetch the specific index, Vector DB table info
 # response = requests.get(
-#     f"https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/vectorize/v2/indexes/{vectorize_index_name}/info",
+#     f"https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/vectorize/v2/indexes",
 #     headers={
 #         "Authorization": f"Bearer {API_TOKEN}",  # ← THIS IS THE KEY LINE
 #         "Content-Type": "application/json",
 #     },
 # )
+
+# Fetch the specific index, Vector DB table info
+response = requests.get(
+    f"https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/vectorize/v2/indexes/{vectorize_index_name}/info",
+    headers={
+        "Authorization": f"Bearer {API_TOKEN}",  # ← THIS IS THE KEY LINE
+        "Content-Type": "application/json",
+    },
+)
 
 # curl "https://api.cloudflare.com/client/v4/accounts/a1d51caa9dfb04600e8aefd32367408e/vectorize/v2/indexes" \
 # -H "Authorization: Bearer 2L8iOfQM7ugSPVBgz3cP0JgxFTyhYch5-1I46q6g"
