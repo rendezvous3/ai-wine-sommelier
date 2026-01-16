@@ -106,6 +106,24 @@ THC Potency Classification (category-specific scales):
 - Flower/Prerolls: Mild (<13%), Balanced (13-18%), Moderate (18-22%), Strong (22-28%), Very Strong (>28%)
 - Vaporizers/Concentrates: Mild (<66%), Balanced (66-75%), Moderate (75-85%), Strong (85-90%), Very Strong (>90%)
 
+CRITICAL: When extracting THC preferences, distinguish between single potency labels and explicit ranges:
+
+1. **Single Potency Labels** (Mild, Very Strong):
+   - "Mild" or "Mild (<X%)" → Use ONLY thc_percentage_max (set to the threshold value, omit thc_percentage_min)
+   - "Very Strong" or "Very Strong (>X%)" → Use ONLY thc_percentage_min (set to the threshold value, omit thc_percentage_max)
+   
+2. **Range Potency Labels** (Balanced, Moderate, Strong):
+   - "Balanced (X-Y%)" or "Moderate (X-Y%)" or "Strong (X-Y%)" → Use BOTH thc_percentage_min and thc_percentage_max
+   
+3. **Explicit Ranges** (when user specifies exact range like "18-22%" or "Moderate (18-22%)"):
+   - Always use both thc_percentage_min and thc_percentage_max with the exact values
+
+Examples:
+- "Mild (<66%)" for concentrates → { "thc_percentage_max": 66 } (NO thc_percentage_min)
+- "Very Strong (>28%)" for flower → { "thc_percentage_min": 28 } (NO thc_percentage_max)
+- "Moderate (18-22%)" for flower → { "thc_percentage_min": 18, "thc_percentage_max": 22 }
+- "Balanced" for concentrates → { "thc_percentage_min": 66, "thc_percentage_max": 75 }
+
 When extracting THC preferences:
 - If category is "flower" or "prerolls", use Flower/Prerolls scale with thc_percentage_min/max
 - If category is "vaporizers" or "concentrates", use Vaporizers/Concentrates scale with thc_percentage_min/max
@@ -144,11 +162,25 @@ Return ONLY valid JSON with:
 3. "semantic_search": "3-5 keywords describing desired mood/effect/flavor" or empty string
 
 Examples:
+- "Looking for Concentrates products with Mild (<66%) THC percentage"
+  Result: {
+    "intent": "recommendation",
+    "filters": { "category": "concentrates", "thc_percentage_max": 66 },
+    "semantic_search": "concentrates products"
+  }
+
 - "I want a flower for sleep, no couch-lock, something strong"
   Result: {
     "intent": "recommendation",
     "filters": { "category": "flower", "type": "indica", "thc_percentage_min": 22, "thc_percentage_max": 28 },
     "semantic_search": "sleepy relaxed nighttime functional"
+  }
+
+- "Show me vaporizers with Very Strong (>90%) THC"
+  Result: {
+    "intent": "recommendation",
+    "filters": { "category": "vaporizers", "thc_percentage_min": 90 },
+    "semantic_search": "vaporizers products"
   }
 
 - "What are your hours?"
