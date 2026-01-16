@@ -516,6 +516,12 @@
 
     let buffer = "";
 
+    // Track the index of the streaming message to ensure we update the correct one
+    // This index will be used to update only this specific message, preventing duplicates
+    // Defined outside promises so both can access it
+    let streamingMessageIndex: number | null = null;
+    let botMessageContent = "";
+
     // STEP 2 — Start STREAMING (Agent 1)
     const streamPromise = (async () => {
       const resp = await fetch(`${BASE_URL}/stream`, {
@@ -532,11 +538,6 @@
 
       const reader = resp.body.getReader();
       const decoder = new TextDecoder("utf-8");
-
-      // Store content in a separate variable to avoid mutation issues
-      let botMessageContent = "";
-      // Add initial empty message to array
-      messages = [...messages, { role: "assistant", content: botMessageContent }];
 
       while (true) {
         const { done, value } = await reader.read();
@@ -564,20 +565,30 @@
             const token = json.choices?.[0]?.delta?.content ?? "";
             if (token) {
               botMessageContent += token;
-              // Create new message object and replace the last message in array
-              // This ensures Svelte 5 reactivity properly tracks the change
-              messages = [
-                ...messages.slice(0, -1),
-                { role: "assistant", content: botMessageContent }
-              ];
+              
+              // Create message only when we have the first token (avoid empty bubble)
+              if (streamingMessageIndex === null) {
+                streamingMessageIndex = messages.length;
+                messages = [...messages, { role: "assistant", content: botMessageContent }];
+              } else {
+                // Update the existing streaming message
+                messages = [
+                  ...messages.slice(0, streamingMessageIndex),
+                  { role: "assistant", content: botMessageContent },
+                  ...messages.slice(streamingMessageIndex + 1)
+                ];
+              }
             }
           } catch (err) {
             // ignore malformed JSON
             console.error("Stream error:", err);
-            messages = [
-              ...messages.slice(0, -1),
-              { role: "assistant", content: "Sorry, connection lost." },
-            ];
+            if (streamingMessageIndex !== null) {
+              messages = [
+                ...messages.slice(0, streamingMessageIndex),
+                { role: "assistant", content: "Sorry, connection lost." },
+                ...messages.slice(streamingMessageIndex + 1)
+              ];
+            }
             loading = false;
           }
         }
@@ -588,9 +599,29 @@
     })();
 
     // STEP 3 — Recommendation Tool (only when needed)
+    // Make it sequential: wait for stream, then add "Looking for best matches...", then fetch recommendations
     let recPromise = Promise.resolve();
     if (intent === "recommendation") {
       recPromise = (async () => {
+        // Step 1: Wait for streaming to complete
+        await streamPromise;
+        
+        // Step 2: Now add "Looking for best matches..." message after streaming is done
+        // streamingMessageIndex should be set by now (after first token arrived)
+        // If for some reason it's null (no tokens), use messages.length
+        const finalStreamingIndex = streamingMessageIndex !== null ? streamingMessageIndex : messages.length - 1;
+        const searchingMessageIndex = finalStreamingIndex + 1;
+        messages = [
+          ...messages.slice(0, searchingMessageIndex),
+          { role: "assistant", content: "Looking for best matches..." },
+          ...messages.slice(searchingMessageIndex)
+        ];
+        
+        // Step 3: Wait a tiny bit for the "Looking for best matches..." message to render
+        // This ensures it appears before we start fetching recommendations
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Step 4: Now fetch recommendations
         try {
           const recPayload = {
             ...payload,
@@ -609,23 +640,43 @@
           );
           const data = await resp.json();
           productRecommendations = data.recommendations || [];
-          // Only add message if there are actual recommendations
-          // Avoid creating empty bubbles when API returns empty array
+          
+          // Step 5: Replace "Looking for best matches..." with recommendations
+          // Keep "Looking for best matches..." visible, add recommendations after it
           if (productRecommendations.length > 0) {
-          let botMessage: Message = {
-            role: "assistant",
-            content: "",
-            recommendations: productRecommendations,
-          };
-          messages = [...messages, botMessage];
+            let botMessage: Message = {
+              role: "assistant",
+              content: "",
+              recommendations: productRecommendations,
+            };
+            // Add recommendations message right after "Looking for best matches..."
+            messages = [
+              ...messages.slice(0, searchingMessageIndex + 1),
+              botMessage,
+              ...messages.slice(searchingMessageIndex + 1)
+            ];
+          } else {
+            // If no recommendations, remove "Looking for best matches..." message
+            messages = [
+              ...messages.slice(0, searchingMessageIndex),
+              ...messages.slice(searchingMessageIndex + 1)
+            ];
           }
         } catch (err) {
           console.error("Recommendation tool failed:", err);
+          // Remove "Looking for best matches..." message on error
+          messages = [
+            ...messages.slice(0, searchingMessageIndex),
+            ...messages.slice(searchingMessageIndex + 1)
+          ];
         }
       })();
+    } else {
+      // If not recommendation intent, just wait for stream to complete
+      await streamPromise;
     }
 
-    await Promise.all([streamPromise, recPromise]);
+    await recPromise;
     loading = false;
   }
 </script>
