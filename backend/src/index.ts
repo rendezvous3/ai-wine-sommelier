@@ -16,7 +16,17 @@ import type {
 // import { streamText } from 'ai';
 import { generatePrompt } from "./prompt";
 import { MODEL_PROVIDER, LLM_PROVIDER, STORE_NAME, AGENT_ROLE, AGENT_ROLE_MODEL } from "./types-and-constants";
-import { formatConversationHistory } from "./utils"
+import { formatConversationHistory } from "./utils";
+import {
+  isValidCategory,
+  isValidSubcategory,
+  normalizeCategory,
+  normalizeSubcategory,
+  getValidSubcategories,
+  shouldUseTHCPercentage,
+  shouldUseTHCPerUnitMg,
+  getSchemaForPrompt
+} from "./schema";
 
 interface Bindings {
   CEREBRAS_API_KEY: string;
@@ -66,6 +76,8 @@ app.post("/chat/intent", async (c) => {
   const API_KEY = c.env.GROQ_API_KEY;
   const MODEL = AGENT_ROLE_MODEL.INTENT;
 
+  const schemaInfo = getSchemaForPrompt();
+
   const prompt = `
 You are the Brain of a Cannabis Dispensary AI.
 Analyze the conversation history and the latest user message.
@@ -74,28 +86,55 @@ Review the conversation. Extract the current active preferences.
 If a user changes their mind (e.g., from Flower to Pre-roll), the new choice replaces the old one. 
 If they add a preference (e.g., 'And make it strong'), append it.
 
-For category you must use exact keyword. This is absolutely crucial.
-Can't use preroll for prerolls or edibles for edibles.
+CRITICAL VALIDATION RULE: ONLY use a field (category, type, subcategory, effects, flavor, brand, price_min, price_max, thc_percentage_min, thc_percentage_max, thc_per_unit_mg_min, thc_per_unit_mg_max) if you are 100% certain it matches the valid options. If uncertain, omit the field entirely. Better to omit than be wrong.
 
-must use one of the following keywords for category: flower, prerolls, edibles, concentrates, tincture, vaporizers
+${schemaInfo}
+
+Valid Categories: flower, prerolls, edibles, concentrates, vaporizers, cbd
+
+Category Notes:
+- Category can be a single value or an array of categories (e.g., ["prerolls", "flower"])
+- Use array format when user wants products from multiple categories
+- This enables broader search across multiple product types
+
+Category-Specific THC Fields:
+- For flower, prerolls, vaporizers, concentrates: Use thc_percentage_min and thc_percentage_max when THC preference is mentioned
+- For edibles: Use thc_per_unit_mg_min and thc_per_unit_mg_max when THC/dosage preference is mentioned
+- NEVER mix these fields - use the correct one based on category
 
 THC Potency Classification (category-specific scales):
 - Flower/Prerolls: Mild (<13%), Balanced (13-18%), Moderate (18-22%), Strong (22-28%), Very Strong (>28%)
 - Vaporizers/Concentrates: Mild (<66%), Balanced (66-75%), Moderate (75-85%), Strong (85-90%), Very Strong (>90%)
 
-When extracting THC preferences, use thc_percentage_min and thc_percentage_max based on the category:
-- If category is "flower" or "prerolls", use Flower/Prerolls scale
-- If category is "vaporizers" or "concentrates", use Vaporizers/Concentrates scale
-- If no category is specified, default to Flower/Prerolls scale
+When extracting THC preferences:
+- If category is "flower" or "prerolls", use Flower/Prerolls scale with thc_percentage_min/max
+- If category is "vaporizers" or "concentrates", use Vaporizers/Concentrates scale with thc_percentage_min/max
+- If category is "edibles", use thc_per_unit_mg_min/max (not percentage)
+- If no category is specified, default to Flower/Prerolls scale with thc_percentage_min/max
+
+Subcategory Notes:
+- Subcategory is most important for edibles when specifically mentioned, but can be omitted if uncertain
+- For other categories, subcategory is less critical unless explicitly mentioned
+- Only use subcategory if you are 100% certain it matches one of the valid options listed above
+- If uncertain about subcategory, omit it entirely
+- If user mentions multiple subcategories (e.g., "Chews and Gummies"), return as an array: ["chews", "gummies"]
+- Subcategory can be a single string or an array of strings
+
+Type mapping:
+- "indica", "indica-dominant" → "indica"
+- "sativa", "sativa-dominant" → "sativa"
+- "hybrid" → "hybrid"
 
 Return ONLY valid JSON with:
 1. "intent": "recommendation" or "general"
 2. "filters": { 
-    "category": (flower, prerolls, edibles, concentrates, tincture, vaporizers) or null,
+    "category": (flower, prerolls, edibles, concentrates, vaporizers, cbd) or array of these categories or null,
     "type": (indica, sativa, hybrid) or null,
     "thc_percentage_min": (number) or null,
     "thc_percentage_max": (number) or null,
-    "subcategory": (string) or null,
+    "thc_per_unit_mg_min": (number) or null,
+    "thc_per_unit_mg_max": (number) or null,
+    "subcategory": (string or array of strings) or null,
     "effects": (array of strings) or null,
     "flavor": (array of strings) or null,
     "brand": (string) or null,
@@ -103,11 +142,6 @@ Return ONLY valid JSON with:
     "price_max": (number) or null
 }
 3. "semantic_search": "3-5 keywords describing desired mood/effect/flavor" or empty string
-
-Type mapping:
-- "indica", "indica-dominant" → "indica"
-- "sativa", "sativa-dominant" → "sativa"
-- "hybrid" → "hybrid"
 
 Examples:
 - "I want a flower for sleep, no couch-lock, something strong"
@@ -136,6 +170,13 @@ Examples:
     "intent": "recommendation",
     "filters": { "type": "sativa" },
     "semantic_search": "anxiety relief calming focused"
+  }
+
+- "Show me prerolls and flower"
+  Result: {
+    "intent": "recommendation",
+    "filters": { "category": ["prerolls", "flower"] },
+    "semantic_search": "prerolls flower products"
   }
 
 ${conversationHistory ? `Conversation history:\n${conversationHistory}\n\n` : ""}
@@ -194,13 +235,170 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
       semantic_search: parsed.semantic_search || ""
     };
 
-    // Ensure filters object has correct structure (null for missing values)
+    // Validate and normalize filters
     const normalizedFilters: Record<string, any> = {};
-    const filterFields = ["category", "type", "thc_min", "thc_max", "subcategory", "effects", "flavor", "brand", "price_min", "price_max"];
     
-    for (const field of filterFields) {
-      if (response.filters[field] !== undefined && response.filters[field] !== null) {
-        normalizedFilters[field] = response.filters[field];
+    // Normalize and validate category (handle both single value and array)
+    if (response.filters.category) {
+      const categoryValue = response.filters.category;
+      if (Array.isArray(categoryValue)) {
+        // Validate each category in the array
+        const normalizedCategories = categoryValue
+          .map((cat: any) => normalizeCategory(cat))
+          .filter((cat: string | null): cat is string => cat !== null);
+        if (normalizedCategories.length > 0) {
+          normalizedFilters.category = normalizedCategories;
+        }
+        // If all invalid, omit it (better to omit than be wrong)
+      } else {
+        // Single value
+        const normalizedCategory = normalizeCategory(categoryValue);
+        if (normalizedCategory) {
+          normalizedFilters.category = normalizedCategory;
+        }
+      }
+    }
+    
+    // Normalize type to lowercase
+    if (response.filters.type) {
+      const normalizedType = response.filters.type.toLowerCase();
+      if (["indica", "sativa", "hybrid"].includes(normalizedType)) {
+        normalizedFilters.type = normalizedType;
+      }
+    }
+    
+    // Normalize and validate subcategory (only if category is valid)
+    // Handle both single value and array
+    // Note: If category is an array, we can't validate subcategory against multiple categories
+    // So we only validate subcategory if category is a single value
+    if (response.filters.subcategory && normalizedFilters.category) {
+      if (Array.isArray(normalizedFilters.category)) {
+        // If category is an array, we can't validate subcategory (it could belong to any category)
+        // So we normalize subcategory values but don't validate against schema
+        const subcategoryValue = response.filters.subcategory;
+        if (Array.isArray(subcategoryValue)) {
+          // Normalize each subcategory to lowercase
+          const normalizedSubcategories = subcategoryValue
+            .map((subcat: any) => String(subcat).toLowerCase())
+            .filter((subcat: string) => subcat.length > 0);
+          if (normalizedSubcategories.length > 0) {
+            normalizedFilters.subcategory = normalizedSubcategories;
+          }
+        } else {
+          // Single value - normalize to lowercase
+          const normalizedSubcategory = String(subcategoryValue).toLowerCase();
+          if (normalizedSubcategory.length > 0) {
+            normalizedFilters.subcategory = normalizedSubcategory;
+          }
+        }
+      } else {
+        // Category is single value - validate subcategory against it
+        const subcategoryValue = response.filters.subcategory;
+        if (Array.isArray(subcategoryValue)) {
+          // Validate each subcategory in the array
+          const normalizedSubcategories = subcategoryValue
+            .map((subcat: any) => normalizeSubcategory(normalizedFilters.category, subcat))
+            .filter((subcat: string | null): subcat is string => subcat !== null);
+          if (normalizedSubcategories.length > 0) {
+            normalizedFilters.subcategory = normalizedSubcategories;
+          }
+          // If all invalid, omit it (better to omit than be wrong)
+        } else {
+          // Single value
+          const normalizedSubcategory = normalizeSubcategory(
+            normalizedFilters.category,
+            subcategoryValue
+          );
+          if (normalizedSubcategory) {
+            normalizedFilters.subcategory = normalizedSubcategory;
+          }
+          // If invalid, omit it (better to omit than be wrong)
+        }
+      }
+    }
+    
+    // Normalize effects array to lowercase
+    if (response.filters.effects && Array.isArray(response.filters.effects)) {
+      normalizedFilters.effects = response.filters.effects
+        .map((e: any) => String(e).toLowerCase())
+        .filter((e: string) => e.length > 0);
+    }
+    
+    // Normalize flavor array to lowercase
+    if (response.filters.flavor && Array.isArray(response.filters.flavor)) {
+      normalizedFilters.flavor = response.filters.flavor
+        .map((f: any) => String(f).toLowerCase())
+        .filter((f: string) => f.length > 0);
+    }
+    
+    // Brand - keep original case (brand names are case-sensitive)
+    if (response.filters.brand) {
+      normalizedFilters.brand = String(response.filters.brand);
+    }
+    
+    // Price fields
+    if (response.filters.price_min !== null && response.filters.price_min !== undefined) {
+      normalizedFilters.price_min = Number(response.filters.price_min);
+    }
+    if (response.filters.price_max !== null && response.filters.price_max !== undefined) {
+      normalizedFilters.price_max = Number(response.filters.price_max);
+    }
+    
+    // Validate THC fields based on category
+    const category = normalizedFilters.category;
+    if (category) {
+      // Handle array of categories - if any category uses percentage, allow percentage fields
+      // If any category uses per-unit-mg, allow per-unit-mg fields
+      if (Array.isArray(category)) {
+        const usesPercentage = category.some((cat: string) => shouldUseTHCPercentage(cat));
+        const usesPerUnitMg = category.some((cat: string) => shouldUseTHCPerUnitMg(cat));
+        
+        if (usesPercentage) {
+          if (response.filters.thc_percentage_min !== null && response.filters.thc_percentage_min !== undefined) {
+            normalizedFilters.thc_percentage_min = Number(response.filters.thc_percentage_min);
+          }
+          if (response.filters.thc_percentage_max !== null && response.filters.thc_percentage_max !== undefined) {
+            normalizedFilters.thc_percentage_max = Number(response.filters.thc_percentage_max);
+          }
+        }
+        if (usesPerUnitMg) {
+          if (response.filters.thc_per_unit_mg_min !== null && response.filters.thc_per_unit_mg_min !== undefined) {
+            normalizedFilters.thc_per_unit_mg_min = Number(response.filters.thc_per_unit_mg_min);
+          }
+          if (response.filters.thc_per_unit_mg_max !== null && response.filters.thc_per_unit_mg_max !== undefined) {
+            normalizedFilters.thc_per_unit_mg_max = Number(response.filters.thc_per_unit_mg_max);
+          }
+        }
+      } else {
+        // Single category
+        if (shouldUseTHCPercentage(category)) {
+          // For flower/prerolls/vaporizers/concentrates: use thc_percentage_min/max
+          if (response.filters.thc_percentage_min !== null && response.filters.thc_percentage_min !== undefined) {
+            normalizedFilters.thc_percentage_min = Number(response.filters.thc_percentage_min);
+          }
+          if (response.filters.thc_percentage_max !== null && response.filters.thc_percentage_max !== undefined) {
+            normalizedFilters.thc_percentage_max = Number(response.filters.thc_percentage_max);
+          }
+          // Remove thc_per_unit_mg fields if present (wrong field for this category)
+        } else if (shouldUseTHCPerUnitMg(category)) {
+          // For edibles: use thc_per_unit_mg_min/max
+          if (response.filters.thc_per_unit_mg_min !== null && response.filters.thc_per_unit_mg_min !== undefined) {
+            normalizedFilters.thc_per_unit_mg_min = Number(response.filters.thc_per_unit_mg_min);
+          }
+          if (response.filters.thc_per_unit_mg_max !== null && response.filters.thc_per_unit_mg_max !== undefined) {
+            normalizedFilters.thc_per_unit_mg_max = Number(response.filters.thc_per_unit_mg_max);
+          }
+          // Remove thc_percentage fields if present (wrong field for this category)
+        }
+      }
+    } else {
+      // If category is missing but THC fields are present, remove THC fields (can't validate without category)
+      // Default to thc_percentage if no category (for backward compatibility)
+      if (response.filters.thc_percentage_min !== null && response.filters.thc_percentage_min !== undefined) {
+        normalizedFilters.thc_percentage_min = Number(response.filters.thc_percentage_min);
+      }
+      if (response.filters.thc_percentage_max !== null && response.filters.thc_percentage_max !== undefined) {
+        normalizedFilters.thc_percentage_max = Number(response.filters.thc_percentage_max);
       }
     }
 
@@ -308,8 +506,169 @@ app.post("/chat/stream", async (c) => {
 app.post("/chat/recommendations", async (c) => {
   const body = await c.req.json();
   const messages = body.messages || [];
-  const filters = body.filters || {};
+  let filters = body.filters || {};
   const semantic_search = body.semantic_search || "";
+
+  // Validate and normalize filters (safety net)
+  const validatedFilters: Record<string, any> = {};
+
+  // Normalize and validate category (handle both single value and array)
+  if (filters.category) {
+    const categoryValue = filters.category;
+    if (Array.isArray(categoryValue)) {
+      // Validate each category in the array
+      const normalizedCategories = categoryValue
+        .map((cat: any) => normalizeCategory(cat))
+        .filter((cat: string | null): cat is string => cat !== null);
+      if (normalizedCategories.length > 0) {
+        validatedFilters.category = normalizedCategories;
+      }
+      // If all invalid, omit it (better to omit than be wrong)
+    } else {
+      // Single value
+      const normalizedCategory = normalizeCategory(categoryValue);
+      if (normalizedCategory) {
+        validatedFilters.category = normalizedCategory;
+      }
+    }
+  }
+  
+  // Normalize type to lowercase
+  if (filters.type) {
+    const normalizedType = String(filters.type).toLowerCase();
+    if (["indica", "sativa", "hybrid"].includes(normalizedType)) {
+      validatedFilters.type = normalizedType;
+    }
+  }
+  
+  // Normalize and validate subcategory (only if category is valid)
+  // Handle both single value and array
+  // Note: If category is an array, we can't validate subcategory against multiple categories
+  // So we only validate subcategory if category is a single value
+  if (filters.subcategory && validatedFilters.category) {
+    if (Array.isArray(validatedFilters.category)) {
+      // If category is an array, we can't validate subcategory (it could belong to any category)
+      // So we normalize subcategory values but don't validate against schema
+      const subcategoryValue = filters.subcategory;
+      if (Array.isArray(subcategoryValue)) {
+        // Normalize each subcategory to lowercase
+        const normalizedSubcategories = subcategoryValue
+          .map((subcat: any) => String(subcat).toLowerCase())
+          .filter((subcat: string) => subcat.length > 0);
+        if (normalizedSubcategories.length > 0) {
+          validatedFilters.subcategory = normalizedSubcategories;
+        }
+      } else {
+        // Single value - normalize to lowercase
+        const normalizedSubcategory = String(subcategoryValue).toLowerCase();
+        if (normalizedSubcategory.length > 0) {
+          validatedFilters.subcategory = normalizedSubcategory;
+        }
+      }
+    } else {
+      // Category is single value - validate subcategory against it
+      const subcategoryValue = filters.subcategory;
+      if (Array.isArray(subcategoryValue)) {
+        // Validate each subcategory in the array
+        const normalizedSubcategories = subcategoryValue
+          .map((subcat: any) => normalizeSubcategory(validatedFilters.category, subcat))
+          .filter((subcat: string | null): subcat is string => subcat !== null);
+        if (normalizedSubcategories.length > 0) {
+          validatedFilters.subcategory = normalizedSubcategories;
+        }
+        // If all invalid, omit it (better to omit than be wrong)
+      } else {
+        // Single value
+        const normalizedSubcategory = normalizeSubcategory(
+          validatedFilters.category,
+          subcategoryValue
+        );
+        if (normalizedSubcategory) {
+          validatedFilters.subcategory = normalizedSubcategory;
+        }
+        // If invalid, omit it (better to omit than be wrong)
+      }
+    }
+  }
+  
+  // Normalize effects array to lowercase
+  if (filters.effects && Array.isArray(filters.effects)) {
+    validatedFilters.effects = filters.effects
+      .map((e: any) => String(e).toLowerCase())
+      .filter((e: string) => e.length > 0);
+  }
+  
+  // Normalize flavor array to lowercase
+  if (filters.flavor && Array.isArray(filters.flavor)) {
+    validatedFilters.flavor = filters.flavor
+      .map((f: any) => String(f).toLowerCase())
+      .filter((f: string) => f.length > 0);
+  }
+  
+  // Brand - keep original case
+  if (filters.brand) {
+    validatedFilters.brand = String(filters.brand);
+  }
+  
+  // Price fields
+  if (filters.price_min !== null && filters.price_min !== undefined) {
+    validatedFilters.price_min = Number(filters.price_min);
+  }
+  if (filters.price_max !== null && filters.price_max !== undefined) {
+    validatedFilters.price_max = Number(filters.price_max);
+  }
+  
+  // Validate THC fields based on category
+  const category = validatedFilters.category;
+  if (category) {
+    // Handle array of categories - if any category uses percentage, allow percentage fields
+    // If any category uses per-unit-mg, allow per-unit-mg fields
+    if (Array.isArray(category)) {
+      const usesPercentage = category.some((cat: string) => shouldUseTHCPercentage(cat));
+      const usesPerUnitMg = category.some((cat: string) => shouldUseTHCPerUnitMg(cat));
+      
+      if (usesPercentage) {
+        if (filters.thc_percentage_min !== null && filters.thc_percentage_min !== undefined) {
+          validatedFilters.thc_percentage_min = Number(filters.thc_percentage_min);
+        }
+        if (filters.thc_percentage_max !== null && filters.thc_percentage_max !== undefined) {
+          validatedFilters.thc_percentage_max = Number(filters.thc_percentage_max);
+        }
+      }
+      if (usesPerUnitMg) {
+        if (filters.thc_per_unit_mg_min !== null && filters.thc_per_unit_mg_min !== undefined) {
+          validatedFilters.thc_per_unit_mg_min = Number(filters.thc_per_unit_mg_min);
+        }
+        if (filters.thc_per_unit_mg_max !== null && filters.thc_per_unit_mg_max !== undefined) {
+          validatedFilters.thc_per_unit_mg_max = Number(filters.thc_per_unit_mg_max);
+        }
+      }
+    } else {
+      // Single category
+      if (shouldUseTHCPercentage(category)) {
+        // For flower/prerolls/vaporizers/concentrates: use thc_percentage_min/max
+        if (filters.thc_percentage_min !== null && filters.thc_percentage_min !== undefined) {
+          validatedFilters.thc_percentage_min = Number(filters.thc_percentage_min);
+        }
+        if (filters.thc_percentage_max !== null && filters.thc_percentage_max !== undefined) {
+          validatedFilters.thc_percentage_max = Number(filters.thc_percentage_max);
+        }
+        // Remove thc_per_unit_mg fields if present (wrong field for this category)
+      } else if (shouldUseTHCPerUnitMg(category)) {
+        // For edibles: use thc_per_unit_mg_min/max
+        if (filters.thc_per_unit_mg_min !== null && filters.thc_per_unit_mg_min !== undefined) {
+          validatedFilters.thc_per_unit_mg_min = Number(filters.thc_per_unit_mg_min);
+        }
+        if (filters.thc_per_unit_mg_max !== null && filters.thc_per_unit_mg_max !== undefined) {
+          validatedFilters.thc_per_unit_mg_max = Number(filters.thc_per_unit_mg_max);
+        }
+        // Remove thc_percentage fields if present (wrong field for this category)
+      }
+    }
+  }
+  
+  // Use validated filters
+  filters = validatedFilters;
 
   const lastMessages = messages.slice(-5);
   const enrichedHistory = lastMessages.map(msg => {

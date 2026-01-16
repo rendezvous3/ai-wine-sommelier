@@ -2,6 +2,10 @@ import json
 import re
 from typing import Dict, Any, Optional
 
+# Load schema
+with open("schema.json", "r") as f:
+    schema = json.load(f)
+
 # Load data
 with open("demo_products.json", "r") as f:
     products = json.load(f)
@@ -11,6 +15,26 @@ with open("demo_brands.json", "r") as f:
 
 # Create brand lookup dictionary
 brand_lookup = {brand["id"]: brand for brand in brands}
+
+# Mapping from display names to schema subcategory values (lowercase kebab-case)
+SUBCATEGORY_MAPPING = {
+    "Premium": "premium",
+    "Whole Flower": "whole-flower",
+    "Pre-Roll Packs": "pre-roll-packs",
+    "Singles": "singles",
+    "Live Rosin Gummies": "live-rosin-gummies",
+    "Live Resin Gummies": "live-resin-gummies",
+    "Gummies": "gummies",
+    "Chocolates": "chocolates",
+    "Drinks": "drinks",
+    "All-In-One": "all-in-one",
+    "Cartridges": "cartridges",
+    "Disposables": "disposables",
+    "Live Resin": "live-resin",
+    "Tinctures": "tinctures",
+    "Badder": "badder",
+    "Hash": "hash"
+}
 
 def estimate_tokens(text: str) -> int:
     """Rough token estimation: ~1 token per 4 characters"""
@@ -42,57 +66,76 @@ def summarize_brand_description(description: str, max_tokens: int = 150) -> str:
     return summary
 
 def assign_subcategory(product: Dict[str, Any]) -> Optional[str]:
-    """Assign subcategory based on category and product details"""
+    """Assign subcategory based on category and product details.
+    Returns lowercase kebab-case subcategory matching schema."""
     category = product.get("category", "").lower()
     name = product.get("name", "").lower()
     description = product.get("description", "").lower()
     
+    # Get valid subcategories for this category from schema
+    valid_subcategories = schema.get("subcategories", {}).get(category, [])
+    if not valid_subcategories:
+        return None
+    
+    display_subcategory = None
+    
     if category == "flower":
         if product.get("staffPick"):
-            return "Premium"
-        return "Whole Flower"
+            display_subcategory = "Premium"
+        else:
+            display_subcategory = "Whole Flower"
     
     elif category == "prerolls":
         pack_count = product.get("pack_count", 0)
         if pack_count > 1:
-            return "Pre-Roll Packs"
-        return "Singles"
+            display_subcategory = "Pre-Roll Packs"
+        else:
+            display_subcategory = "Singles"
     
     elif category == "edibles":
         if "live rosin gummy" in name or "live rosin" in description:
-            return "Live Rosin Gummies"
+            display_subcategory = "Live Rosin Gummies"
         elif "live resin gummy" in name or "live resin" in description:
-            return "Live Resin Gummies"
+            display_subcategory = "Live Resin Gummies"
         elif "gummy" in name or "gummies" in name:
-            return "Gummies"
+            display_subcategory = "Gummies"
         elif "chocolate" in name:
-            return "Chocolates"
+            display_subcategory = "Chocolates"
         elif "drink" in name:
-            return "Drinks"
-        return "Gummies"  # Default
+            display_subcategory = "Drinks"
+        else:
+            display_subcategory = "Gummies"  # Default
     
     elif category == "vaporizers":
         if "aio" in name or "all-in-one" in name or "all in one" in name:
-            return "All-In-One"
+            display_subcategory = "All-In-One"
         elif "live resin" in name or "live resin" in description:
-            return "Live Resin"
+            display_subcategory = "Live Resin"
         elif "cartridge" in name:
-            return "Cartridges"
+            display_subcategory = "Cartridges"
         elif "disposable" in name:
-            return "Disposables"
-        return "All-In-One"  # Default
+            display_subcategory = "Disposables"
+        else:
+            display_subcategory = "All-In-One"  # Default
     
     elif category == "concentrates":
         # Check if it's a tincture
         if "tincture" in name.lower():
-            return "Tinctures"
+            display_subcategory = "Tinctures"
         elif product.get("texture") == "badder":
-            return "Badder"
+            display_subcategory = "Badder"
         elif "live resin" in description.lower():
-            return "Live Resin"
+            display_subcategory = "Live Resin"
         elif "hash" in name.lower():
-            return "Hash"
-        return "Badder"  # Default
+            display_subcategory = "Hash"
+        else:
+            display_subcategory = "Badder"  # Default
+    
+    # Map display name to schema value (lowercase kebab-case)
+    if display_subcategory:
+        schema_value = SUBCATEGORY_MAPPING.get(display_subcategory)
+        if schema_value and schema_value in valid_subcategories:
+            return schema_value
     
     return None
 
@@ -367,7 +410,13 @@ for product in products:
     # Step 1: Normalize inventory
     product = normalize_inventory(product)
     
-    # Step 2: Assign subcategory
+    # Step 1.5: Normalize category and type to lowercase
+    if "category" in product and product["category"]:
+        product["category"] = product["category"].lower()
+    if "type" in product and product["type"]:
+        product["type"] = product["type"].lower()
+    
+    # Step 2: Assign subcategory (already returns lowercase kebab-case)
     subcategory = assign_subcategory(product)
     if subcategory:
         product["subcategory"] = subcategory
