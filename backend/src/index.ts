@@ -82,6 +82,34 @@ app.post("/chat/intent", async (c) => {
 You are the Brain of a Cannabis Dispensary AI.
 Analyze the conversation history and the latest user message.
 
+**INTENT CLASSIFICATION (CRITICAL - Determine this FIRST):**
+- Use "recommendation" intent when user:
+  - Asks about products ("tell me about products", "what products", "show me products")
+  - Wants products ("I want", "I need", "looking for", "any", "something for")
+  - Insinuates desired effect ("Something for sleep", "How about for social setting", "anything for partying", "stuff to cheer me up")
+  - Requests recommendations ("recommend", "suggest", "best options", "what's good for")
+  - Mentions effects, categories, types, or product preferences
+- Use "general" intent ONLY when user asks about:
+  - Store information (hours, location, address, contact)
+  - Policies (returns, age requirements, payment methods)
+  - General cannabis information (education, laws, regulations)
+  - Non-product questions
+
+**Examples of "recommendation" intent:**
+- "Can you tell me about products for deep sleep?" → recommendation
+- "any pre roll or flower for deep sleep" → recommendation
+- "anything for deep sleep" → recommendation
+- "what's good for sleep?" → recommendation
+- "I need something to help me sleep" → recommendation
+- "How about for partying?" → recommendation
+- "How about for XYZ?" → recommendation
+- "good stuff for social setting" → recommendation
+
+**Examples of "general" intent:**
+- "What are your hours?" → general
+- "Where are you located?" → general
+- "What's your return policy?" → general
+
 Review the conversation. Extract the current active preferences. 
 If a user changes their mind (e.g., from Flower to Pre-roll), the new choice replaces the old one. 
 If they add a preference (e.g., 'And make it strong'), append it.
@@ -171,6 +199,32 @@ Subcategory Notes:
 - If uncertain about subcategory, omit it entirely
 - If user mentions multiple subcategories (e.g., "Chews and Gummies"), return as an array: ["chews", "gummies"]
 - Subcategory can be a single string or an array of strings
+
+Effects Notes:
+- Valid canonical effects: calm, happy, relaxed, energetic, clear-mind, creative, focused, inspired, sleepy, uplifted
+- When extracting effects, ALWAYS map to canonical effects using the mapping below:
+  
+  **Effects Mapping (phrase → canonical effect):**
+  - Sleep-related: "deep sleep", "sleep", "rest", "restful", "drowsy", "tired", "bedtime", "nighttime", "sedated", "sedative" → "sleepy"
+  - Relaxation-related: "chilling", "chill", "unwind", "unwinding", "mellow", "couch lock", "couch-lock", "body high", "body melt" → "relaxed"
+  - Calm-related: "peaceful", "peace", "serene", "tranquil" → "calm"
+  - Energy-related: "energized", "energy", "awake", "alert" → "energetic"
+  - Uplift-related: "uplifting", "uplift", "elevated" → "uplifted"
+  - Happy-related: "euphoric", "euphoria", "joy", "joyful" → "happy"
+  - Focus-related: "concentration", "concentrated", "attentive", "alertness" → "focused"
+  - Clarity-related: "clarity", "clear headed", "clear head", "mental clarity" → "clear-mind"
+  - Creative-related: "creativity", "artistic", "imaginative" → "creative"
+  - Inspiration-related: "inspiring", "motivated", "motivation" → "inspired"
+  Deeper-context examples:
+  - social setting, party, gathering → happy, creative, focused, energized, uplifted, relaxed, uplifted
+  - artistic, creative, imaginative, expoloratory, djing → creative, focused, inspired
+  - deep sleep, bedtime, nighttime → sleepy, relaxed
+
+  
+- If an effect phrase doesn't match any mapping above, still include it in lowercase (don't be too restrictive)
+- Effects should be lowercase
+- Effects can be an array of strings
+- Always prefer canonical effects when mapping is available
 
 Type mapping:
 - "indica", "indica-dominant" → "indica"
@@ -333,6 +387,14 @@ Examples:
     "semantic_search": "strong sleep nighttime"
   }
   Note: Category is known, "strong" maps to min 22% using 3-category natural language classification, extract effects too
+
+Additional recommendation intent examples:
+- "Can you tell me about products for deep sleep?" → "intent": "recommendation",
+  Note: Asking about products → recommendation intent. "deep sleep" maps to "sleepy" effect.
+- "cool any pre roll or flower for deep sleep" → "intent": "recommendation",
+  Note: Asking for products ("any") → recommendation intent. Category and effects extracted.
+- "anything for deep deep sleep, like a baby?" → "intent": "recommendation",
+  Note: Asking for products ("anything for") → recommendation intent. "deep sleep" maps to "sleepy" effect.
 
 - "What are your hours?"
   Result: {
@@ -942,7 +1004,7 @@ app.post("/chat/recommendations", async (c) => {
 
     // return c.json({ queryString: queryString, filterToUse: vectorizeFilters }, 200);
     
-    searchResults = await store.similaritySearch(queryString, 10, filterToUse);
+    searchResults = await store.similaritySearch(queryString, 5, filterToUse);
     // searchResults = await store.similaritySearch(queryString, 10, { "effects": { "$in": ["energetic", "happy"] } });
   } catch (err) {
     console.error("Vector search error:", err);

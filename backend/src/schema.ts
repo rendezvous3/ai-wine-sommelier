@@ -19,6 +19,20 @@ interface Schema {
 
 const schema = schemaData as Schema;
 
+// Canonical effects list (from UI)
+export const CANONICAL_EFFECTS = [
+  "calm",
+  "happy",
+  "relaxed",
+  "energetic",
+  "clear-mind",  // Note: "Clear Mind" in UI becomes "clear-mind" in lowercase kebab-case
+  "creative",
+  "focused",
+  "inspired",
+  "sleepy",
+  "uplifted"
+] as const;
+
 /**
  * Check if a category is valid
  */

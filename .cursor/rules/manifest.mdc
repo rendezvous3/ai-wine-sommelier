@@ -269,12 +269,24 @@ The system uses **category-specific THC potency scales** to standardize THC perc
 9. **We will discuss fixes and changes while in review** — be ready to apply feedback on specific chunks of code instead of reworking solution
 10. **STOP** — wait for next instruction or approval before continuing
 
-### Feature Implementation (When Building New Functionality)
+### Development Workflow - Feature building
 1. **Plan** the entire feature and break it into smallest independent chunks
 2. **Get approval** for the overall plan and first chunk
 3. **Implement one chunk at a time** following steps 4–9 above
 4. **Never implement unapproved features** — even if they seem related or obvious
 5. **Always ask** if direction is unclear: "Should I proceed with [specific chunk]?"
+
+**Development Philosophy - Choose the best solution for each task:**
+- When refactoring or clarifying data pipelines, be mindful of whether the best solution is:
+  - Updating prompts to instruct the LLM (when it improves an existing prompt or the LLM is already used for similar tasks)
+  - Refactoring existing functions/methods (when logic is better handled in code)
+  - Creating new functions (as a last resort, when neither of the above makes sense)
+- Example: Effects mapping in the intent API makes sense to handle via LLM because:
+  - The intent API already uses LLM for extraction and normalization
+  - It improves the prompt's capability
+  - It's a similar task to what the LLM is already doing
+- Schema files should hold canonical data lists (like CANONICAL_EFFECTS), not transformation logic
+- Transformation logic belongs in prompts when the LLM is already handling similar tasks, or in code when deterministic logic is needed
 
 ### Storybook Story Format Guidelines
 **For all new components:** Use `args` format directly without `render` function when possible.
