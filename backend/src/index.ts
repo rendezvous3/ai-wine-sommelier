@@ -86,7 +86,20 @@ Review the conversation. Extract the current active preferences.
 If a user changes their mind (e.g., from Flower to Pre-roll), the new choice replaces the old one. 
 If they add a preference (e.g., 'And make it strong'), append it.
 
-CRITICAL VALIDATION RULE: ONLY use a field (category, type, subcategory, effects, flavor, brand, price_min, price_max, thc_percentage_min, thc_percentage_max, thc_per_unit_mg_min, thc_per_unit_mg_max) if you are 100% certain it matches the valid options. If uncertain, omit the field entirely. Better to omit than be wrong.
+CRITICAL VALIDATION RULE: ONLY use a field if there is EXPLICIT, CLEAR evidence in the conversation. Do NOT infer or assume preferences.
+
+- **Category**: Only extract if user explicitly mentions category name (flower, prerolls, edibles, concentrates, vaporizers, cbd) OR mentions a subcategory (which implies category)
+- **Type**: Only extract if user explicitly mentions indica, sativa, or hybrid
+- **THC/Potency**: Only extract if user explicitly mentions:
+  - Numbers (e.g., "5mg", "22%", "below 66%", "from 18 to 22%")
+  - Guided flow format (e.g., "Strong (22-28%)")
+  - Natural language potency terms (Mild, Balanced, Moderate, Strong, Very Strong, or synonyms)
+- **Effects/Flavor**: Extract if explicitly mentioned (this is working well - keep it)
+- **Price**: Only extract if explicit numbers or ranges mentioned
+
+DO NOT infer category from effects (e.g., "sleepy" does NOT imply "flower" or "indica")
+DO NOT infer THC preferences from effects or type alone
+DO NOT add fields that weren't explicitly mentioned
 
 ${schemaInfo}
 
@@ -95,40 +108,61 @@ Valid Categories: flower, prerolls, edibles, concentrates, vaporizers, cbd
 Category Notes:
 - Category can be a single value or an array of categories (e.g., ["prerolls", "flower"])
 - Use array format when user wants products from multiple categories
-- This enables broader search across multiple product types
+- ONLY extract category if:
+  1. User explicitly mentions category name (flower, prerolls, edibles, concentrates, vaporizers, cbd), OR
+  2. User mentions a subcategory (which implies the parent category - see subcategory mapping below)
+- DO NOT infer category from effects, type, or other preferences
+- If category is not explicitly mentioned, omit it entirely (null)
+
+Subcategory → Category Mapping:
+- edibles subcategories (chews, chocolates, gummies, cooking-baking, drinks, etc.) → category: "edibles"
+- vaporizers subcategories (cartridges, disposables, all-in-one, etc.) → category: "vaporizers"
+- prerolls subcategories (blunts, singles, infused-prerolls, etc.) → category: "prerolls"
+- flower subcategories (premium-flower, whole-flower, small-buds, etc.) → category: "flower"
+- concentrates subcategories (badder, hash, live-resin, tinctures) → category: "concentrates"
 
 Category-Specific THC Fields:
 - For flower, prerolls, vaporizers, concentrates: Use thc_percentage_min and thc_percentage_max when THC preference is mentioned
 - For edibles: Use thc_per_unit_mg_min and thc_per_unit_mg_max when THC/dosage preference is mentioned
 - NEVER mix these fields - use the correct one based on category
 
-THC Potency Classification (category-specific scales):
-- Flower/Prerolls: Mild (<13%), Balanced (13-18%), Moderate (18-22%), Strong (22-28%), Very Strong (>28%)
-- Vaporizers/Concentrates: Mild (<66%), Balanced (66-75%), Moderate (75-85%), Strong (85-90%), Very Strong (>90%)
+THC Potency Extraction - Three Scenarios:
 
-CRITICAL: When extracting THC preferences, distinguish between single potency labels and explicit ranges:
+**Scenario 1: Explicit Numbers**
+- User mentions specific numbers: "5mg", "22%", "below 66%", "above 28%", "from 18 to 22%", "between 13 and 18%"
+- Extract exact values as thc_percentage_min/max or thc_per_unit_mg_min/max based on category
 
-1. **Single Potency Labels** (Mild, Very Strong):
-   - "Mild" or "Mild (<X%)" → Use ONLY thc_percentage_max (set to the threshold value, omit thc_percentage_min)
-   - "Very Strong" or "Very Strong (>X%)" → Use ONLY thc_percentage_min (set to the threshold value, omit thc_percentage_max)
-   
-2. **Range Potency Labels** (Balanced, Moderate, Strong):
-   - "Balanced (X-Y%)" or "Moderate (X-Y%)" or "Strong (X-Y%)" → Use BOTH thc_percentage_min and thc_percentage_max
-   
-3. **Explicit Ranges** (when user specifies exact range like "18-22%" or "Moderate (18-22%)"):
-   - Always use both thc_percentage_min and thc_percentage_max with the exact values
+**Scenario 2: Guided Flow Format**
+- User mentions classification with range in Guided Flow format: "Strong (22-28%)", "Moderate (18-22%)", "Mild (<66%)"
+- These use the Guided Flow classification scales (5 categories):
+  - Flower/Prerolls: Mild (<13%), Balanced (13-18%), Moderate (18-22%), Strong (22-28%), Very Strong (>28%)
+  - Vaporizers/Concentrates: Mild (<66%), Balanced (66-75%), Moderate (75-85%), Strong (85-90%), Very Strong (>90%)
+- Extract according to the format shown:
+  - Single bound (Mild <X%, Very Strong >X%) → Use ONLY the relevant min or max (omit the other)
+  - Range (Balanced X-Y%, Moderate X-Y%, Strong X-Y%) → Use BOTH thc_percentage_min and thc_percentage_max
 
-Examples:
-- "Mild (<66%)" for concentrates → { "thc_percentage_max": 66 } (NO thc_percentage_min)
-- "Very Strong (>28%)" for flower → { "thc_percentage_min": 28 } (NO thc_percentage_max)
-- "Moderate (18-22%)" for flower → { "thc_percentage_min": 18, "thc_percentage_max": 22 }
-- "Balanced" for concentrates → { "thc_percentage_min": 66, "thc_percentage_max": 75 }
+**Scenario 3: Natural Language Potency Terms**
+- User mentions potency terms without Guided Flow format (e.g., "something strong", "mild flower", "potent vape")
+- Use BROADER 3-category classification (not the 5-category Guided Flow scale):
+  
+  **For Flower/Prerolls:**
+  - Mild/Weak/Light/Low/Gentle/Beginner-friendly → thc_percentage_max: 13 (no min)
+  - Balanced/Moderate/Medium/Average/Middle-ground → thc_percentage_min: 13, thc_percentage_max: 22
+  - Strong/Very Strong/Potent/High/Extreme/Heavy/Intense → thc_percentage_min: 22 (no max)
+  
+  **For Vaporizers/Concentrates:**
+  - Mild/Weak/Light/Low/Gentle/Beginner-friendly → thc_percentage_max: 66 (no min)
+  - Balanced/Moderate/Medium/Average/Middle-ground → thc_percentage_min: 66, thc_percentage_max: 85
+  - Strong/Very Strong/Potent/High/Extreme/Heavy/Intense → thc_percentage_min: 85 (no max)
+
+- **CRITICAL**: If user says "something strong" without category, DO NOT extract THC (category must be known first)
+- Only extract if category is explicitly mentioned or can be inferred from subcategory
 
 When extracting THC preferences:
 - If category is "flower" or "prerolls", use Flower/Prerolls scale with thc_percentage_min/max
 - If category is "vaporizers" or "concentrates", use Vaporizers/Concentrates scale with thc_percentage_min/max
 - If category is "edibles", use thc_per_unit_mg_min/max (not percentage)
-- If no category is specified, default to Flower/Prerolls scale with thc_percentage_min/max
+- If no category is specified, DO NOT extract THC preferences (category must be known first)
 
 Subcategory Notes:
 - Subcategory is most important for edibles when specifically mentioned, but can be omitted if uncertain
@@ -162,53 +196,149 @@ Return ONLY valid JSON with:
 3. "semantic_search": "3-5 keywords describing desired mood/effect/flavor" or empty string
 
 Examples:
+- "Can you recommend something to get me sleepy and relaxed?"
+  Result: {
+    "intent": "recommendation",
+    "filters": {
+      "effects": ["sleepy", "relaxed"]
+    },
+    "semantic_search": "sleepy relaxed nighttime"
+  }
+  Note: Extract effects (working well), but NO category, type, or THC extracted - user didn't specify them
+
+- "Can you recommend sativa flower that keeps me energized and is uplifting?"
+  Result: {
+    "intent": "recommendation",
+    "filters": {
+      "category": "flower",
+      "type": "sativa",
+      "effects": ["energized", "uplifting"]
+    },
+    "semantic_search": "energized uplifting sativa flower"
+  }
+  Note: All fields explicitly mentioned - extract them all
+
 - "Looking for Concentrates products with Mild (<66%) THC percentage"
   Result: {
     "intent": "recommendation",
     "filters": { "category": "concentrates", "thc_percentage_max": 66 },
     "semantic_search": "concentrates products"
   }
+  Note: Guided Flow format with single bound - use ONLY thc_percentage_max (no min)
 
-- "I want a flower for sleep, no couch-lock, something strong"
+- "Looking for Flower products with Moderate (18-22%) THC percentage"
   Result: {
     "intent": "recommendation",
-    "filters": { "category": "flower", "type": "indica", "thc_percentage_min": 22, "thc_percentage_max": 28 },
-    "semantic_search": "sleepy relaxed nighttime functional"
+    "filters": { "category": "flower", "thc_percentage_min": 18, "thc_percentage_max": 22 },
+    "semantic_search": "flower products"
   }
+  Note: Guided Flow format with range - use BOTH thc_percentage_min and thc_percentage_max
 
-- "Show me vaporizers with Very Strong (>90%) THC"
+- "I want 5mg gummies/chocolate/cookie/baked"
   Result: {
     "intent": "recommendation",
-    "filters": { "category": "vaporizers", "thc_percentage_min": 90 },
-    "semantic_search": "vaporizers products"
+    "filters": { 
+      "category": "edibles", 
+      "subcategory": ["gummies"/"chocolates"/"cooking-baking"],
+      "thc_per_unit_mg_min": 5, 
+      "thc_per_unit_mg_max": 5 
+    },
+    "semantic_search": "gummies edible products"
   }
+  Note: "gummies", "chocolates",  is a subcategory that implies "edibles" category - extract both category and subcategory
+  Note: With edibles, terms like cookie, cake etc. should be mapped to "cooking-baking" subcategory
+
+- "How about some 5mg gummies with berry flavor?"
+  Result: {
+    "intent": "recommendation",
+    "filters": {
+      "category": "edibles",
+      "subcategory": ["gummies"],
+      "flavor": ["berry"],
+      "thc_per_unit_mg_min": 5
+    },
+    "semantic_search": "berry flavored gummies"
+  }
+  Note: Extract subcategory, flavor, and THC dosage when explicitly mentioned
+
+- "Show me all-in-one vaporizers"
+  Result: {
+    "intent": "recommendation",
+    "filters": {
+      "category": "vaporizers",
+      "subcategory": ["all-in-one"]
+    },
+    "semantic_search": "all-in-one vaporizers"
+  }
+  Note: "all-in-one" is a subcategory that implies "vaporizers" category
+
+- "I want cartridges"
+  Result: {
+    "intent": "recommendation",
+    "filters": {
+      "category": "vaporizers",
+      "subcategory": ["cartridges"]
+    },
+    "semantic_search": "cartridges vaporizers"
+  }
+  Note: "cartridges" is a subcategory that implies "vaporizers" category
+
+- "Show me infused prerolls"
+  Result: {
+    "intent": "recommendation",
+    "filters": {
+      "category": "prerolls",
+      "subcategory": ["infused-prerolls"]
+    },
+    "semantic_search": "infused prerolls"
+  }
+  Note: "infused-prerolls" is a subcategory that implies "prerolls" category
+
+- "I want premium flower"
+  Result: {
+    "intent": "recommendation",
+    "filters": {
+      "category": "flower",
+      "subcategory": ["premium-flower"]
+    },
+    "semantic_search": "premium flower"
+  }
+  Note: "premium-flower" is a subcategory that implies "flower" category (note: use "premium-flower" not just "premium")
+
+- "Show me flower with 22% THC"
+  Result: {
+    "intent": "recommendation",
+    "filters": { "category": "flower", "thc_percentage_min": 22, "thc_percentage_max": 22 },
+    "semantic_search": "flower products"
+  }
+
+- "I want something strong for sleep"
+  Result: {
+    "intent": "recommendation",
+    "filters": {
+      "effects": ["sleepy"]
+    },
+    "semantic_search": "strong sleep nighttime"
+  }
+  Note: Extract effects ("sleep" → "sleepy"), but "strong" is ambiguous without category - omit THC fields
+
+- "I want strong flower for sleep"
+  Result: {
+    "intent": "recommendation",
+    "filters": { 
+      "category": "flower", 
+      "effects": ["sleepy"],
+      "thc_percentage_min": 22
+    },
+    "semantic_search": "strong sleep nighttime"
+  }
+  Note: Category is known, "strong" maps to min 22% using 3-category natural language classification, extract effects too
 
 - "What are your hours?"
   Result: {
     "intent": "general",
     "filters": {},
     "semantic_search": ""
-  }
-
-- "Show me edibles"
-  Result: {
-    "intent": "recommendation",
-    "filters": { "category": "edibles" },
-    "semantic_search": "edible products"
-  }
-
-- "I want something for anxiety, maybe a sativa"
-  Result: {
-    "intent": "recommendation",
-    "filters": { "type": "sativa" },
-    "semantic_search": "anxiety relief calming focused"
-  }
-
-- "Show me prerolls and flower"
-  Result: {
-    "intent": "recommendation",
-    "filters": { "category": ["prerolls", "flower"] },
-    "semantic_search": "prerolls flower products"
   }
 
 ${conversationHistory ? `Conversation history:\n${conversationHistory}\n\n` : ""}

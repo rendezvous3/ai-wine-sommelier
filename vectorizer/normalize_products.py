@@ -18,7 +18,7 @@ brand_lookup = {brand["id"]: brand for brand in brands}
 
 # Mapping from display names to schema subcategory values (lowercase kebab-case)
 SUBCATEGORY_MAPPING = {
-    "Premium": "premium",
+    "Premium": "premium-flower",
     "Whole Flower": "whole-flower",
     "Pre-Roll Packs": "pre-roll-packs",
     "Singles": "singles",
