@@ -1116,8 +1116,8 @@ ${JSON.stringify(results)}
    - BUT maintain variety: include best match from each category
    - Effects are MORE important than category variety - don't sacrifice effect quality
 5. Effects-based ranking:
-   - Energized/Uplifting/Focused → STRONGLY prefer Sativa
-   - Sleepy/Sedated/Calm/Relaxed → STRONGLY prefer Indica
+   - Energized/Uplifting/Focused/Partying/Social Setting → STRONGLY prefer Sativa
+   - Sleepy/Sedated/Calm/Relaxed/Bedtime/Nighttime → STRONGLY prefer Indica
 6. Price ranking:
    - DO NOT put most expensive first unless price/premium/quality explicitly mentioned
    - Most expensive can be 2nd or 3rd position
