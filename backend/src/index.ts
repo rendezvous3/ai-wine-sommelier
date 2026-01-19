@@ -43,6 +43,15 @@ app.use('*', cors({
   allowHeaders: ['Content-Type', 'Authorization'],
 }));
 
+// Global error handler
+app.onError((err, c) => {
+  if (err instanceof SyntaxError) {
+    return c.json({ error: "Invalid JSON format", message: err.message }, 400);
+  }
+  console.error(`Status: ${err.name}`, err.message);
+  return c.json({ error: "Internal Server Error" }, 500);
+});
+
 // app.options('/chat', c => c.text('', 204)) // Explicit OPTIONS is optional with cors()
 
 app.options('/chat', () => {
@@ -434,8 +443,19 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
       })
     });
 
+    if (!resp.ok) {
+      const errorText = await resp.text();
+      console.error(`Groq API error (${resp.status}):`, errorText);
+      throw new Error(`Groq API returned ${resp.status}: ${errorText}`);
+    }
+
     const data = await resp.json();
     text = data.choices?.[0]?.message?.content || "";
+    
+    if (!text || text.trim().length === 0) {
+      console.error("Groq API returned empty response:", JSON.stringify(data, null, 2));
+      throw new Error("Groq API returned empty content");
+    }
 
   } catch (err) {
     const formatError = `/intent api error: ${err}`;
@@ -457,6 +477,11 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
       cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/g, '');
     }
     cleanedText = cleanedText.trim();
+
+    if (!cleanedText || cleanedText.length === 0) {
+      console.error("Cleaned text is empty after processing. Original text:", text);
+      throw new Error("Empty response from LLM after cleaning");
+    }
 
     const parsed = JSON.parse(cleanedText);
     
