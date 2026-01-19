@@ -197,9 +197,8 @@ def normalize_weights_and_thc(product: Dict[str, Any]) -> Dict[str, Any]:
             thc_total_mg = (total_weight_grams * thc_percentage / 100) * 1000
             normalized["thc_total_mg"] = round(thc_total_mg, 2)
             
-            if pack_count > 0:
-                thc_per_unit_mg = thc_total_mg / pack_count
-                normalized["thc_per_unit_mg"] = round(thc_per_unit_mg, 2)
+            # NOTE: Do NOT add thc_per_unit_mg for prerolls - that field is only for edibles per schema
+            # Prerolls use individual_weight_grams instead
     
     elif category == "edibles":
         # Edibles: normalize THC/CBD/CBN totals to mg

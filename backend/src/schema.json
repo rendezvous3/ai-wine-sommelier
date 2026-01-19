@@ -18,6 +18,11 @@
       "categories": ["edibles"],
       "fields": ["thc_per_unit_mg_min", "thc_per_unit_mg_max"],
       "description": "Use thc_per_unit_mg_min and thc_per_unit_mg_max for edibles"
+    },
+    "individual_weight_grams_fields": {
+      "categories": ["prerolls"],
+      "fields": ["individual_weight_grams"],
+      "description": "Use individual_weight_grams for prerolls (weight per individual preroll unit)"
     }
   }
 }

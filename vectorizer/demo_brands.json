@@ -132,6 +132,98 @@
     "tagline": "Hepworth",
     "description_summary": "",
     "logo": "Hepworth"
+  },
+  {
+    "id": "brand-ohho-001",
+    "name": "OHHO",
+    "tagline": "Plants with Benefits™",
+    "description": "oHHo is a cannabis and botanicals wellness company dedicated to bringing you Plants with Benefits™. To avoid mediocrity they recognize distinction in appellation, cultivation and processing. They set quality standards and celebrate nation status within the cannabis industry.",
+    "description_summary": "oHHo is a cannabis and botanicals wellness company dedicated to bringing you Plants with Benefits™. To avoid mediocrity they recognize distinction in appellation, cultivation and processing. They set quality standards and celebrate nation status within the cannabis industry.",
+    "logo": "oHHo"
+  },
+  {
+    "id": "brand-5boro-001",
+    "name": "5 BORO",
+    "tagline": "",
+    "description": "",
+    "description_summary": "",
+    "logo": "5 BORO"
+  },
+  {
+    "id": "brand-rubyfarms-001",
+    "name": "RUBY FARMS",
+    "tagline": "",
+    "description": "At our farm, we engage in every aspect of the process, from cultivating the soil to carefully packaging and distributing our products. This integrated approach ensures that we deliver the finest cannabis goods to you at a reasonable price. When you welcome us into your home and incorporate our products into your routines, rest assured, we honor that privilege with the most respect. Our mission is to enrich you well-being, both mentally and physically, by providing top-notch products and unwavering support for your health journey.",
+    "description_summary": "At our farm, we engage in every aspect of the process, from cultivating the soil to carefully packaging and distributing our products. This integrated approach ensures that we deliver the finest cannabis goods to you at a reasonable price. When you welcome us into your home and incorporate our products into your routines, rest assured, we honor that privilege with the most respect.",
+    "logo": "Ruby Farms"
+  },
+  {
+    "id": "brand-luci-001",
+    "name": "LUCI",
+    "tagline": "",
+    "description": "",
+    "description_summary": "",
+    "logo": "LUCI"
+  },
+  {
+    "id": "brand-platinumreserve-001",
+    "name": "PLATINUM RESERVE",
+    "tagline": "",
+    "description": "",
+    "description_summary": "",
+    "logo": "PLATINUM RESERVE"
+  },
+  {
+    "id": "brand-honestpharm-001",
+    "name": "HONEST PHARM",
+    "tagline": "",
+    "description": "",
+    "description_summary": "",
+    "logo": "HONEST PHARM CO"
+  },
+  {
+    "id": "brand-jetty-001",
+    "name": "JETTY",
+    "tagline": "",
+    "description": "Founded in San Diego in 2013, Jetty is one of the original players in cannabis extraction. Since its founding, Jetty has been obsessed with creating the most pure, potent, and flavorful products. In 2014, it launched one of the first vapes free from fillers and cutting agents. Today, Jetty continues that legacy of quality with its cleanest extract to date. Solventless Live Rosin. Made with just ice and water, Jetty's ten time award-winning Solventless vape, live rosin, and infused pre-rolls are some of the finest, hand-crafted extracts around.",
+    "description_summary": "Founded in San Diego in 2013, Jetty is one of the original players in cannabis extraction. Since its founding, Jetty has been obsessed with creating the most pure, potent, and flavorful products. In 2014, it launched one of the first vapes free from fillers and cutting agents. Today, Jetty continues that legacy of quality with its cleanest extract to date.",
+    "logo": "JETTY",
+    "founded": 2013,
+    "origin": "San Diego"
+  },
+  {
+    "id": "brand-sluggers-001",
+    "name": "SLUGGERS",
+    "tagline": "HIT",
+    "description": "Sluggers was established in 2021 to build a brand with a lasting legacy. When you smoke a slugger, you are smoking nostalgia. Sluggers is a cannabis brand built on experience. They only roll what they grow which means sluggers is: single source.",
+    "description_summary": "Sluggers was established in 2021 to build a brand with a lasting legacy. When you smoke a slugger, you are smoking nostalgia. Sluggers is a cannabis brand built on experience. They only roll what they grow which means sluggers is: single source.",
+    "logo": "SLUGGERS HIT",
+    "founded": 2021,
+    "singleSource": true
+  },
+  {
+    "id": "brand-gron-001",
+    "name": "GRÖN",
+    "tagline": "",
+    "description": "Grön, pronounced 'Grewn', makes the finest handcrafted Sugar-Coated Pearls, Mega Pearls, Candy-Coated Pips, and Fair Trade chocolate. This passionate team comes from all over the world and every walk of life, joining together to create something beautifully delicious for you. Grön's ingredients are organic, single-origin, Fair Trade Certified, and locally sourced whenever possible. They're happy to make others happy and to make a positive difference in this world, one bite at a time. ❤️",
+    "description_summary": "Grön, pronounced 'Grewn', makes the finest handcrafted Sugar-Coated Pearls, Mega Pearls, Candy-Coated Pips, and Fair Trade chocolate. This passionate team comes from all over the world and every walk of life, joining together to create something beautifully delicious for you. Grön's ingredients are organic, single-origin, Fair Trade Certified, and locally sourced whenever possible.",
+    "logo": "grön"
+  },
+  {
+    "id": "brand-wana-001",
+    "name": "WANA",
+    "tagline": "",
+    "description": "Wana's mission is to enhance their customers' lives through the responsible use of cannabis. Why is Wana #1? It starts with consistency. Their entire process is designed to deliver the same great experience time after time. They have spent years fine-tuning their recipes so that their products are delicious as well as consistent and potent. Try Wana and enhance your life!",
+    "description_summary": "Wana's mission is to enhance their customers' lives through the responsible use of cannabis. Why is Wana #1? It starts with consistency. Their entire process is designed to deliver the same great experience time after time. They have spent years fine-tuning their recipes so that their products are delicious as well as consistent and potent.",
+    "logo": "wana"
+  },
+  {
+    "id": "brand-nyce-001",
+    "name": "NYCE",
+    "tagline": "",
+    "description": "",
+    "description_summary": "",
+    "logo": "Nyce"
   }
 ]
 

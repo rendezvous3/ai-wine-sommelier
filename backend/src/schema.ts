@@ -14,6 +14,11 @@ interface Schema {
       fields: string[];
       description: string;
     };
+    individual_weight_grams_fields: {
+      categories: string[];
+      fields: string[];
+      description: string;
+    };
   };
 }
 
