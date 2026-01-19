@@ -426,7 +426,7 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
         model: MODEL,
         messages: [{ role: "system", content: prompt }],
         temperature: 0,
-        max_tokens: 500,
+        max_tokens: 2000,
         stream: false
       })
     });
@@ -1031,7 +1031,7 @@ app.post("/chat/recommendations", async (c) => {
   // return c.json({ recommendations: results }, 200);
 
   const API_KEY = c.env.GROQ_API_KEY;
-  const MODEL = AGENT_ROLE_MODEL.RECCOMEND;
+  const MODEL = AGENT_ROLE_MODEL.RECOMMEND;
 
   const reRankPrompt = `
 You are a Master Budtender with deep domain expertise. Your goal is to rank cannabis products based on how perfectly they match a user's specific request.
@@ -1146,6 +1146,7 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.
     },
     body: JSON.stringify({
       model: MODEL,
+      // model: "qwen/qwen3-32b",
       messages: [{ role: "system", content: reRankPrompt }],
       temperature: 0.1,
       max_tokens: 3000,

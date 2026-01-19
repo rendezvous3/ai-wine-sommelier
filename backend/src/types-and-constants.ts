@@ -17,7 +17,8 @@ const enum AGENT_ROLE_MODEL {
     // STREAMING = "llama-3.1-8b-instant",
     INTENT = "llama-3.1-8b-instant",
     STREAM = "llama-3.3-70b-versatile",
-    RECCOMEND = "llama-3.1-8b-instant",
+    // RECOMMEND = "llama-3.1-8b-instant",
+    RECOMMEND = "qwen/qwen3-32b",
 }
 
 const STORE_NAME = "Cannavita"
