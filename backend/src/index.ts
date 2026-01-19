@@ -15,7 +15,7 @@ import type {
 // import { groq } from '@ai-sdk/groq';
 // import { streamText } from 'ai';
 import { generatePrompt } from "./prompt";
-import { MODEL_PROVIDER, LLM_PROVIDER, STORE_NAME, AGENT_ROLE, AGENT_ROLE_MODEL } from "./types-and-constants";
+import { MODEL_PROVIDER, LLM_PROVIDER, STORE_NAME, AGENT_ROLE, AGENT_ROLE_MODEL, getModelForRole, getBaseUrl, getApiKey } from "./types-and-constants";
 import { formatConversationHistory } from "./utils";
 import {
   isValidCategory,
@@ -34,6 +34,12 @@ interface Bindings {
   VECTORIZE_INDEX: VectorizeIndex;
   AI: Ai<AiModels>;
 }
+
+// ============================================
+// MODEL PROVIDER CONFIGURATION
+// Change this to switch between Groq and Cerebras
+// ============================================
+const ACTIVE_PROVIDER = LLM_PROVIDER.GROQ; // or LLM_PROVIDER.GROQ
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -82,8 +88,9 @@ app.post("/chat/intent", async (c) => {
     ? formatConversationHistory(lastMessages.slice(0, -1))
     : "";
 
-  const API_KEY = c.env.GROQ_API_KEY;
-  const MODEL = AGENT_ROLE_MODEL.INTENT;
+  const API_KEY = getApiKey(ACTIVE_PROVIDER, c.env);
+  const MODEL = getModelForRole(ACTIVE_PROVIDER, "INTENT");
+  const BASE_URL = getBaseUrl(ACTIVE_PROVIDER);
 
   const schemaInfo = getSchemaForPrompt();
 
@@ -428,7 +435,7 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
 
   let text;
   try {
-    const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    const resp = await fetch(`${BASE_URL}/chat/completions`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${API_KEY}`,
@@ -461,6 +468,8 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
     const formatError = `/intent api error: ${err}`;
     console.error(formatError);
     return c.json({ 
+      error: "Our AI understanding service is experiencing technical difficulties at the moment. Please try again.",
+      service: "intent",
       intent: "general", 
       filters: {}, 
       semantic_search: "" 
@@ -680,9 +689,9 @@ app.post("/chat/stream", async (c) => {
   const body = await c.req.json();
   const messages = body.messages || [];
 
-  const API_KEY = c.env.GROQ_API_KEY;
-  const MODEL = AGENT_ROLE_MODEL.STREAM;
-  const BASE_URL = "https://api.groq.com/openai/v1";
+  const API_KEY = getApiKey(ACTIVE_PROVIDER, c.env);
+  const MODEL = getModelForRole(ACTIVE_PROVIDER, "STREAM");
+  const BASE_URL = getBaseUrl(ACTIVE_PROVIDER);
 
   const lastMessages = messages.slice(-15);
   const enrichedHistory = lastMessages.map(msg => {
@@ -728,35 +737,48 @@ app.post("/chat/stream", async (c) => {
 
   let response;
   try {
-  response = await fetch(`${BASE_URL}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${API_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages: messagesForLLM,
-      temperature: 0.1,
-      max_tokens: 1200,
-      stream: true
-    })
-  });
+    response = await fetch(`${BASE_URL}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: messagesForLLM,
+        temperature: 0.1,
+        max_tokens: 1200,
+        stream: true
+      })
+    });
+
+    if (!response || !response.ok) {
+      const errorText = response ? await response.text() : "Network error";
+      console.error(`Groq Stream API error (${response?.status || 'network'}):`, errorText);
+      return c.json({ 
+        error: "Our streaming service is experiencing technical difficulties at the moment. Please try again.",
+        service: "stream"
+      }, 503);
+    }
 
   } catch (err) {
-    const formatError = `"Groq Stream Error: ${err}`
+    const formatError = `Groq Stream Error: ${err}`;
     console.error(formatError);
-    return c.json({ error: formatError }, 503);
+    return c.json({ 
+      error: "Our streaming service is experiencing technical difficulties at the moment. Please try again.",
+      service: "stream"
+    }, 503);
   }
-  if(response) {
-      return new Response(response.body, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-      "Access-Control-Allow-Origin": "*"
-    }
-  });
+  
+  if (response) {
+    return new Response(response.body, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        "Access-Control-Allow-Origin": "*"
+      }
+    });
   }
 });
 
@@ -1058,8 +1080,9 @@ app.post("/chat/recommendations", async (c) => {
 
   // return c.json({ recommendations: results }, 200);
 
-  const API_KEY = c.env.GROQ_API_KEY;
-  const MODEL = AGENT_ROLE_MODEL.RECOMMEND;
+  const API_KEY = getApiKey(ACTIVE_PROVIDER, c.env);
+  const MODEL = getModelForRole(ACTIVE_PROVIDER, "RECOMMEND");
+  const BASE_URL = getBaseUrl(ACTIVE_PROVIDER);
 
   const reRankPrompt = `
 You are a Master Budtender with deep domain expertise. Your goal is to rank cannabis products based on how perfectly they match a user's specific request.
@@ -1166,78 +1189,111 @@ ${JSON.stringify(results)}
 Return ONLY valid JSON. Do not wrap in markdown code blocks.
 `;
 
-  const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${API_KEY}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      // model: "qwen/qwen3-32b",
-      messages: [{ role: "system", content: reRankPrompt }],
-      temperature: 0.1,
-      max_tokens: 3000,
-      stream: false
-    })
-  });
-
-  const data = await resp.json();
-  let text = data.choices?.[0]?.message?.content || "";
-  
-  // Strip markdown code blocks if present
-  text = text.trim();
-  if (text.startsWith('```json')) {
-    text = text.replace(/^```json\s*/i, '').replace(/\s*```$/g, '');
-  } else if (text.startsWith('```')) {
-    text = text.replace(/^```\s*/, '').replace(/\s*```$/g, '');
-  }
-  text = text.trim();
-
-  // Extract JSON object from response (LLM may include extra text)
-  // Look for the first { and find the matching closing }
-  let jsonText = text;
-  const firstBrace = text.indexOf('{');
-  if (firstBrace !== -1) {
-    let braceCount = 0;
-    let endBrace = -1;
-    for (let i = firstBrace; i < text.length; i++) {
-      if (text[i] === '{') braceCount++;
-      if (text[i] === '}') braceCount--;
-      if (braceCount === 0) {
-        endBrace = i + 1;
-        break;
-      }
-    }
-    if (endBrace > firstBrace) {
-      jsonText = text.substring(firstBrace, endBrace);
-    }
-  }
-
+  let text;
   try {
-    const parsed = JSON.parse(jsonText);
-    const rankedNames = parsed.ranked_names || [];
-    
-    // Map ranked names back to full product objects
-    const rankedProducts = rankedNames
-      .map((name: string) => productMap.get(name))
-      .filter((product: any) => product !== undefined);
-    
-    // If re-ranking failed or returned empty, fallback to original search results
-    if (rankedProducts.length === 0) {
+    const resp = await fetch(`${BASE_URL}/chat/completions`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        // model: "qwen/qwen3-32b",
+        messages: [{ role: "system", content: reRankPrompt }],
+        temperature: 0.1,
+        max_tokens: 3000,
+        stream: false
+      })
+    });
+
+    if (!resp.ok) {
+      const errorText = await resp.text();
+      console.error(`Groq Re-ranking API error (${resp.status}):`, errorText);
+      // Fallback to original search results without re-ranking
       return c.json({ 
-        recommendations: results
+        recommendations: results,
+        error: "Our recommendation service is experiencing technical difficulties. Showing results without AI ranking.",
+        service: "recommendations"
       }, 200);
     }
+
+    const data = await resp.json();
+    text = data.choices?.[0]?.message?.content || "";
     
-    return c.json({ recommendations: rankedProducts, preRankedProducts: results }, 200);
+    if (!text || text.trim().length === 0) {
+      console.error("Groq Re-ranking API returned empty response:", JSON.stringify(data, null, 2));
+      // Fallback to original search results
+      return c.json({ 
+        recommendations: results,
+        error: "Our recommendation service is experiencing technical difficulties. Showing results without AI ranking.",
+        service: "recommendations"
+      }, 200);
+    }
+
+    // Strip markdown code blocks if present
+    text = text.trim();
+    if (text.startsWith('```json')) {
+      text = text.replace(/^```json\s*/i, '').replace(/\s*```$/g, '');
+    } else if (text.startsWith('```')) {
+      text = text.replace(/^```\s*/, '').replace(/\s*```$/g, '');
+    }
+    text = text.trim();
+
+    // Extract JSON object from response (LLM may include extra text)
+    // Look for the first { and find the matching closing }
+    let jsonText = text;
+    const firstBrace = text.indexOf('{');
+    if (firstBrace !== -1) {
+      let braceCount = 0;
+      let endBrace = -1;
+      for (let i = firstBrace; i < text.length; i++) {
+        if (text[i] === '{') braceCount++;
+        if (text[i] === '}') braceCount--;
+        if (braceCount === 0) {
+          endBrace = i + 1;
+          break;
+        }
+      }
+      if (endBrace > firstBrace) {
+        jsonText = text.substring(firstBrace, endBrace);
+      }
+    }
+
+    try {
+      const parsed = JSON.parse(jsonText);
+      const rankedNames = parsed.ranked_names || [];
+      
+      // Map ranked names back to full product objects
+      const rankedProducts = rankedNames
+        .map((name: string) => productMap.get(name))
+        .filter((product: any) => product !== undefined);
+      
+      // If re-ranking failed or returned empty, fallback to original search results
+      if (rankedProducts.length === 0) {
+        return c.json({ 
+          recommendations: results
+        }, 200);
+      }
+      
+      return c.json({ recommendations: rankedProducts, preRankedProducts: results }, 200);
+    } catch (err) {
+      console.error("Invalid JSON from LLM:", text);
+      console.error("Extracted JSON:", jsonText);
+      console.error("Error:", err);
+      // Fallback to original search results if re-ranking fails
+      return c.json({ 
+        recommendations: results 
+      }, 200);
+    }
+
   } catch (err) {
-    console.error("Invalid JSON from LLM:", text);
-    console.error("Extracted JSON:", jsonText);
-    console.error("Error:", err);
-    // Fallback to original search results if re-ranking fails
+    console.error("Recommendation service error:", err);
+    // Fallback to original search results
     return c.json({ 
-      recommendations: results 
+      recommendations: results,
+      error: "Our recommendation service is experiencing technical difficulties. Showing results without AI ranking.",
+      service: "recommendations"
     }, 200);
   }
 });

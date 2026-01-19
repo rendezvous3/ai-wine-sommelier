@@ -435,10 +435,35 @@
         }
       );
       
+      if (!resp.ok) {
+        try {
+          const errorData = await resp.json();
+          messages = [...messages, {
+            role: "assistant",
+            content: errorData.error || "Our recommendation service is experiencing technical difficulties. Please try again."
+          }];
+        } catch (parseErr) {
+          messages = [...messages, {
+            role: "assistant",
+            content: "Our recommendation service is experiencing technical difficulties. Please try again."
+          }];
+        }
+        return;
+      }
+      
       const data = await resp.json();
+      
+      // Check for error field
+      if (data.error) {
+        messages = [...messages, {
+          role: "assistant",
+          content: data.error
+        }];
+      }
+      
       productRecommendations = data.recommendations || [];
       
-      // Add recommendations as assistant message
+      // Add recommendations as assistant message (even if there was an error, show fallback results)
       if (productRecommendations.length > 0) {
         const botMessage: Message = {
           role: "assistant",
@@ -449,10 +474,9 @@
       }
     } catch (err) {
       console.error("Recommendations API failed:", err);
-      // Optionally add an error message
       messages = [...messages, {
         role: "assistant",
-        content: "Sorry, I couldn't fetch recommendations right now. Please try again."
+        content: "Our recommendation service is experiencing technical difficulties. Please try again."
       }];
     } finally {
       loading = false;
@@ -503,7 +527,37 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      
+      // Check response status before parsing
+      if (!decide.ok) {
+        try {
+          const errorData = await decide.json();
+          messages = [...messages, {
+            role: "assistant",
+            content: errorData.error || "Our AI understanding service is experiencing technical difficulties. Please try again."
+          }];
+        } catch (parseErr) {
+          messages = [...messages, {
+            role: "assistant",
+            content: "Our AI understanding service is experiencing technical difficulties. Please try again."
+          }];
+        }
+        loading = false;
+        return; // Stop processing - can't proceed without intent
+      }
+      
       const d = await decide.json();
+      
+      // Check for error field in response
+      if (d.error) {
+        messages = [...messages, {
+          role: "assistant",
+          content: d.error
+        }];
+        loading = false;
+        return; // Stop processing - can't proceed without intent
+      }
+      
       intent = d.intent || "general";
       // Capture filters and semantic_search when intent is recommendation
       if (d.intent === "recommendation") {
@@ -512,6 +566,13 @@
       }
     } catch (err) {
       console.warn("Decision failed, defaulting to general.");
+      // Show error to user
+      messages = [...messages, {
+        role: "assistant",
+        content: "Our AI understanding service is experiencing technical difficulties. Please try again."
+      }];
+      loading = false;
+      return;
     }
 
     let buffer = "";
@@ -531,8 +592,33 @@
         body: JSON.stringify(payload),
       });
 
+      // Check for error response before trying to read as stream
+      if (!resp.ok) {
+        try {
+          const errorData = await resp.json();
+          const errorMessage = errorData.error || "Our streaming service is experiencing technical difficulties. Please try again.";
+          messages = [...messages, {
+            role: "assistant",
+            content: errorMessage
+          }];
+        } catch (parseErr) {
+          // If error response isn't JSON, show generic message
+          messages = [...messages, {
+            role: "assistant",
+            content: "Our streaming service is experiencing technical difficulties. Please try again."
+          }];
+        }
+        loading = false;
+        return;
+      }
+
       if (!resp.body) {
         console.error("No response body from stream");
+        messages = [...messages, {
+          role: "assistant",
+          content: "Our streaming service is experiencing technical difficulties. Please try again."
+        }];
+        loading = false;
         return;
       }
 
@@ -638,7 +724,40 @@
               body: JSON.stringify(recPayload),
             }
           );
+          
+          // Check response status
+          if (!resp.ok) {
+            try {
+              const errorData = await resp.json();
+              const errorMessage = errorData.error || "Our recommendation service is experiencing technical difficulties. Please try again.";
+              // Remove "Looking for best matches..." and show error
+              messages = [
+                ...messages.slice(0, searchingMessageIndex),
+                { role: "assistant", content: errorMessage },
+                ...messages.slice(searchingMessageIndex + 1)
+              ];
+            } catch (parseErr) {
+              messages = [
+                ...messages.slice(0, searchingMessageIndex),
+                { role: "assistant", content: "Our recommendation service is experiencing technical difficulties. Please try again." },
+                ...messages.slice(searchingMessageIndex + 1)
+              ];
+            }
+            return;
+          }
+          
           const data = await resp.json();
+          
+          // Check for error field (even if we have fallback recommendations)
+          if (data.error) {
+            // Show error message, but still show recommendations if available
+            messages = [
+              ...messages.slice(0, searchingMessageIndex),
+              { role: "assistant", content: data.error },
+              ...messages.slice(searchingMessageIndex + 1)
+            ];
+          }
+          
           productRecommendations = data.recommendations || [];
           
           // Step 5: Replace "Looking for best matches..." with recommendations
@@ -649,24 +768,35 @@
               content: "",
               recommendations: productRecommendations,
             };
-            // Add recommendations message right after "Looking for best matches..."
+            // Add recommendations message right after "Looking for best matches..." or error message
+            const insertIndex = data.error ? searchingMessageIndex + 1 : searchingMessageIndex + 1;
             messages = [
-              ...messages.slice(0, searchingMessageIndex + 1),
+              ...messages.slice(0, insertIndex),
               botMessage,
-              ...messages.slice(searchingMessageIndex + 1)
+              ...messages.slice(insertIndex)
             ];
+            // Remove "Looking for best matches..." if it still exists
+            if (messages[searchingMessageIndex]?.content === "Looking for best matches...") {
+              messages = [
+                ...messages.slice(0, searchingMessageIndex),
+                ...messages.slice(searchingMessageIndex + 1)
+              ];
+            }
           } else {
-            // If no recommendations, remove "Looking for best matches..." message
-            messages = [
-              ...messages.slice(0, searchingMessageIndex),
-              ...messages.slice(searchingMessageIndex + 1)
-            ];
+            // If no recommendations, remove "Looking for best matches..." message (if it exists)
+            if (messages[searchingMessageIndex]?.content === "Looking for best matches...") {
+              messages = [
+                ...messages.slice(0, searchingMessageIndex),
+                ...messages.slice(searchingMessageIndex + 1)
+              ];
+            }
           }
         } catch (err) {
           console.error("Recommendation tool failed:", err);
-          // Remove "Looking for best matches..." message on error
+          // Remove "Looking for best matches..." message on error and show error
           messages = [
             ...messages.slice(0, searchingMessageIndex),
+            { role: "assistant", content: "Our recommendation service is experiencing technical difficulties. Please try again." },
             ...messages.slice(searchingMessageIndex + 1)
           ];
         }
