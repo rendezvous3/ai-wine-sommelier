@@ -146,6 +146,7 @@ Subcategory → Category Mapping:
 - edibles subcategories (chews, chocolates, gummies, cooking-baking, drinks, etc.) → category: "edibles"
 - vaporizers subcategories (cartridges, disposables, all-in-one, etc.) → category: "vaporizers"
 - prerolls subcategories (blunts, singles, infused-prerolls, etc.) → category: "prerolls"
+- important for infused, if infused prerolls are mentioned add both ["infused-prerolls", "infused-preroll-packs"]
 - flower subcategories (premium-flower, whole-flower, small-buds, etc.) → category: "flower"
 - concentrates subcategories (badder, hash, live-resin, tinctures) → category: "concentrates"
 
@@ -347,7 +348,7 @@ Examples:
     "intent": "recommendation",
     "filters": {
       "category": "prerolls",
-      "subcategory": ["infused-prerolls"]
+      "subcategory": ["infused-prerolls", "infused-preroll-packs"]
     },
     "semantic_search": "infused prerolls"
   }
@@ -400,6 +401,8 @@ Additional recommendation intent examples:
   Note: Asking for products ("any") → recommendation intent. Category and effects extracted.
 - "anything for deep deep sleep, like a baby?" → "intent": "recommendation",
   Note: Asking for products ("anything for") → recommendation intent. "deep sleep" maps to "sleepy" effect.
+- Followup on existing conversation: how about effect XYZ, or how about category XYZ? 
+- We should refer to the most recent request and also be able to interpet short requests like that as "recommendation" intent.
 
 - "What are your hours?"
   Result: {
@@ -1009,7 +1012,7 @@ app.post("/chat/recommendations", async (c) => {
 
     // return c.json({ queryString: queryString, filterToUse: vectorizeFilters }, 200);
     
-    searchResults = await store.similaritySearch(queryString, 5, filterToUse);
+    searchResults = await store.similaritySearch(queryString, 8, filterToUse);
     // searchResults = await store.similaritySearch(queryString, 10, { "effects": { "$in": ["energetic", "happy"] } });
   } catch (err) {
     console.error("Vector search error:", err);
@@ -1198,11 +1201,11 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.
     // If re-ranking failed or returned empty, fallback to original search results
     if (rankedProducts.length === 0) {
       return c.json({ 
-        recommendations: results 
+        recommendations: results
       }, 200);
     }
     
-    return c.json({ recommendations: rankedProducts }, 200);
+    return c.json({ recommendations: rankedProducts, preRankedProducts: results }, 200);
   } catch (err) {
     console.error("Invalid JSON from LLM:", text);
     console.error("Extracted JSON:", jsonText);
