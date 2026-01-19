@@ -178,6 +178,11 @@ THC Potency Extraction - Three Scenarios:
   - Balanced/Moderate/Medium/Average/Middle-ground → thc_percentage_min: 13, thc_percentage_max: 22
   - Strong/Very Strong/Potent/High/Extreme/Heavy/Intense → thc_percentage_min: 22 (no max)
   
+  **For Edibles:**
+  - Mild/Weak/Light/Low/Gentle/Beginner-friendly → thc_per_unit_mg_max: 4 (no min)
+  - Balanced/Moderate/Medium/Average/Middle-ground → thc_per_unit_mg_min: 5, thc_percentage_max: 22
+  - Strong/Very Strong/Potent/High/Extreme/Heavy/Intense → thc_per_unit_mg_min: 10 (no max)
+  
   **For Vaporizers/Concentrates:**
   - Mild/Weak/Light/Low/Gentle/Beginner-friendly → thc_percentage_max: 66 (no min)
   - Balanced/Moderate/Medium/Average/Middle-ground → thc_percentage_min: 66, thc_percentage_max: 85
