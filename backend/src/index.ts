@@ -1059,7 +1059,7 @@ app.post("/chat/recommendations", async (c) => {
 
     // return c.json({ queryString: queryString, filterToUse: vectorizeFilters }, 200);
     
-    searchResults = await store.similaritySearch(queryString, 8, filterToUse);
+    searchResults = await store.similaritySearch(queryString, 10, filterToUse);
     // searchResults = await store.similaritySearch(queryString, 10, { "effects": { "$in": ["energetic", "happy"] } });
   } catch (err) {
     console.error("Vector search error:", err);

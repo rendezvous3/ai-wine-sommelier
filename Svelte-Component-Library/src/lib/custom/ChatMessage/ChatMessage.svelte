@@ -27,7 +27,7 @@
     timestamp?: string;
     children?: Snippet;
     products?: Product[];
-    recommendationLayout?: 'carousel' | 'compact-list' | 'grid' | 'bubble-grid';
+    recommendationLayout?: 'carousel' | 'compact-list' | 'compact-grid' | 'grid' | 'bubble-grid';
     productsInBubble?: boolean;
     actionType?: 'add-to-cart' | 'link';
     onAddToCart?: (product: Product) => void;
