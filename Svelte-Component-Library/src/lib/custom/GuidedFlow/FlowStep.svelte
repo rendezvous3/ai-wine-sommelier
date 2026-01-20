@@ -81,10 +81,35 @@
   }
 
   function isOptionDisabled(optionValue: any): boolean {
+    // Existing maxSelections check
     if (step.type === 'multi-select' && step.maxSelections) {
       const isSelected = isOptionSelected(optionValue);
-      return !isSelected && selectedValues.length >= step.maxSelections;
+      if (!isSelected && selectedValues.length >= step.maxSelections) {
+        return true;
+      }
     }
+    
+    // Check for conflicts: if this option conflicts with any selected value
+    const option = step.options.find(opt => opt.value === optionValue);
+    if (option?.conflictsWith && selectedValues.length > 0) {
+      const hasConflict = selectedValues.some(selectedValue => 
+        option.conflictsWith?.includes(selectedValue)
+      );
+      if (hasConflict) {
+        return true;
+      }
+    }
+    
+    // Check if any selected option conflicts with this option
+    const selectedOptions = step.options.filter(opt => 
+      selectedValues.includes(opt.value)
+    );
+    for (const selectedOption of selectedOptions) {
+      if (selectedOption.conflictsWith?.includes(optionValue)) {
+        return true;
+      }
+    }
+    
     return false;
   }
 

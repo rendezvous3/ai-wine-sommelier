@@ -84,6 +84,7 @@ const sampleSteps = [
         id: 'energized',
         label: 'Energized',
         value: 'energized',
+        conflictsWith: ['sedated', 'sleepy'],
         icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 8L24 16L32 18L26 24L28 32L20 28L12 32L14 24L8 18L16 16L20 8Z" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
       },
       {
@@ -254,6 +255,68 @@ export const MultiSelect: Story = {
       steps: [sampleSteps[1]],
       onComplete: (selections: Record<string, any>) => {
         console.log('Multi select completed:', selections);
+      }
+    }
+  },
+  render: (args: any) => ({
+    Component: GuidedFlow as any,
+    props: args,
+  })
+};
+
+export const EffectsConflicts: Story = {
+  args: {
+    config: {
+      steps: [
+        {
+          id: 'effects',
+          title: 'How would you like to feel?',
+          subtitle: '(Up to 2) - Try selecting Energized, then see Sedated and Sleepy become disabled',
+          type: 'multi-select' as const,
+          maxSelections: 2,
+          required: true,
+          options: [
+            {
+              id: 'energized',
+              label: 'Energized',
+              value: 'energized',
+              conflictsWith: ['sedated', 'sleepy'],
+              icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 8L24 16L32 18L26 24L28 32L20 28L12 32L14 24L8 18L16 16L20 8Z" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+            },
+            {
+              id: 'sedated',
+              label: 'Sedated',
+              value: 'sedated',
+              conflictsWith: ['energized'],
+              icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" stroke="#3b82f6" stroke-width="2"/><path d="M14 20H26" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/></svg>'
+            },
+            {
+              id: 'sleepy',
+              label: 'Sleepy',
+              value: 'sleepy',
+              conflictsWith: ['energized'],
+              icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" stroke="#3b82f6" stroke-width="2"/><path d="M16 20C16 20 18 22 20 22C22 22 24 20 24 20" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/><path d="M14 16L16 18M24 16L26 18" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/></svg>'
+            },
+            {
+              id: 'calm',
+              label: 'Calm',
+              value: 'calm',
+              icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" stroke="#3b82f6" stroke-width="2"/><path d="M16 20H24" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/></svg>'
+            },
+            {
+              id: 'creative',
+              label: 'Creative',
+              value: 'creative',
+              icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" stroke="#3b82f6" stroke-width="2"/><path d="M20 12V16M20 24V28M12 20H16M24 20H28" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/></svg>'
+            }
+          ]
+        }
+      ],
+      onComplete: (selections: Record<string, any>) => {
+        console.log('Effects conflicts completed:', selections);
+      },
+      onSelectionChange: (selections: Record<string, any>) => {
+        console.log('Selection changed:', selections);
       }
     }
   },

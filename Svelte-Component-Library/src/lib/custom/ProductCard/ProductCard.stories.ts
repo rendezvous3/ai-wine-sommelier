@@ -70,3 +70,50 @@ export const LowRating: Story = {
   },
 };
 
+export const WithBrandAndTHC: Story = {
+  args: {
+    image: 'https://images.dutchie.com/47c7bab14f7c535a2dffb7c3709f3b0b?auto=format%2Ccompress&cs=srgb&fit=fill&fill=solid&fillColor=%23fff&w=410&dpr=2&ixlib=react-9.8.1',
+    title: 'Gelato 51 - Diamond Dusted Prerolls - 5 pack',
+    brand: 'TO THE MOON',
+    price: 51.0,
+    category: 'prerolls',
+    type: 'indica',
+    thc_percentage: 26.0,
+    pack_count: 5,
+    actionType: 'link',
+    shopLink: 'https://cannavita.us/shop/?dtche%5Bproduct%5D=gelato-51-diamond-dusted-prerolls-5-pack-3-5g-94245',
+    onAddToCart: () => console.log('Added to cart')
+  },
+};
+
+export const EdibleWithTHC: Story = {
+  args: {
+    image: 'https://images.dutchie.com/e51716df58bb0b84d840c1e495e64649?auto=format%2Ccompress&cs=srgb&fit=fill&fill=solid&fillColor=%23fff&w=717.5&dpr=2&ixlib=react-9.8.1',
+    title: 'Sour Cherry Indica Enhanced Gummies',
+    brand: 'WYLD',
+    price: 26.0,
+    category: 'edibles',
+    subcategory: 'gummies',
+    thc_per_unit_mg: 10.0,
+    pack_count: 10,
+    actionType: 'link',
+    shopLink: 'https://cannavita.us/shop/?dtche%5Bproduct%5D=sour-cherry-indica-enhanced-gummies-10121',
+    onAddToCart: () => console.log('Added to cart')
+  },
+};
+
+export const ChocolateWithTHC: Story = {
+  args: {
+    image: 'https://images.dutchie.com/367f23ea4a1df26da02b2be0775879fa?auto=format%2Ccompress&cs=srgb&fit=fill&fill=solid&fillColor=%23fff&w=717.5&dpr=2&ixlib=react-9.8.1',
+    title: 'Dark Chocolate - THC - Indica',
+    brand: 'GRÖN',
+    price: 28.0,
+    category: 'edibles',
+    subcategory: 'chocolate',
+    thc_per_unit_mg: 3.0,
+    actionType: 'link',
+    shopLink: 'https://cannavita.us/shop/?dtche%5Bproduct%5D=dark-chocolate-thc-indica',
+    onAddToCart: () => console.log('Added to cart')
+  },
+};
+

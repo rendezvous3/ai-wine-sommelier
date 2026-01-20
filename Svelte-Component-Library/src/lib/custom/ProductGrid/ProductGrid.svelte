@@ -9,6 +9,13 @@
     rating?: number;
     discount?: number;
     shopLink?: string;
+    brand?: string;
+    category?: string;
+    subcategory?: string;
+    thc_percentage?: number;
+    thc_per_unit_mg?: number;
+    thc_total_mg?: number;
+    pack_count?: number;
   }
 
   interface ProductGridProps {
@@ -55,6 +62,13 @@
         rating={product.rating}
         discount={product.discount}
         shopLink={product.shopLink}
+        brand={product.brand}
+        category={product.category}
+        subcategory={product.subcategory}
+        thc_percentage={product.thc_percentage}
+        thc_per_unit_mg={product.thc_per_unit_mg}
+        thc_total_mg={product.thc_total_mg}
+        pack_count={product.pack_count}
         actionType={actionType}
         onAddToCart={() => handleAddToCart(product)}
       />

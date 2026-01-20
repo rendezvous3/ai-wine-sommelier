@@ -1,5 +1,6 @@
 <script lang="ts">
   import Button from '../Button/Button.svelte';
+  import { formatTHCLabel } from '../ProductRecommendation/thcFormatter.js';
 
   interface ProductCardProps {
     image: string;
@@ -10,6 +11,13 @@
     discount?: number;
     shopLink?: string;
     actionType?: 'add-to-cart' | 'link';
+    brand?: string;
+    category?: string;
+    subcategory?: string;
+    thc_percentage?: number;
+    thc_per_unit_mg?: number;
+    thc_total_mg?: number;
+    pack_count?: number;
     onAddToCart?: () => void;
   }
 
@@ -22,6 +30,13 @@
     discount,
     shopLink,
     actionType = 'add-to-cart',
+    brand,
+    category,
+    subcategory,
+    thc_percentage,
+    thc_per_unit_mg,
+    thc_total_mg,
+    pack_count,
     onAddToCart
   }: ProductCardProps = $props();
 
@@ -47,6 +62,10 @@
       handleAddToCart();
     }
   }
+
+  function getTHCLabel() {
+    return formatTHCLabel({ category, subcategory, title, thc_percentage, thc_per_unit_mg, thc_total_mg });
+  }
 </script>
 
 <div class="product-card">
@@ -58,6 +77,9 @@
   </div>
   
   <div class="product-card__content">
+    {#if brand}
+      <div class="product-card__brand">{brand}</div>
+    {/if}
     <h3 class="product-card__title">{title}</h3>
     
     {#if rating !== undefined}
@@ -83,9 +105,24 @@
     {/if}
     
     <div class="product-card__pricing">
-      <span class="product-card__price">{formatPrice(finalPrice)}</span>
-      {#if hasDiscount && originalPrice}
-        <span class="product-card__original-price">{formatPrice(originalPrice)}</span>
+      <div class="product-card__price-wrapper">
+        <span class="product-card__price">{formatPrice(finalPrice)}</span>
+        {#if hasDiscount && originalPrice}
+          <span class="product-card__original-price">{formatPrice(originalPrice)}</span>
+        {/if}
+      </div>
+      {#if getTHCLabel()}
+        {@const thcLabel = getTHCLabel()!}
+        <div class="product-card__thc-badge">
+          <div class="product-card__thc-label">THC</div>
+          <div class="product-card__thc-value">{thcLabel.value}</div>
+          {#if thcLabel.label}
+            <div class="product-card__thc-sublabel">{thcLabel.label}</div>
+          {/if}
+        </div>
+      {/if}
+      {#if pack_count && (category === 'prerolls' || category === 'edibles')}
+        <span class="product-card__pack-badge">{pack_count} pack</span>
       {/if}
     </div>
     
@@ -172,6 +209,17 @@
     gap: 8px;
   }
 
+  /* Brand */
+  .product-card__brand {
+    font-size: 11px;
+    font-weight: 500;
+    color: #6b7280;
+    margin: 0 0 4px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  }
+
   /* Title */
   .product-card__title {
     font-size: 16px;
@@ -210,8 +258,68 @@
   /* Pricing */
   .product-card__pricing {
     display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .product-card__price-wrapper {
+    display: flex;
     align-items: baseline;
     gap: 8px;
+    flex: 1;
+  }
+
+  .product-card__thc-badge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 8px;
+    background: #f5f5dc;
+    border-radius: 6px;
+    min-width: 60px;
+    width: 60px;
+    flex-shrink: 0;
+  }
+
+  .product-card__thc-label {
+    font-size: 10px;
+    font-weight: 500;
+    color: #111827;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  }
+
+  .product-card__thc-value {
+    font-size: 14px;
+    font-weight: 400;
+    color: #111827;
+    line-height: 1.2;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  }
+
+  .product-card__thc-sublabel {
+    font-size: 9px;
+    font-weight: 400;
+    color: #6b7280;
+    text-transform: lowercase;
+    margin-top: 1px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  }
+
+  .product-card__pack-badge {
+    font-size: 11px;
+    font-weight: 500;
+    color: #111827;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    background: rgba(107, 114, 128, 0.1);
+    border-radius: 4px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   }
 
   .product-card__price {

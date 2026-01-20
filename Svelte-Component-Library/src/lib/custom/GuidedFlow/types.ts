@@ -4,6 +4,7 @@ export interface FlowOption {
   icon?: string; // SVG string or icon name
   value: any;
   description?: string;
+  conflictsWith?: string[]; // Array of option values that conflict with this option
 }
 
 export interface FlowStep {

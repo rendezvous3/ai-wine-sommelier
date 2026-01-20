@@ -12,7 +12,13 @@
     rating?: number;
     discount?: number;
     category?: string;
+    subcategory?: string;
     shopLink?: string;
+    brand?: string;
+    thc_percentage?: number;
+    thc_per_unit_mg?: number;
+    thc_total_mg?: number;
+    pack_count?: number;
   }
 
   interface ChatMessageProps {

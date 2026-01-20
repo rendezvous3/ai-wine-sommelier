@@ -30,6 +30,47 @@ const sampleProducts = [
   }
 ];
 
+const cannabisProducts = [
+  {
+    image: 'https://images.dutchie.com/18b27a429e98dae603d8d4591d01e0a5?auto=format%2Ccompress&cs=srgb&fit=fill&fill=solid&fillColor=%23fff&w=787.5&dpr=2&ixlib=react-9.8.1',
+    title: 'Pink Push Pop X Sour Tangie | Indica X Sativa | Flower',
+    brand: 'FLAV',
+    price: 100.0,
+    category: 'flower',
+    type: 'hybrid',
+    thc_percentage: 27.0
+  },
+  {
+    image: 'https://images.dutchie.com/47c7bab14f7c535a2dffb7c3709f3b0b?auto=format%2Ccompress&cs=srgb&fit=fill&fill=solid&fillColor=%23fff&w=410&dpr=2&ixlib=react-9.8.1',
+    title: 'Gelato 51 - Diamond Dusted Prerolls - 5 pack',
+    brand: 'TO THE MOON',
+    price: 51.0,
+    category: 'prerolls',
+    type: 'indica',
+    thc_percentage: 26.0,
+    pack_count: 5
+  },
+  {
+    image: 'https://images.dutchie.com/e51716df58bb0b84d840c1e495e64649?auto=format%2Ccompress&cs=srgb&fit=fill&fill=solid&fillColor=%23fff&w=717.5&dpr=2&ixlib=react-9.8.1',
+    title: 'Sour Cherry Indica Enhanced Gummies',
+    brand: 'WYLD',
+    price: 26.0,
+    category: 'edibles',
+    subcategory: 'gummies',
+    thc_per_unit_mg: 10.0,
+    pack_count: 10
+  },
+  {
+    image: 'https://images.dutchie.com/367f23ea4a1df26da02b2be0775879fa?auto=format%2Ccompress&cs=srgb&fit=fill&fill=solid&fillColor=%23fff&w=717.5&dpr=2&ixlib=react-9.8.1',
+    title: 'Dark Chocolate - THC - Indica',
+    brand: 'GRÖN',
+    price: 28.0,
+    category: 'edibles',
+    subcategory: 'chocolate',
+    thc_per_unit_mg: 3.0
+  }
+];
+
 const meta = {
   title: 'Custom/ProductRecommendation',
   component: ProductRecommendation as any,
@@ -44,7 +85,7 @@ const meta = {
   argTypes: {
     layout: {
       control: 'select',
-      options: ['carousel', 'compact-list', 'grid', 'bubble-grid']
+      options: ['carousel', 'compact-list', 'compact-grid', 'grid', 'bubble-grid']
     },
     title: { control: 'text' },
     description: { control: 'text' },
@@ -89,6 +130,26 @@ export const BubbleGrid: Story = {
     products: sampleProducts,
     layout: 'bubble-grid',
     title: 'Recommended Products',
+    onAddToCart: (product) => console.log('Added to cart:', product)
+  },
+};
+
+export const WithBrandAndTHC: Story = {
+  args: {
+    products: cannabisProducts,
+    layout: 'compact-list',
+    title: 'Cannavita Budtender Recommendations',
+    actionType: 'link',
+    onAddToCart: (product) => console.log('Added to cart:', product)
+  },
+};
+
+export const CompactGrid: Story = {
+  args: {
+    products: cannabisProducts,
+    layout: 'compact-grid',
+    title: 'Cannavita Budtender Recommendations',
+    actionType: 'link',
     onAddToCart: (product) => console.log('Added to cart:', product)
   },
 };

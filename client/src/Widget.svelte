@@ -29,7 +29,13 @@
     shopLink?: string;  // Add this
     description: string;
     category?: string;
+    subcategory?: string;
     type?: string;
+    brand?: string;
+    thc_percentage?: number;
+    thc_per_unit_mg?: number;
+    thc_total_mg?: number;
+    pack_count?: number;
   }
 
   let messages = $state<Message[]>([]);
@@ -81,8 +87,14 @@
       rating: undefined,
       discount: undefined,
       category: rec.category,
+      subcategory: rec.subcategory,
       type: rec.type,
-      shopLink: rec.shopLink
+      shopLink: rec.shopLink,
+      brand: rec.brand,
+      thc_percentage: rec.thc_percentage,
+      thc_per_unit_mg: rec.thc_per_unit_mg,
+      thc_total_mg: rec.thc_total_mg,
+      pack_count: rec.pack_count
     }));
   }
 
@@ -195,6 +207,7 @@
         id: 'energized',
         label: 'Energized',
         value: 'energized',
+        conflictsWith: ['sedated', 'sleepy'],
         icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 8L24 16L32 18L26 24L28 32L20 28L12 32L14 24L8 18L16 16L20 8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
       },
       {
@@ -219,12 +232,14 @@
         id: 'sedated',
         label: 'Sedated',
         value: 'sedated',
+        conflictsWith: ['energized'],
         icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" stroke="currentColor" stroke-width="2"/><path d="M14 20H26" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
       },
       {
         id: 'sleepy',
         label: 'Sleepy',
         value: 'sleepy',
+        conflictsWith: ['energized'],
         icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" stroke="currentColor" stroke-width="2"/><path d="M16 20C16 20 18 22 20 22C22 22 24 20 24 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M14 16L16 18M24 16L26 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
       },
       {
@@ -850,7 +865,7 @@
         messageText={msg.content}
         products={msg.recommendations ? convertToProducts(msg.recommendations) : undefined}
         recommendationTitle={msg.role === 'assistant' && msg.recommendations && msg.recommendations.length > 0 ? "Cannavita Budtender recommendations" : undefined}
-        recommendationLayout="compact-list"
+        recommendationLayout="compact-grid"
         productsInBubble={true}
         showHoverActions={msg.role === 'assistant' && msg.recommendations && msg.recommendations.length > 0}
         actionType="link"
