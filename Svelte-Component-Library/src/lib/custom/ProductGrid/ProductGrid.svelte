@@ -8,12 +8,14 @@
     originalPrice?: number;
     rating?: number;
     discount?: number;
+    shopLink?: string;
   }
 
   interface ProductGridProps {
     products: Product[];
     columns?: 2 | 3;
     title?: string;
+    actionType?: 'add-to-cart' | 'link';
     onAddToCart?: (product: Product) => void;
   }
 
@@ -21,6 +23,7 @@
     products,
     columns = 3,
     title,
+    actionType = 'add-to-cart',
     onAddToCart
   }: ProductGridProps = $props();
 
@@ -51,6 +54,8 @@
         originalPrice={product.originalPrice}
         rating={product.rating}
         discount={product.discount}
+        shopLink={product.shopLink}
+        actionType={actionType}
         onAddToCart={() => handleAddToCart(product)}
       />
     {/each}

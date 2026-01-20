@@ -39,7 +39,7 @@ interface Bindings {
 // MODEL PROVIDER CONFIGURATION
 // Change this to switch between Groq and Cerebras
 // ============================================
-const ACTIVE_PROVIDER = LLM_PROVIDER.GROQ; // or LLM_PROVIDER.GROQ
+const ACTIVE_PROVIDER = LLM_PROVIDER.CEREBRAS; // or LLM_PROVIDER.GROQ
 
 const app = new Hono<{ Bindings: Bindings }>();
 

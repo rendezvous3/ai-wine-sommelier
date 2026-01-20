@@ -289,6 +289,12 @@ def build_metadata(p: dict) -> dict:
     if p.get("price") is not None:
         metadata["price"] = p["price"]
     
+    # Shop and image links
+    if p.get("shopLink"):
+        metadata["shopLink"] = p["shopLink"]
+    if p.get("imageLink"):
+        metadata["imageLink"] = p["imageLink"]
+    
     # Add page_content to metadata for examination
     metadata["page_content"] = build_page_content(p)
     
@@ -347,7 +353,7 @@ vectorize_index_name = "products-demo-3"
 # STEP 3 - run matadata indexing commands in backend
 
 # STEP 5 - Add the documents to the Vector DB Table
-# r = cfVect.add_documents(index_name=vectorize_index_name, documents=documents, ids=ids)
+r = cfVect.add_documents(index_name=vectorize_index_name, documents=documents, ids=ids)
 
 # Delete the specific index
 # requests.delete(
@@ -359,22 +365,22 @@ vectorize_index_name = "products-demo-3"
 # )
 
 # Fetch all indeces, Vector DB table info
-# response = requests.get(
-#     f"https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/vectorize/v2/indexes",
-#     headers={
-#         "Authorization": f"Bearer {API_TOKEN}",  # ← THIS IS THE KEY LINE
-#         "Content-Type": "application/json",
-#     },
-# )
-
-# Fetch the specific index, Vector DB table info
 response = requests.get(
-    f"https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/vectorize/v2/indexes/{vectorize_index_name}/info",
+    f"https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/vectorize/v2/indexes",
     headers={
         "Authorization": f"Bearer {API_TOKEN}",  # ← THIS IS THE KEY LINE
         "Content-Type": "application/json",
     },
 )
+
+# Fetch the specific index, Vector DB table info
+# response = requests.get(
+#     f"https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/vectorize/v2/indexes/{vectorize_index_name}/info",
+#     headers={
+#         "Authorization": f"Bearer {API_TOKEN}",  # ← THIS IS THE KEY LINE
+#         "Content-Type": "application/json",
+#     },
+# )
 
 # curl "https://api.cloudflare.com/client/v4/accounts/a1d51caa9dfb04600e8aefd32367408e/vectorize/v2/indexes" \
 # -H "Authorization: Bearer 2L8iOfQM7ugSPVBgz3cP0JgxFTyhYch5-1I46q6g"

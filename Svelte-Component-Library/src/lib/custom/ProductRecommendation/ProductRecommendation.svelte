@@ -13,6 +13,7 @@
     discount?: number;
     category?: string;
     type?: string;
+    shopLink?: string;
   }
 
   interface ProductRecommendationProps {
@@ -22,6 +23,7 @@
     description?: string;
     onAddToCart?: (product: Product) => void;
     onViewDetails?: (product: Product) => void;
+    actionType?: 'add-to-cart' | 'link';
     themeBackgroundColor?: string;
   }
 
@@ -32,6 +34,7 @@
     description,
     onAddToCart,
     onViewDetails,
+    actionType = 'add-to-cart',
     themeBackgroundColor
   }: ProductRecommendationProps = $props();
 
@@ -41,6 +44,14 @@
 
   function handleAddToCart(product: Product) {
     onAddToCart?.(product);
+  }
+
+  function handleProductAction(product: Product) {
+    if (actionType === 'link' && product.shopLink) {
+      window.open(product.shopLink, '_blank', 'noopener,noreferrer');
+    } else {
+      handleAddToCart(product);
+    }
   }
 
   function getPlaceholderImage(title: string): string {
@@ -81,6 +92,7 @@
         products={products}
         showTitle={false}
         onAddToCart={handleAddToCart}
+        actionType={actionType}
       />
     {:else if layout === 'compact-list'}
       <div class="product-recommendation__compact">
@@ -119,14 +131,20 @@
             </div>
             <button
               class="product-recommendation__compact-button"
-              onclick={() => handleAddToCart(product)}
+              onclick={() => handleProductAction(product)}
               type="button"
-              aria-label="Add {product.title} to cart"
+              aria-label={actionType === 'link' ? `Open ${product.title} in shop` : `Add ${product.title} to cart`}
               style="{effectiveThemeColor ? `background: ${effectiveThemeColor};` : ''}"
             >
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <path d="M9 4V14M4 9H14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              {#if actionType === 'link'}
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path d="M7 4H4C2.89543 4 2 4.89543 2 6V14C2 15.1046 2.89543 16 4 16H12C13.1046 16 14 15.1046 14 14V11M11 2H16M16 2V7M16 2L7 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              {:else}
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path d="M9 4V14M4 9H14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              {/if}
             </button>
           </div>
         {/each}
@@ -141,7 +159,9 @@
             originalPrice={product.originalPrice}
             rating={product.rating}
             discount={product.discount}
+            shopLink={product.shopLink}
             onAddToCart={() => handleAddToCart(product)}
+            actionType={actionType}
           />
         {/each}
       </div>
@@ -150,6 +170,7 @@
         products={products}
         columns={2}
         onAddToCart={handleAddToCart}
+        actionType={actionType}
       />
     {/if}
   </div>

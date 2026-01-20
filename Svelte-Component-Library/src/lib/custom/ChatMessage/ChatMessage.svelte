@@ -12,6 +12,7 @@
     rating?: number;
     discount?: number;
     category?: string;
+    shopLink?: string;
   }
 
   interface ChatMessageProps {
@@ -22,6 +23,7 @@
     products?: Product[];
     recommendationLayout?: 'carousel' | 'compact-list' | 'grid' | 'bubble-grid';
     productsInBubble?: boolean;
+    actionType?: 'add-to-cart' | 'link';
     onAddToCart?: (product: Product) => void;
     onAction?: (action: string, message: string) => void;
     userBubbleBackgroundColor?: string;
@@ -39,6 +41,7 @@
     products,
     recommendationLayout = 'compact-list',
     productsInBubble = true,
+    actionType = 'add-to-cart',
     onAddToCart,
     onAction,
     userBubbleBackgroundColor,
@@ -103,6 +106,7 @@
         products={products}
         layout={recommendationLayout}
         onAddToCart={onAddToCart}
+        actionType={actionType}
       />
     </div>
   {/if}
@@ -127,6 +131,7 @@
             products={products}
             layout={recommendationLayout}
             onAddToCart={onAddToCart}
+            actionType={actionType}
           />
         </div>
       {/if}

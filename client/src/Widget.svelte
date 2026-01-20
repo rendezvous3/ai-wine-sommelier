@@ -24,7 +24,9 @@
     id: string;
     name: string;
     price: number;
-    image: string;
+    image: string;  // This should map to imageLink from backend
+    imageLink?: string;  // Backend returns this
+    shopLink?: string;  // Add this
     description: string;
     category?: string;
     type?: string;
@@ -72,14 +74,15 @@
   // Convert Recommendation to Product format for ChatMessage
   function convertToProducts(recommendations: Recommendation[]) {
     return recommendations.map(rec => ({
-      image: rec.image || '',
+      image: rec.imageLink || rec.image || '',  // Prefer imageLink, fallback to image
       title: rec.name || '',
       price: rec.price != null && !isNaN(rec.price) ? rec.price : 0,
       originalPrice: undefined,
       rating: undefined,
       discount: undefined,
       category: rec.category,
-      type: rec.type
+      type: rec.type,
+      shopLink: rec.shopLink
     }));
   }
 
@@ -850,6 +853,7 @@
         recommendationLayout="compact-list"
         productsInBubble={true}
         showHoverActions={msg.role === 'assistant' && msg.recommendations && msg.recommendations.length > 0}
+        actionType="link"
       />
     {/each}
   {/snippet}

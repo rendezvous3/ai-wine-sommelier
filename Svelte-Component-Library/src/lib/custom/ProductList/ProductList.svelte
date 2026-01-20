@@ -8,12 +8,14 @@
     originalPrice?: number;
     rating?: number;
     discount?: number;
+    shopLink?: string;
   }
 
   interface ProductListProps {
     products: Product[];
     title?: string;
     showTitle?: boolean;
+    actionType?: 'add-to-cart' | 'link';
     onAddToCart?: (product: Product) => void;
   }
 
@@ -21,6 +23,7 @@
     products,
     title = 'Products',
     showTitle = true,
+    actionType = 'add-to-cart',
     onAddToCart
   }: ProductListProps = $props();
 
@@ -44,6 +47,8 @@
             originalPrice={product.originalPrice}
             rating={product.rating}
             discount={product.discount}
+            shopLink={product.shopLink}
+            actionType={actionType}
             onAddToCart={() => handleAddToCart(product)}
           />
         </div>

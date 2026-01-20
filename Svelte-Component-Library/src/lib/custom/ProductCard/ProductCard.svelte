@@ -8,6 +8,8 @@
     originalPrice?: number;
     rating?: number;
     discount?: number;
+    shopLink?: string;
+    actionType?: 'add-to-cart' | 'link';
     onAddToCart?: () => void;
   }
 
@@ -18,6 +20,8 @@
     originalPrice,
     rating,
     discount,
+    shopLink,
+    actionType = 'add-to-cart',
     onAddToCart
   }: ProductCardProps = $props();
 
@@ -34,6 +38,14 @@
 
   function handleAddToCart() {
     onAddToCart?.();
+  }
+
+  function handleProductAction() {
+    if (actionType === 'link' && shopLink) {
+      window.open(shopLink, '_blank', 'noopener,noreferrer');
+    } else {
+      handleAddToCart();
+    }
   }
 </script>
 
@@ -77,13 +89,23 @@
       {/if}
     </div>
     
-    <Button
-      label="Add to Cart"
-      variant="primary"
-      size="sm"
-      onclick={handleAddToCart}
-      fullWidth={true}
-    />
+    {#if actionType === 'link' && shopLink}
+      <Button
+        label="View Product"
+        variant="primary"
+        size="sm"
+        onclick={handleProductAction}
+        fullWidth={true}
+      />
+    {:else}
+      <Button
+        label="Add to Cart"
+        variant="primary"
+        size="sm"
+        onclick={handleProductAction}
+        fullWidth={true}
+      />
+    {/if}
   </div>
 </div>
 
