@@ -831,7 +831,7 @@
   .chat-input__container--expanded {
     flex-direction: column;
     align-items: stretch;
-    gap: 8px;
+    gap: 0px;
     padding: 8px 8px 4px 12px;
   }
 
