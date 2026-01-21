@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getContext } from 'svelte';
+  import { getContext, tick } from 'svelte';
 
   interface ChatInputProps {
     placeholder?: string;
@@ -63,6 +63,9 @@
   let temperatureDropdownOpen = $state(false);
   let speedDropdownOpen = $state(false);
   let fileInputRef: HTMLInputElement | null = $state(null);
+  let textareaRef: HTMLTextAreaElement | null = $state(null);
+  let textareaTwoLineRef: HTMLTextAreaElement | null = $state(null);
+  let isExpanded = $state(false);
   
   let selectedAgent = $state('composer');
   let selectedModel = $state('gpt-4');
@@ -88,10 +91,48 @@
   let hasValue = $derived(inputValue.trim().length > 0);
   let characterCount = $derived(inputValue.length);
 
+  function shouldExpand(charCount: number): boolean {
+    const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
+    // let threshold = 80; // Default for large screens
+    let threshold = 20;
+    
+    if (screenWidth < 640) {
+      // threshold = 40; // Small screens
+      threshold = 10; // Small screens
+    } else if (screenWidth < 1024) {
+      // threshold = 60; // Medium screens
+      threshold = 15; // Medium screens
+    }
+    
+    // Add hysteresis: expand at threshold, collapse slightly below to prevent flickering
+    if (isExpanded) {
+      return charCount > threshold - 5; // Stay expanded until 5 chars below threshold
+    }
+    return charCount >= threshold;
+  }
+
+  function autoResizeTextarea(textarea: HTMLTextAreaElement) {
+    // Reset height to auto to get the correct scrollHeight
+    textarea.style.height = 'auto';
+    // Calculate new height based on content, but cap at max-height
+    const maxHeight = 150; // 150px = ~6 rows
+    const newHeight = Math.min(textarea.scrollHeight, maxHeight);
+    textarea.style.height = `${newHeight}px`;
+    // Note: Expansion state is controlled by character count, not height
+  }
+
   function handleInput(e: Event) {
     const target = e.target as HTMLTextAreaElement;
     inputValue = target.value;
     oninput?.(inputValue);
+    
+    // Update expansion state based on character count
+    const shouldBeExpanded = shouldExpand(inputValue.length);
+    if (isExpanded !== shouldBeExpanded) {
+      isExpanded = shouldBeExpanded;
+    }
+    // Auto-resize the textarea for visual height adjustment only
+    autoResizeTextarea(target);
   }
 
   function handleSend() {
@@ -104,6 +145,15 @@
       });
       inputValue = '';
       oninput?.('');
+      // Reset textarea height and expansion state after sending
+      // Expansion state will be reset automatically since inputValue.length is now 0
+      isExpanded = false;
+      if (textareaRef) {
+        textareaRef.style.height = 'auto';
+      }
+      if (textareaTwoLineRef) {
+        textareaTwoLineRef.style.height = 'auto';
+      }
     }
   }
 
@@ -124,6 +174,29 @@
     else if (dropdown === 'formatting') formattingMenuOpen = !formattingMenuOpen;
     else if (dropdown === 'emoji') emojiPickerOpen = !emojiPickerOpen;
   }
+
+  // Remove auto-resize effects - they cause infinite loops
+  // Resizing only happens in handleInput when user types
+
+  // Restore focus when layout changes (both expand and collapse)
+  let previousExpandedState = $state(false);
+  $effect(() => {
+    // Track isExpanded changes
+    const expanded = isExpanded;
+    // Restore focus when layout state changes (either direction)
+    if (expanded !== previousExpandedState && textareaRef) {
+      // Use tick to ensure DOM has updated after layout change
+      tick().then(() => {
+        if (textareaRef) {
+          textareaRef.focus();
+          // Restore cursor position to end
+          const len = inputValue.length;
+          textareaRef.setSelectionRange(len, len);
+        }
+      });
+    }
+    previousExpandedState = expanded;
+  });
 
   // Close dropdowns when clicking outside
   $effect(() => {
@@ -223,6 +296,7 @@
         <!-- Top line: Text input -->
         <div class="chat-input__top-line">
           <textarea
+            bind:this={textareaTwoLineRef}
             class="chat-input__field chat-input__field--two-line"
             {placeholder}
             value={inputValue}
@@ -483,12 +557,13 @@
         </div>
       </div>
     {:else}
-      <!-- Single line layout -->
-      <div class="chat-input__container">
-        <div class="chat-input__wrapper">
+      <!-- Conditional rendering inside container -->
+      <div class="chat-input__container" class:chat-input__container--expanded={isExpanded}>
+        {#if !isExpanded}
+          <!-- Layout 1: Single row (attach | textarea | buttons) -->
           {#if showAttach}
             <button
-              class="chat-input__button chat-input__button--attach"
+              class="chat-input__button chat-input__button--attach chat-input__button--inline"
               onclick={handleAttachClick}
               aria-label="Attach file"
               type="button"
@@ -500,81 +575,187 @@
             </button>
           {/if}
 
-          <textarea
-            class="chat-input__field"
-            {placeholder}
-            value={inputValue}
-            oninput={handleInput}
-            onkeydown={handleKeyDown}
-            onfocus={() => isFocused = true}
-            onblur={() => isFocused = false}
-            {disabled}
-            maxlength={maxLength}
-            rows="1"
-            aria-label="Message input"
-          ></textarea>
-          
-          {#if maxLength && characterCount > maxLength * 0.8}
-            <span class="chat-input__counter">
-              {characterCount}{maxLength ? `/${maxLength}` : ''}
-            </span>
-          {/if}
-
-          {#if showEmoji}
-            <button
-              class="chat-input__button chat-input__button--emoji"
-              onclick={toggleEmojiPicker}
-              aria-label="Add emoji"
-              type="button"
+          <div class="chat-input__textarea-wrapper">
+            <textarea
+              bind:this={textareaRef}
+              class="chat-input__field"
+              {placeholder}
+              value={inputValue}
+              oninput={handleInput}
+              onkeydown={handleKeyDown}
+              onfocus={() => isFocused = true}
+              onblur={() => isFocused = false}
               {disabled}
-            >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M10 18C14.4183 18 18 14.4183 18 10C18 5.58172 14.4183 2 10 2C5.58172 2 2 5.58172 2 10C2 14.4183 5.58172 18 10 18Z" stroke="currentColor" stroke-width="2"/>
-                <path d="M7 8C7.55228 8 8 7.55228 8 7C8 6.44772 7.55228 6 7 6C6.44772 6 6 6.44772 6 7C6 7.55228 6.44772 8 7 8Z" fill="currentColor"/>
-                <path d="M13 8C13.5523 8 14 7.55228 14 7C14 6.44772 13.5523 6 13 6C12.4477 6 12 6.44772 12 7C12 7.55228 12.4477 8 13 8Z" fill="currentColor"/>
-                <path d="M7 12C7 13.5 8.5 14.5 10 14.5C11.5 14.5 13 13.5 13 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-            </button>
-          {/if}
+              maxlength={maxLength}
+              rows="1"
+              aria-label="Message input"
+            ></textarea>
+            
+            {#if maxLength && characterCount > maxLength * 0.8}
+              <span class="chat-input__counter">
+                {characterCount}{maxLength ? `/${maxLength}` : ''}
+              </span>
+            {/if}
+          </div>
 
-          {#if showVoice}
-            <button
-              class="chat-input__button chat-input__button--voice"
-              class:chat-input__button--recording={isRecording}
-              onclick={handleVoiceClick}
-              aria-label={isRecording ? 'Stop recording' : 'Start voice recording'}
-              type="button"
+          <div class="chat-input__inline-buttons">
+            {#if showEmoji}
+              <button
+                class="chat-input__button chat-input__button--emoji"
+                onclick={toggleEmojiPicker}
+                aria-label="Add emoji"
+                type="button"
+                {disabled}
+              >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M10 18C14.4183 18 18 14.4183 18 10C18 5.58172 14.4183 2 10 2C5.58172 2 2 5.58172 2 10C2 14.4183 5.58172 18 10 18Z" stroke="currentColor" stroke-width="2"/>
+                  <path d="M7 8C7.55228 8 8 7.55228 8 7C8 6.44772 7.55228 6 7 6C6.44772 6 6 6.44772 6 7C6 7.55228 6.44772 8 7 8Z" fill="currentColor"/>
+                  <path d="M13 8C13.5523 8 14 7.55228 14 7C14 6.44772 13.5523 6 13 6C12.4477 6 12 6.44772 12 7C12 7.55228 12.4477 8 13 8Z" fill="currentColor"/>
+                  <path d="M7 12C7 13.5 8.5 14.5 10 14.5C11.5 14.5 13 13.5 13 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
+            {/if}
+
+            {#if showVoice}
+              <button
+                class="chat-input__button chat-input__button--voice"
+                class:chat-input__button--recording={isRecording}
+                onclick={handleVoiceClick}
+                aria-label={isRecording ? 'Stop recording' : 'Start voice recording'}
+                type="button"
+                {disabled}
+              >
+                {#if isRecording}
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="6" y="6" width="8" height="8" rx="2" fill="currentColor"/>
+                  </svg>
+                {:else}
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10 3C8.89543 3 8 3.89543 8 5V9C8 10.1046 8.89543 11 10 11C11.1046 11 12 10.1046 12 9V5C12 3.89543 11.1046 3 10 3Z" stroke="currentColor" stroke-width="2"/>
+                    <path d="M5 9C5 11.7614 7.23858 14 10 14C12.7614 14 15 11.7614 15 9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M10 14V17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                {/if}
+              </button>
+            {/if}
+
+            {#if showSend && hasValue}
+              <button
+                class="chat-input__button chat-input__button--send"
+                onclick={handleSend}
+                aria-label="Send message"
+                type="button"
+                {disabled}
+                style="{effectiveThemeColor ? `background: ${effectiveThemeColor}; --send-button-bg: ${effectiveThemeColor};` : ''}"
+              >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M18 2L9 11M18 2L12 18L9 11M18 2L2 8L9 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            {/if}
+          </div>
+        {:else}
+          <!-- Layout 2: Expanded - Row 1: textfield, Row 2: attach | flex | icons -->
+          <!-- Row 1: Textarea wrapper (full width) -->
+          <div class="chat-input__textarea-wrapper chat-input__textarea-wrapper--expanded">
+            <textarea
+              bind:this={textareaRef}
+              class="chat-input__field chat-input__field--expanded"
+              {placeholder}
+              value={inputValue}
+              oninput={handleInput}
+              onkeydown={handleKeyDown}
+              onfocus={() => isFocused = true}
+              onblur={() => isFocused = false}
               {disabled}
-            >
-              {#if isRecording}
+              maxlength={maxLength}
+              rows="1"
+              aria-label="Message input"
+            ></textarea>
+            
+            {#if maxLength && characterCount > maxLength * 0.8}
+              <span class="chat-input__counter">
+                {characterCount}{maxLength ? `/${maxLength}` : ''}
+              </span>
+            {/if}
+          </div>
+
+          <!-- Row 2: Button row (attach | flex space | icons) -->
+          <div class="chat-input__button-row">
+            {#if showAttach}
+              <button
+                class="chat-input__button chat-input__button--attach chat-input__button--row"
+                onclick={handleAttachClick}
+                aria-label="Attach file"
+                type="button"
+                {disabled}
+              >
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="6" y="6" width="8" height="8" rx="2" fill="currentColor"/>
+                  <path d="M15 7.5L10 2.5L5 7.5M15 12.5L10 17.5L5 12.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-              {:else}
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M10 3C8.89543 3 8 3.89543 8 5V9C8 10.1046 8.89543 11 10 11C11.1046 11 12 10.1046 12 9V5C12 3.89543 11.1046 3 10 3Z" stroke="currentColor" stroke-width="2"/>
-                  <path d="M5 9C5 11.7614 7.23858 14 10 14C12.7614 14 15 11.7614 15 9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  <path d="M10 14V17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
+              </button>
+            {/if}
+
+            <div class="chat-input__button-row-spacer"></div>
+
+            <div class="chat-input__button-row-right">
+              {#if showEmoji}
+                <button
+                  class="chat-input__button chat-input__button--emoji"
+                  onclick={toggleEmojiPicker}
+                  aria-label="Add emoji"
+                  type="button"
+                  {disabled}
+                >
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M10 18C14.4183 18 18 14.4183 18 10C18 5.58172 14.4183 2 10 2C5.58172 2 2 5.58172 2 10C2 14.4183 5.58172 18 10 18Z" stroke="currentColor" stroke-width="2"/>
+                    <path d="M7 8C7.55228 8 8 7.55228 8 7C8 6.44772 7.55228 6 7 6C6.44772 6 6 6.44772 6 7C6 7.55228 6.44772 8 7 8Z" fill="currentColor"/>
+                    <path d="M13 8C13.5523 8 14 7.55228 14 7C14 6.44772 13.5523 6 13 6C12.4477 6 12 6.44772 12 7C12 7.55228 12.4477 8 13 8Z" fill="currentColor"/>
+                    <path d="M7 12C7 13.5 8.5 14.5 10 14.5C11.5 14.5 13 13.5 13 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                </button>
               {/if}
-            </button>
-          {/if}
 
-          {#if showSend && hasValue}
-            <button
-              class="chat-input__button chat-input__button--send"
-              onclick={handleSend}
-              aria-label="Send message"
-              type="button"
-              {disabled}
-              style="{effectiveThemeColor ? `background: ${effectiveThemeColor}; --send-button-bg: ${effectiveThemeColor};` : ''}"
-            >
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M18 2L9 11M18 2L12 18L9 11M18 2L2 8L9 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
-          {/if}
-        </div>
+              {#if showVoice}
+                <button
+                  class="chat-input__button chat-input__button--voice"
+                  class:chat-input__button--recording={isRecording}
+                  onclick={handleVoiceClick}
+                  aria-label={isRecording ? 'Stop recording' : 'Start voice recording'}
+                  type="button"
+                  {disabled}
+                >
+                  {#if isRecording}
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect x="6" y="6" width="8" height="8" rx="2" fill="currentColor"/>
+                    </svg>
+                  {:else}
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M10 3C8.89543 3 8 3.89543 8 5V9C8 10.1046 8.89543 11 10 11C11.1046 11 12 10.1046 12 9V5C12 3.89543 11.1046 3 10 3Z" stroke="currentColor" stroke-width="2"/>
+                      <path d="M5 9C5 11.7614 7.23858 14 10 14C12.7614 14 15 11.7614 15 9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                      <path d="M10 14V17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                  {/if}
+                </button>
+              {/if}
+
+              {#if showSend && hasValue}
+                <button
+                  class="chat-input__button chat-input__button--send"
+                  onclick={handleSend}
+                  aria-label="Send message"
+                  type="button"
+                  {disabled}
+                  style="{effectiveThemeColor ? `background: ${effectiveThemeColor}; --send-button-bg: ${effectiveThemeColor};` : ''}"
+                >
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M18 2L9 11M18 2L12 18L9 11M18 2L2 8L9 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+              {/if}
+            </div>
+          </div>
+        {/if}
       </div>
   {/if}
 
@@ -631,6 +812,7 @@
 
   .chat-input__container {
     display: flex;
+    flex-direction: row;
     align-items: flex-end;
     gap: 8px;
     background: rgba(255, 255, 255, 0.9);
@@ -641,6 +823,71 @@
     padding: 8px 12px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    overflow: visible;
+    min-width: 0;
+  }
+
+  /* Expanded container - column layout */
+  .chat-input__container--expanded {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 8px 8px 4px 12px;
+  }
+
+  /* Expanded: Row 1 - Textarea takes full width */
+  .chat-input__container--expanded .chat-input__textarea-wrapper--expanded {
+    width: 100%;
+    flex: 1 1 auto;
+  }
+
+  /* Expanded: Row 2 - Button row with proper spacing */
+  .chat-input__container--expanded .chat-input__button-row {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+  }
+
+  /* Inline buttons - visible in single-row mode (Layout 1) */
+  .chat-input__inline-buttons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  /* Button row - visible in expanded mode (Layout 2) */
+  .chat-input__button-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex: 0 0 auto;
+    height: 36px;
+    padding-left: 0;
+    width: 100%;
+  }
+
+  .chat-input__button-row-spacer {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .chat-input__button-row-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  /* Attach button variants */
+  .chat-input__button--inline {
+    display: flex;
+  }
+
+  .chat-input__button--row {
+    display: flex;
   }
 
   .chat-input--focused .chat-input__container {
@@ -670,12 +917,13 @@
     -webkit-backdrop-filter: blur(20px);
     border: 1px solid rgba(0, 0, 0, 0.1);
     border-radius: 16px;
-    padding: 16px 20px;
+    padding: 16px 16px 16px 20px;
     display: flex;
     flex-direction: column;
     gap: 12px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
+    overflow: visible;
   }
 
   .chat-input--two-line.chat-input--focused .chat-input__two-line-wrapper {
@@ -689,6 +937,7 @@
     align-items: center;
     gap: 8px;
     width: 100%;
+    overflow: visible;
   }
 
   .chat-input__bottom-line {
@@ -918,14 +1167,17 @@
 
   .chat-input__field--two-line {
     flex: 1;
+    min-width: 0;
     padding: 8px 0;
     min-height: 24px;
-    max-height: 120px;
+    max-height: 150px;
     border: none;
     background: transparent;
     resize: none;
     font-size: 15px;
     line-height: 1.5;
+    box-sizing: border-box;
+    align-self: stretch;
   }
 
 
@@ -967,18 +1219,38 @@
     background: rgba(0, 0, 0, 0.1);
   }
 
-  .chat-input__wrapper {
+  .chat-input__textarea-wrapper {
     flex: 1;
     position: relative;
     display: flex;
     align-items: center;
-    min-height: 40px;
+    min-height: 24px;
+    overflow: visible;
+    min-width: 0;
+    max-width: 100%;
   }
 
-  .chat-input__field {
+  /* Expanded textarea wrapper (Layout 2) */
+  .chat-input__textarea-wrapper--expanded {
+    flex: 1 1 auto;
+    align-items: flex-start;
     width: 100%;
+    align-self: stretch;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 48px; /* Ensure minimum height for 2 lines */
+  }
+
+
+  .chat-input__field {
+    flex: 1;
+    min-width: 0;
     min-height: 24px;
-    max-height: 120px;
+    max-height: 150px;
     border: none;
     background: transparent;
     resize: none;
@@ -987,7 +1259,53 @@
     line-height: 1.5;
     color: #111827;
     outline: none;
-    padding: 8px 0;
+    padding: 8px 12px 8px 0;
+    overflow-y: auto;
+    box-sizing: border-box;
+    vertical-align: middle;
+    width: 100%;
+  }
+
+  /* Expanded textarea field (Layout 2) */
+  .chat-input__field--expanded {
+    padding: 8px 12px 8px 0;
+    width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    min-height: 48px; /* Ensure minimum height for 2 lines */
+    box-sizing: border-box;
+    align-self: stretch;
+  }
+
+  /* Scrollbar styling - visible when content exceeds max-height */
+  .chat-input__field::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .chat-input__field::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .chat-input__field::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+  }
+
+  .chat-input__field::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
+  }
+  
+  /* Hide scrollbar thumb when not hovering/focusing (content fits) */
+  .chat-input__field:not(:hover):not(:focus)::-webkit-scrollbar-thumb {
+    background: transparent;
+  }
+
+  .chat-input--expanded .chat-input__field {
+    flex: none;
+    width: 100%;
+    padding: 0 12px 0 0;
+    align-self: stretch;
     overflow-y: auto;
   }
 
@@ -997,11 +1315,12 @@
 
   .chat-input__counter {
     position: absolute;
-    bottom: 2px;
+    bottom: 0;
     right: 4px;
     font-size: 11px;
     color: #6b7280;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+    pointer-events: none;
   }
 
   .chat-input__button {
