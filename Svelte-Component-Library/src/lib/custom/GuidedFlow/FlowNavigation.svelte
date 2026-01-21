@@ -129,8 +129,8 @@
   /* Dark mode */
   :global(.dark) .flow-navigation,
   :global([data-theme="dark"]) .flow-navigation {
-    background: #1f2937;
-    border-top-color: #374151;
+    background: #252526;
+    border-top-color: rgba(255, 255, 255, 0.1);
   }
 
 </style>

@@ -82,7 +82,7 @@
   /* Dark mode */
   :global(.dark) .typing-indicator,
   :global([data-theme="dark"]) .typing-indicator {
-    --typing-color: #9ca3af;
+    --typing-color: #858585;
   }
 
   /* Responsive */

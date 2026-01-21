@@ -193,12 +193,12 @@
   /* Dark mode */
   :global(.dark) .flow-step__title,
   :global([data-theme="dark"]) .flow-step__title {
-    color: #f9fafb;
+    color: #cccccc;
   }
 
   :global(.dark) .flow-step__subtitle,
   :global([data-theme="dark"]) .flow-step__subtitle {
-    color: #9ca3af;
+    color: #858585;
   }
 </style>
 

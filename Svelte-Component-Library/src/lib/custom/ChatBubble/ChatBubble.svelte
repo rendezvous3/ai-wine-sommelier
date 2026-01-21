@@ -12,6 +12,14 @@
     userBubbleBackgroundColor?: string;
   }
 
+  // Helper function to convert hex to rgba for box shadow
+  function hexToRgba(hex: string, alpha: number): string {
+    hex = hex.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
 
   let {
     variant = 'assistant',
@@ -41,6 +49,14 @@
       .join(' ')
   );
 
+  // Compute box shadow color from theme
+  let boxShadowColor = $derived.by(() => {
+    if (userBubbleBackgroundColor && variant === 'user') {
+      return hexToRgba(userBubbleBackgroundColor, 0.3);
+    }
+    return null;
+  });
+
   function toggleExpand() {
     if (expandable) {
       isExpanded = !isExpanded;
@@ -48,7 +64,13 @@
   }
 </script>
 
-<div class={bubbleClasses} style="{userBubbleBackgroundColor && variant === 'user' ? `--chat-bubble-user-bg-custom: ${userBubbleBackgroundColor};` : ''}">
+<div 
+  class={bubbleClasses} 
+  style="{userBubbleBackgroundColor && variant === 'user' ? `
+    --chat-bubble-user-bg-custom: ${userBubbleBackgroundColor};
+    --chat-bubble-user-shadow: ${boxShadowColor || 'rgba(36, 198, 213, 0.3)'};
+  ` : ''}"
+>
   {#if sender || timestamp}
     <div class="chat-bubble__header">
       {#if sender}
@@ -153,7 +175,7 @@
     color: var(--chat-bubble-user-text, #ffffff);
     margin-left: auto;
     border-bottom-right-radius: 6px;
-    box-shadow: 0 4px 16px rgba(36, 198, 213, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    box-shadow: 0 4px 16px var(--chat-bubble-user-shadow, rgba(36, 198, 213, 0.3)), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
     max-width: 90%;
   }
 
@@ -320,15 +342,15 @@
 
   :global(.dark) .chat-bubble--user,
   :global([data-theme="dark"]) .chat-bubble--user {
-    background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
-    box-shadow: 0 4px 16px rgba(30, 64, 175, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    background: var(--chat-bubble-user-bg-custom, linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%));
+    box-shadow: 0 4px 16px var(--chat-bubble-user-shadow, rgba(30, 64, 175, 0.3)), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
   }
 
   :global(.dark) .chat-bubble--assistant,
   :global([data-theme="dark"]) .chat-bubble--assistant {
-    background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
-    color: #f9fafb;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    background: #252526;
+    color: #cccccc;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
   }
 
   :global(.dark) .chat-bubble--system,

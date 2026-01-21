@@ -143,7 +143,7 @@
   /* Dark mode */
   :global(.dark) .guided-flow,
   :global([data-theme="dark"]) .guided-flow {
-    background: #111827;
+    background: #1e1e1e;
   }
 </style>
 

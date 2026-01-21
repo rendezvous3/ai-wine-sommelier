@@ -130,7 +130,7 @@
   /* Dark mode */
   :global(.dark) .product-grid__title,
   :global([data-theme="dark"]) .product-grid__title {
-    color: #f9fafb;
+    color: #cccccc;
   }
 
   /* Responsive */

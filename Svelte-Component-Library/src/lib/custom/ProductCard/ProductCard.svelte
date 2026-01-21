@@ -220,6 +220,11 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   }
 
+  :global(.dark) .product-card__brand,
+  :global([data-theme="dark"]) .product-card__brand {
+    color: #858585;
+  }
+
   /* Title */
   .product-card__title {
     font-size: 16px;
@@ -310,6 +315,27 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   }
 
+  :global(.dark) .product-card__thc-badge,
+  :global([data-theme="dark"]) .product-card__thc-badge {
+    background: #2d2d30;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  :global(.dark) .product-card__thc-label,
+  :global([data-theme="dark"]) .product-card__thc-label {
+    color: #cccccc;
+  }
+
+  :global(.dark) .product-card__thc-value,
+  :global([data-theme="dark"]) .product-card__thc-value {
+    color: #cccccc;
+  }
+
+  :global(.dark) .product-card__thc-sublabel,
+  :global([data-theme="dark"]) .product-card__thc-sublabel {
+    color: #858585;
+  }
+
   .product-card__pack-badge {
     font-size: 11px;
     font-weight: 500;
@@ -320,6 +346,12 @@
     background: rgba(107, 114, 128, 0.1);
     border-radius: 4px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  }
+
+  :global(.dark) .product-card__pack-badge,
+  :global([data-theme="dark"]) .product-card__pack-badge {
+    color: #cccccc;
+    background: rgba(255, 255, 255, 0.1);
   }
 
   .product-card__price {
@@ -344,28 +376,34 @@
   /* Dark mode */
   :global(.dark) .product-card,
   :global([data-theme="dark"]) .product-card {
-    background: #1f2937;
+    background: #252526;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
   }
 
   :global(.dark) .product-card:hover,
   :global([data-theme="dark"]) .product-card:hover {
+    background: #2d2d30;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   }
 
   :global(.dark) .product-card__title,
   :global([data-theme="dark"]) .product-card__title {
-    color: #f9fafb;
+    color: #cccccc;
   }
 
   :global(.dark) .product-card__price,
   :global([data-theme="dark"]) .product-card__price {
-    color: #f9fafb;
+    color: #cccccc;
+  }
+
+  :global(.dark) .product-card__original-price,
+  :global([data-theme="dark"]) .product-card__original-price {
+    color: #858585;
   }
 
   :global(.dark) .product-card__image-wrapper,
   :global([data-theme="dark"]) .product-card__image-wrapper {
-    background: #374151;
+    background: #2d2d30;
   }
 
   /* Responsive */

@@ -1444,126 +1444,114 @@
   /* Dark mode support */
   :global(.dark) .chat-input__container,
   :global([data-theme="dark"]) .chat-input__container {
-    background: rgba(31, 41, 55, 0.9);
+    background: rgba(37, 37, 38, 0.9);
     border-color: rgba(255, 255, 255, 0.1);
   }
 
   :global(.dark) .chat-input--focused .chat-input__container,
   :global([data-theme="dark"]) .chat-input--focused .chat-input__container {
-    background: rgba(31, 41, 55, 0.95);
+    background: rgba(37, 37, 38, 0.95);
     border-color: rgba(59, 130, 246, 0.4);
   }
 
   :global(.dark) .chat-input__two-line-wrapper,
   :global([data-theme="dark"]) .chat-input__two-line-wrapper {
-    background: rgba(31, 41, 55, 0.9);
+    background: rgba(37, 37, 38, 0.9);
     border-color: rgba(255, 255, 255, 0.1);
   }
 
   :global(.dark) .chat-input--two-line.chat-input--focused .chat-input__two-line-wrapper,
   :global([data-theme="dark"]) .chat-input--two-line.chat-input--focused .chat-input__two-line-wrapper {
-    background: rgba(31, 41, 55, 0.95);
+    background: rgba(37, 37, 38, 0.95);
     border-color: rgba(59, 130, 246, 0.4);
   }
 
   :global(.dark) .chat-input__action-button,
   :global([data-theme="dark"]) .chat-input__action-button {
     background: rgba(255, 255, 255, 0.1);
-    color: #d1d5db;
+    color: #cccccc;
   }
 
   :global(.dark) .chat-input__action-button:hover:not(:disabled),
   :global([data-theme="dark"]) .chat-input__action-button:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.15);
-    color: #f9fafb;
-  }
-
-  :global(.dark) .chat-input__action-button,
-  :global([data-theme="dark"]) .chat-input__action-button {
-    background: rgba(255, 255, 255, 0.1);
-    color: #d1d5db;
-  }
-
-  :global(.dark) .chat-input__action-button:hover:not(:disabled),
-  :global([data-theme="dark"]) .chat-input__action-button:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.15);
-    color: #f9fafb;
+    background: rgba(45, 45, 48, 1);
+    color: #cccccc;
   }
 
   :global(.dark) .chat-input__send-dropdown,
   :global([data-theme="dark"]) .chat-input__send-dropdown {
-    background: rgba(31, 41, 55, 0.95);
+    background: rgba(37, 37, 38, 0.95);
     border-color: rgba(255, 255, 255, 0.1);
   }
 
   :global(.dark) .chat-input__send-option:hover,
   :global([data-theme="dark"]) .chat-input__send-option:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(45, 45, 48, 1);
   }
 
   :global(.dark) .chat-input__send-option-label,
   :global([data-theme="dark"]) .chat-input__send-option-label {
-    color: #f9fafb;
+    color: #cccccc;
   }
 
   :global(.dark) .chat-input__formatting-menu,
   :global([data-theme="dark"]) .chat-input__formatting-menu {
-    background: rgba(31, 41, 55, 0.95);
+    background: rgba(37, 37, 38, 0.95);
     border-color: rgba(255, 255, 255, 0.1);
   }
 
   :global(.dark) .chat-input__formatting-option,
   :global([data-theme="dark"]) .chat-input__formatting-option {
-    color: #d1d5db;
+    color: #cccccc;
   }
 
   :global(.dark) .chat-input__formatting-option:hover,
   :global([data-theme="dark"]) .chat-input__formatting-option:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(45, 45, 48, 1);
   }
 
   :global(.dark) .chat-input__inline-button,
   :global([data-theme="dark"]) .chat-input__inline-button {
-    color: #d1d5db;
+    color: #cccccc;
   }
 
   :global(.dark) .chat-input__inline-button:hover:not(:disabled),
   :global([data-theme="dark"]) .chat-input__inline-button:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1);
-    color: #f9fafb;
+    background: rgba(45, 45, 48, 1);
+    color: #cccccc;
   }
 
   :global(.dark) .chat-input__dropdown-button,
   :global([data-theme="dark"]) .chat-input__dropdown-button {
     background: rgba(255, 255, 255, 0.1);
-    color: #d1d5db;
+    color: #cccccc;
   }
 
   :global(.dark) .chat-input__dropdown-button:hover:not(:disabled),
   :global([data-theme="dark"]) .chat-input__dropdown-button:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.15);
-    color: #f9fafb;
+    background: rgba(45, 45, 48, 1);
+    color: #cccccc;
   }
 
   :global(.dark) .chat-input__dropdown,
   :global([data-theme="dark"]) .chat-input__dropdown {
-    background: rgba(31, 41, 55, 0.95);
+    background: rgba(37, 37, 38, 0.95);
     border-color: rgba(255, 255, 255, 0.1);
   }
 
   :global(.dark) .chat-input__dropdown-option:hover,
   :global([data-theme="dark"]) .chat-input__dropdown-option:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(45, 45, 48, 1);
   }
 
   :global(.dark) .chat-input__dropdown-option-label,
   :global([data-theme="dark"]) .chat-input__dropdown-option-label {
-    color: #f9fafb;
+    color: #cccccc;
   }
 
   :global(.dark) .chat-input__dropdown-option-desc,
   :global([data-theme="dark"]) .chat-input__dropdown-option-desc {
-    color: #9ca3af;
+    color: #858585;
   }
 
   :global(.dark) .chat-input__dropdown-option--active,
@@ -1573,29 +1561,29 @@
 
   :global(.dark) .chat-input__field,
   :global([data-theme="dark"]) .chat-input__field {
-    color: #f9fafb;
+    color: #cccccc;
   }
 
   :global(.dark) .chat-input__field::placeholder,
   :global([data-theme="dark"]) .chat-input__field::placeholder {
-    color: #6b7280;
+    color: #6a6a6a;
   }
 
   :global(.dark) .chat-input__button:hover:not(:disabled),
   :global([data-theme="dark"]) .chat-input__button:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.1);
-    color: #f9fafb;
+    background: rgba(45, 45, 48, 1);
+    color: #cccccc;
   }
 
   :global(.dark) .chat-input__emoji-picker,
   :global([data-theme="dark"]) .chat-input__emoji-picker {
-    background: rgba(31, 41, 55, 0.95);
+    background: rgba(37, 37, 38, 0.95);
     border-color: rgba(255, 255, 255, 0.1);
   }
 
   :global(.dark) .chat-input__emoji-item:hover,
   :global([data-theme="dark"]) .chat-input__emoji-item:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(45, 45, 48, 1);
   }
 
   /* Responsive */

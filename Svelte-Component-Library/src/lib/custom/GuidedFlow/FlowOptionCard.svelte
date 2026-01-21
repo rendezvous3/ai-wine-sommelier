@@ -183,29 +183,29 @@
   /* Dark mode */
   :global(.dark) .flow-option-card,
   :global([data-theme="dark"]) .flow-option-card {
-    background: #1f2937;
-    border-color: #374151;
+    background: #252526;
+    border-color: rgba(255, 255, 255, 0.1);
   }
 
   :global(.dark) .flow-option-card__label,
   :global([data-theme="dark"]) .flow-option-card__label {
-    color: #f9fafb;
+    color: #cccccc;
   }
 
   :global(.dark) .flow-option-card__description,
   :global([data-theme="dark"]) .flow-option-card__description {
-    color: #9ca3af;
+    color: #858585;
   }
 
   :global(.dark) .flow-option-card:hover:not(.flow-option-card--disabled),
   :global([data-theme="dark"]) .flow-option-card:hover:not(.flow-option-card--disabled) {
-    background: #374151;
+    background: #2d2d30;
     border-color: var(--flow-theme-color, #3b82f6);
   }
 
   :global(.dark) .flow-option-card--selected,
   :global([data-theme="dark"]) .flow-option-card--selected {
-    background: color-mix(in srgb, var(--flow-theme-color, #3b82f6) 20%, #374151);
+    background: color-mix(in srgb, var(--flow-theme-color, #3b82f6) 20%, #2d2d30);
     border-color: var(--flow-theme-color, #3b82f6);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px color-mix(in srgb, var(--flow-theme-color, #3b82f6) 15%, transparent);

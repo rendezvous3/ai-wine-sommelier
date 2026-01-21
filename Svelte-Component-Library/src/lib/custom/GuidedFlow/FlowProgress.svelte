@@ -127,18 +127,18 @@
   /* Dark mode */
   :global(.dark) .flow-progress,
   :global([data-theme="dark"]) .flow-progress {
-    background: #1f2937;
-    border-bottom-color: #374151;
+    background: #252526;
+    border-bottom-color: rgba(255, 255, 255, 0.1);
   }
 
   :global(.dark) .flow-progress__bar,
   :global([data-theme="dark"]) .flow-progress__bar {
-    background: #374151;
+    background: #2d2d30;
   }
 
   :global(.dark) .flow-progress__step-indicator,
   :global([data-theme="dark"]) .flow-progress__step-indicator {
-    background: #374151;
+    background: #2d2d30;
   }
 
   :global(.dark) .flow-progress__step--completed .flow-progress__step-indicator,
@@ -188,14 +188,14 @@
   /* Dark mode */
   :global(.dark) .flow-progress__back-button,
   :global([data-theme="dark"]) .flow-progress__back-button {
-    background: rgba(31, 41, 55, 0.95);
+    background: rgba(37, 37, 38, 0.95);
     border-color: rgba(255, 255, 255, 0.1);
-    color: #f9fafb;
+    color: #cccccc;
   }
 
   :global(.dark) .flow-progress__back-button:hover,
   :global([data-theme="dark"]) .flow-progress__back-button:hover {
-    background: rgba(31, 41, 55, 1);
+    background: rgba(45, 45, 48, 1);
   }
 </style>
 

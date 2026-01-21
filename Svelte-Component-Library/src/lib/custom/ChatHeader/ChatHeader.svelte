@@ -85,7 +85,22 @@
       .join(' ')
   );
 
-  let iconColor = $derived(style === 'flat' || style === 'wavy' ? '#ffffff' : '#1f2937');
+  let iconColor = $derived.by(() => {
+    if (style === 'flat' || style === 'wavy') {
+      return '#ffffff';
+    }
+    // For minimal/none/glass styles, use theme color if available, otherwise use dark mode appropriate color
+    if (headerBackgroundColor) {
+      return headerBackgroundColor;
+    }
+    // Check if dark mode is active
+    if (typeof document !== 'undefined') {
+      const isDark = document.documentElement.classList.contains('dark') || 
+                     document.documentElement.getAttribute('data-theme') === 'dark';
+      return isDark ? '#cccccc' : '#1f2937';
+    }
+    return '#1f2937';
+  });
 
   function toggleMenu() {
     menuOpen = !menuOpen;
@@ -591,37 +606,60 @@
   }
 
   /* Dark mode */
+  :global(.dark) .chat-header,
+  :global([data-theme="dark"]) .chat-header,
   .chat-header--dark.chat-header--flat,
   .chat-header--dark.chat-header--wavy {
     background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
     color: #ffffff;
   }
 
+  :global(.dark) .chat-header--glass,
+  :global([data-theme="dark"]) .chat-header--glass,
   .chat-header--dark.chat-header--glass {
-    background: rgba(30, 64, 175, 0.2);
-    border-bottom-color: rgba(59, 130, 246, 0.3);
-    color: #e5e7eb;
+    background: rgba(37, 37, 38, 0.95);
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+    color: #cccccc;
   }
 
+  :global(.dark) .chat-header--glass .chat-header__close,
+  :global([data-theme="dark"]) .chat-header--glass .chat-header__close,
   .chat-header--dark.chat-header--glass .chat-header__close {
-    color: #e5e7eb;
+    color: #cccccc;
   }
 
+  :global(.dark) .chat-header--minimal,
+  :global([data-theme="dark"]) .chat-header--minimal,
+  :global(.dark) .chat-header--none,
+  :global([data-theme="dark"]) .chat-header--none,
   .chat-header--dark.chat-header--minimal,
   .chat-header--dark.chat-header--none {
-    background: #1f2937;
-    color: #f9fafb;
-    border-bottom-color: #3b82f6;
+    background: #252526;
+    color: #cccccc;
+    border-bottom-color: rgba(255, 255, 255, 0.1);
   }
 
+  :global(.dark) .chat-header--minimal .chat-header__close,
+  :global([data-theme="dark"]) .chat-header--minimal .chat-header__close,
+  :global(.dark) .chat-header--none .chat-header__close,
+  :global([data-theme="dark"]) .chat-header--none .chat-header__close,
   .chat-header--dark.chat-header--minimal .chat-header__close,
   .chat-header--dark.chat-header--none .chat-header__close {
-    color: #f9fafb;
+    color: #cccccc;
   }
 
+  :global(.dark) .chat-header--minimal .chat-header__close:hover,
+  :global([data-theme="dark"]) .chat-header--minimal .chat-header__close:hover,
+  :global(.dark) .chat-header--none .chat-header__close:hover,
+  :global([data-theme="dark"]) .chat-header--none .chat-header__close:hover,
   .chat-header--dark.chat-header--minimal .chat-header__close:hover,
   .chat-header--dark.chat-header--none .chat-header__close:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(45, 45, 48, 1);
+  }
+
+  :global(.dark) .chat-header__title,
+  :global([data-theme="dark"]) .chat-header__title {
+    color: #cccccc;
   }
 
   /* Menu Button */
@@ -976,15 +1014,15 @@
   }
 
   .chat-header__menu-sidebar .chat-header__menu-item:hover .chat-header__menu-item-icon {
-    color: #1f2937;
+    color: inherit;
   }
 
   .chat-header__menu-sidebar .chat-header__menu-item:hover .chat-header__menu-item-icon--svg svg {
-    color: #1f2937;
+    color: inherit;
   }
 
   .chat-header__menu-sidebar .chat-header__menu-item:hover .chat-header__menu-item-label {
-    color: #1f2937;
+    color: inherit;
   }
 
   .chat-header__menu-sidebar .chat-header__menu-item-label {
@@ -994,7 +1032,7 @@
     white-space: nowrap;
     /* overflow: hidden; */
     text-overflow: ellipsis;
-    color: #1f2937 !important;
+    color: #1f2937;
     font-size: 14px;
     font-weight: 500;
     visibility: visible;
@@ -1008,24 +1046,73 @@
   /* Dark mode for menu */
   :global(.dark) .chat-header__menu-dropdown,
   :global([data-theme="dark"]) .chat-header__menu-dropdown {
-    background: rgba(31, 41, 55, 0.95);
+    background: rgba(37, 37, 38, 0.95);
     border-color: rgba(255, 255, 255, 0.1);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   }
 
+  :global(.dark) .chat-header__menu-sidebar,
+  :global([data-theme="dark"]) .chat-header__menu-sidebar {
+    background: rgba(37, 37, 38, 0.95);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  :global(.dark) .chat-header__sidebar-header,
+  :global([data-theme="dark"]) .chat-header__sidebar-header {
+    color: #cccccc;
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+
+  :global(.dark) .chat-header__sidebar-title,
+  :global([data-theme="dark"]) .chat-header__sidebar-title {
+    color: #cccccc;
+  }
+
   :global(.dark) .chat-header__menu-item,
   :global([data-theme="dark"]) .chat-header__menu-item {
-    color: #f9fafb;
+    color: #cccccc;
+  }
+
+  :global(.dark) .chat-header__menu-item-icon,
+  :global([data-theme="dark"]) .chat-header__menu-item-icon {
+    color: #cccccc;
+  }
+
+  :global(.dark) .chat-header__menu-item-icon--svg svg,
+  :global([data-theme="dark"]) .chat-header__menu-item-icon--svg svg {
+    color: #cccccc;
+  }
+
+  :global(.dark) .chat-header__menu-item-label,
+  :global([data-theme="dark"]) .chat-header__menu-item-label {
+    color: #cccccc;
   }
 
   :global(.dark) .chat-header__menu-item:hover,
   :global([data-theme="dark"]) .chat-header__menu-item:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(45, 45, 48, 1);
+    color: #cccccc;
+  }
+
+  :global(.dark) .chat-header__menu-item:hover .chat-header__menu-item-icon,
+  :global([data-theme="dark"]) .chat-header__menu-item:hover .chat-header__menu-item-icon {
+    color: #cccccc;
+  }
+
+  :global(.dark) .chat-header__menu-item:hover .chat-header__menu-item-icon--svg svg,
+  :global([data-theme="dark"]) .chat-header__menu-item:hover .chat-header__menu-item-icon--svg svg {
+    color: #cccccc;
+  }
+
+  :global(.dark) .chat-header__menu-item:hover .chat-header__menu-item-label,
+  :global([data-theme="dark"]) .chat-header__menu-item:hover .chat-header__menu-item-label {
+    color: #cccccc;
   }
 
   :global(.dark) .chat-header__menu-item:active,
   :global([data-theme="dark"]) .chat-header__menu-item:active {
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(45, 45, 48, 1);
+    color: #cccccc;
   }
 </style>
 

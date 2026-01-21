@@ -407,13 +407,16 @@
   }
 
   /* Dark mode */
+  :global(.dark) .chat-widget__window,
+  :global([data-theme="dark"]) .chat-widget__window,
   .chat-widget--dark .chat-widget__window {
-    background: #1f2937;
+    background: #1e1e1e;
   }
 
-
+  :global(.dark) .chat-widget__input-wrapper,
+  :global([data-theme="dark"]) .chat-widget__input-wrapper,
   .chat-widget--dark .chat-widget__input-wrapper {
-    background: rgba(31, 41, 55, 0.95);
+    background: rgba(30, 30, 30, 0.95);
     border-top-color: rgba(255, 255, 255, 0.1);
   }
 

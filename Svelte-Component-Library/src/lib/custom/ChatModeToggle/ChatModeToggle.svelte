@@ -126,14 +126,14 @@
   /* Dark mode */
   :global(.dark) .chat-mode-toggle,
   :global([data-theme="dark"]) .chat-mode-toggle {
-    background: rgba(31, 41, 55, 0.95);
+    background: rgba(37, 37, 38, 0.95);
     border-color: rgba(255, 255, 255, 0.1);
-    color: #f9fafb;
+    color: #cccccc;
   }
 
   :global(.dark) .chat-mode-toggle:hover:not(.chat-mode-toggle--disabled),
   :global([data-theme="dark"]) .chat-mode-toggle:hover:not(.chat-mode-toggle--disabled) {
-    background: rgba(31, 41, 55, 1);
+    background: rgba(45, 45, 48, 1);
   }
 </style>
 

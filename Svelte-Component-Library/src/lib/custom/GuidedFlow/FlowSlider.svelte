@@ -212,24 +212,24 @@
   /* Dark mode */
   :global(.dark) .flow-slider__current-label,
   :global([data-theme="dark"]) .flow-slider__current-label {
-    color: #f9fafb;
+    color: #cccccc;
   }
 
   :global(.dark) .flow-slider__description,
   :global([data-theme="dark"]) .flow-slider__description {
-    color: #9ca3af;
+    color: #858585;
   }
 
   :global(.dark) .flow-slider__input::-webkit-slider-runnable-track,
   :global([data-theme="dark"]) .flow-slider__input::-webkit-slider-runnable-track,
   :global(.dark) .flow-slider__input::-moz-range-track,
   :global([data-theme="dark"]) .flow-slider__input::-moz-range-track {
-    background: #374151;
+    background: #2d2d30;
   }
 
   :global(.dark) .flow-slider__label,
   :global([data-theme="dark"]) .flow-slider__label {
-    color: #9ca3af;
+    color: #858585;
   }
 
   :global(.dark) .flow-slider__label--active,

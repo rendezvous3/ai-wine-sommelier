@@ -320,14 +320,14 @@
   /* Dark mode */
   :global(.dark) .chat-message__actions,
   :global([data-theme="dark"]) .chat-message__actions {
-    background: rgba(31, 41, 55, 0.95);
+    background: rgba(37, 37, 38, 0.95);
     border-color: rgba(255, 255, 255, 0.1);
   }
 
   :global(.dark) .chat-message__action:hover,
   :global([data-theme="dark"]) .chat-message__action:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: #f9fafb;
+    background: rgba(45, 45, 48, 1);
+    color: #cccccc;
   }
 
   /* Responsive */

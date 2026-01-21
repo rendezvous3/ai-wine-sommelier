@@ -402,6 +402,12 @@
     white-space: nowrap;
   }
 
+  :global(.dark) .product-recommendation__compact-badge,
+  :global([data-theme="dark"]) .product-recommendation__compact-badge {
+    color: #cccccc;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
   .product-recommendation__compact-footer {
     display: flex;
     align-items: center;
@@ -464,6 +470,27 @@
     text-transform: lowercase;
     margin-top: 1px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  }
+
+  :global(.dark) .product-recommendation__compact-thc-badge,
+  :global([data-theme="dark"]) .product-recommendation__compact-thc-badge {
+    background: #2d2d30;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  :global(.dark) .product-recommendation__compact-thc-label,
+  :global([data-theme="dark"]) .product-recommendation__compact-thc-label {
+    color: #cccccc;
+  }
+
+  :global(.dark) .product-recommendation__compact-thc-value,
+  :global([data-theme="dark"]) .product-recommendation__compact-thc-value {
+    color: #cccccc;
+  }
+
+  :global(.dark) .product-recommendation__compact-thc-sublabel,
+  :global([data-theme="dark"]) .product-recommendation__compact-thc-sublabel {
+    color: #858585;
   }
 
   .product-recommendation__compact-button {
@@ -575,6 +602,12 @@
     white-space: nowrap;
   }
 
+  :global(.dark) .product-recommendation__compact-grid-badge,
+  :global([data-theme="dark"]) .product-recommendation__compact-grid-badge {
+    color: #cccccc;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
   .product-recommendation__compact-grid-footer {
     display: flex;
     align-items: center;
@@ -662,27 +695,27 @@
   /* Dark mode */
   :global(.dark) .product-recommendation__title,
   :global([data-theme="dark"]) .product-recommendation__title {
-    color: #f9fafb;
+    color: #cccccc;
   }
 
   :global(.dark) .product-recommendation__compact-item,
   :global([data-theme="dark"]) .product-recommendation__compact-item {
-    background: rgba(31, 41, 55, 0.5);
+    background: rgba(37, 37, 38, 0.5);
   }
 
   :global(.dark) .product-recommendation__compact-item:hover,
   :global([data-theme="dark"]) .product-recommendation__compact-item:hover {
-    background: rgba(31, 41, 55, 0.8);
+    background: rgba(45, 45, 48, 0.8);
   }
 
   :global(.dark) .product-recommendation__compact-title,
   :global([data-theme="dark"]) .product-recommendation__compact-title {
-    color: #f9fafb;
+    color: #cccccc;
   }
 
   :global(.dark) .product-recommendation__compact-category,
   :global([data-theme="dark"]) .product-recommendation__compact-category {
-    color: #9ca3af;
+    color: #858585;
   }
 
   /* Responsive */

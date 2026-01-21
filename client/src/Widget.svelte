@@ -4,6 +4,7 @@
   import ChatMessage from "../../Svelte-Component-Library/src/lib/custom/ChatMessage/ChatMessage.svelte";
   import type { GuidedFlowConfig } from "../../Svelte-Component-Library/src/lib/custom/GuidedFlow/types.js";
   import { getTHCScaleForCategory } from "../../Svelte-Component-Library/src/lib/custom/GuidedFlow/thcScales.js";
+  import { theme } from "./theme.svelte.js";
 
   let isOpen = $state(false);
   let mode = $state<'chat' | 'guided-flow'>('chat');
@@ -67,6 +68,9 @@
         localStorage.removeItem(STORAGE_KEY);
       }
     }
+
+    // Apply theme
+    theme.apply();
 
     isInitialized = true;
   });
@@ -837,13 +841,13 @@
   onSend={handleSend}
   position="bottom-right"
   expandIcon="dots"
-  headerStyle="wavy"
+  headerStyle="minimal"
   menuItems={menuItems}
   menuPosition="left"
   menuMode="sidebar"
   onMenuItemClick={handleMenuItemClick}
   title="Cannavita Budtender"
-  themeBackgroundColor="#0e91c1"
+  themeBackgroundColor="#1ba4298f"
   showBadge={false}
   onClearChat={handleClearChat}
   hasMessages={messages.length > 0}
@@ -853,6 +857,7 @@
   modeTogglePosition="lower-left"
   guidedFlowConfig={mode === 'guided-flow' ? guidedFlowConfig : undefined}
   messagesCount={messages.length}
+  darkMode={true}
 >
   {#snippet children()}
     {#if messages.length === 0}

@@ -133,7 +133,7 @@
   /* Dark mode */
   :global(.dark) .product-list__title,
   :global([data-theme="dark"]) .product-list__title {
-    color: #f9fafb;
+    color: #cccccc;
   }
 
   /* Responsive */
