@@ -16,7 +16,7 @@ import type {
 // import { streamText } from 'ai';
 import { generatePrompt } from "./prompt";
 import { MODEL_PROVIDER, LLM_PROVIDER, STORE_NAME, AGENT_ROLE, AGENT_ROLE_MODEL, getModelForRole, getBaseUrl, getApiKey } from "./types-and-constants";
-import { formatConversationHistory } from "./utils";
+import { formatConversationHistory, validateAndExpandFilters, buildVectorizeFilters } from "./utils";
 import {
   isValidCategory,
   isValidSubcategory,
@@ -788,166 +788,9 @@ app.post("/chat/recommendations", async (c) => {
   let filters = body.filters || {};
   const semantic_search = body.semantic_search || "";
 
-  // Validate and normalize filters (safety net)
-  const validatedFilters: Record<string, any> = {};
-
-  // Normalize and validate category (handle both single value and array)
-  if (filters.category) {
-    const categoryValue = filters.category;
-    if (Array.isArray(categoryValue)) {
-      // Validate each category in the array
-      const normalizedCategories = categoryValue
-        .map((cat: any) => normalizeCategory(cat))
-        .filter((cat: string | null): cat is string => cat !== null);
-      if (normalizedCategories.length > 0) {
-        validatedFilters.category = normalizedCategories;
-      }
-      // If all invalid, omit it (better to omit than be wrong)
-    } else {
-      // Single value
-      const normalizedCategory = normalizeCategory(categoryValue);
-      if (normalizedCategory) {
-        validatedFilters.category = normalizedCategory;
-      }
-    }
-  }
-  
-  // Normalize type to lowercase
-  if (filters.type) {
-    const normalizedType = String(filters.type).toLowerCase();
-    if (["indica", "sativa", "hybrid"].includes(normalizedType)) {
-      validatedFilters.type = normalizedType;
-    }
-  }
-  
-  // Normalize and validate subcategory (only if category is valid)
-  // Handle both single value and array
-  // Note: If category is an array, we can't validate subcategory against multiple categories
-  // So we only validate subcategory if category is a single value
-  if (filters.subcategory && validatedFilters.category) {
-    if (Array.isArray(validatedFilters.category)) {
-      // If category is an array, we can't validate subcategory (it could belong to any category)
-      // So we normalize subcategory values but don't validate against schema
-      const subcategoryValue = filters.subcategory;
-      if (Array.isArray(subcategoryValue)) {
-        // Normalize each subcategory to lowercase
-        const normalizedSubcategories = subcategoryValue
-          .map((subcat: any) => String(subcat).toLowerCase())
-          .filter((subcat: string) => subcat.length > 0);
-        if (normalizedSubcategories.length > 0) {
-          validatedFilters.subcategory = normalizedSubcategories;
-        }
-      } else {
-        // Single value - normalize to lowercase
-        const normalizedSubcategory = String(subcategoryValue).toLowerCase();
-        if (normalizedSubcategory.length > 0) {
-          validatedFilters.subcategory = normalizedSubcategory;
-        }
-      }
-    } else {
-      // Category is single value - validate subcategory against it
-      const subcategoryValue = filters.subcategory;
-      if (Array.isArray(subcategoryValue)) {
-        // Validate each subcategory in the array
-        const normalizedSubcategories = subcategoryValue
-          .map((subcat: any) => normalizeSubcategory(validatedFilters.category, subcat))
-          .filter((subcat: string | null): subcat is string => subcat !== null);
-        if (normalizedSubcategories.length > 0) {
-          validatedFilters.subcategory = normalizedSubcategories;
-        }
-        // If all invalid, omit it (better to omit than be wrong)
-      } else {
-        // Single value
-        const normalizedSubcategory = normalizeSubcategory(
-          validatedFilters.category,
-          subcategoryValue
-        );
-        if (normalizedSubcategory) {
-          validatedFilters.subcategory = normalizedSubcategory;
-        }
-        // If invalid, omit it (better to omit than be wrong)
-      }
-    }
-  }
-  
-  // Normalize effects array to lowercase
-  if (filters.effects && Array.isArray(filters.effects)) {
-    validatedFilters.effects = filters.effects
-      .map((e: any) => String(e).toLowerCase())
-      .filter((e: string) => e.length > 0);
-  }
-  
-  // Normalize flavor array to lowercase
-  if (filters.flavor && Array.isArray(filters.flavor)) {
-    validatedFilters.flavor = filters.flavor
-      .map((f: any) => String(f).toLowerCase())
-      .filter((f: string) => f.length > 0);
-  }
-  
-  // Brand - keep original case
-  if (filters.brand) {
-    validatedFilters.brand = String(filters.brand);
-  }
-  
-  // Price fields
-  if (filters.price_min !== null && filters.price_min !== undefined) {
-    validatedFilters.price_min = Number(filters.price_min);
-  }
-  if (filters.price_max !== null && filters.price_max !== undefined) {
-    validatedFilters.price_max = Number(filters.price_max);
-  }
-  
-  // Validate THC fields based on category
-  const category = validatedFilters.category;
-  if (category) {
-    // Handle array of categories - if any category uses percentage, allow percentage fields
-    // If any category uses per-unit-mg, allow per-unit-mg fields
-    if (Array.isArray(category)) {
-      const usesPercentage = category.some((cat: string) => shouldUseTHCPercentage(cat));
-      const usesPerUnitMg = category.some((cat: string) => shouldUseTHCPerUnitMg(cat));
-      
-      if (usesPercentage) {
-        if (filters.thc_percentage_min !== null && filters.thc_percentage_min !== undefined) {
-          validatedFilters.thc_percentage_min = Number(filters.thc_percentage_min);
-        }
-        if (filters.thc_percentage_max !== null && filters.thc_percentage_max !== undefined) {
-          validatedFilters.thc_percentage_max = Number(filters.thc_percentage_max);
-        }
-      }
-      if (usesPerUnitMg) {
-        if (filters.thc_per_unit_mg_min !== null && filters.thc_per_unit_mg_min !== undefined) {
-          validatedFilters.thc_per_unit_mg_min = Number(filters.thc_per_unit_mg_min);
-        }
-        if (filters.thc_per_unit_mg_max !== null && filters.thc_per_unit_mg_max !== undefined) {
-          validatedFilters.thc_per_unit_mg_max = Number(filters.thc_per_unit_mg_max);
-        }
-      }
-    } else {
-      // Single category
-      if (shouldUseTHCPercentage(category)) {
-        // For flower/prerolls/vaporizers/concentrates: use thc_percentage_min/max
-        if (filters.thc_percentage_min !== null && filters.thc_percentage_min !== undefined) {
-          validatedFilters.thc_percentage_min = Number(filters.thc_percentage_min);
-        }
-        if (filters.thc_percentage_max !== null && filters.thc_percentage_max !== undefined) {
-          validatedFilters.thc_percentage_max = Number(filters.thc_percentage_max);
-        }
-        // Remove thc_per_unit_mg fields if present (wrong field for this category)
-      } else if (shouldUseTHCPerUnitMg(category)) {
-        // For edibles: use thc_per_unit_mg_min/max
-        if (filters.thc_per_unit_mg_min !== null && filters.thc_per_unit_mg_min !== undefined) {
-          validatedFilters.thc_per_unit_mg_min = Number(filters.thc_per_unit_mg_min);
-        }
-        if (filters.thc_per_unit_mg_max !== null && filters.thc_per_unit_mg_max !== undefined) {
-          validatedFilters.thc_per_unit_mg_max = Number(filters.thc_per_unit_mg_max);
-        }
-        // Remove thc_percentage fields if present (wrong field for this category)
-      }
-    }
-  }
-  
-  // Use validated filters
-  filters = validatedFilters;
+  // Validate, normalize, and expand filters
+  filters = validateAndExpandFilters(filters);
+  // console.log("filters", JSON.stringify(filters, null, 2));
 
   const lastMessages = messages.slice(-5);
   const enrichedHistory = lastMessages.map(msg => {
@@ -979,84 +822,9 @@ app.post("/chat/recommendations", async (c) => {
     const queryString = semantic_search || user_message;
     
     // Convert filters to Vectorize format
-    const vectorizeFilters: Record<string, any> = {};
-
-    // Direct string fields
-    // if (filters.category) vectorizeFilters.category = filters.category;
-    if (filters.category) {
-      if (Array.isArray(filters.category)) {
-        vectorizeFilters.category = { "$in": filters.category };
-      } else {
-        vectorizeFilters.category = filters.category;
-      }
-    }
-    if (filters.type) {
-      if (Array.isArray(filters.type)) {
-        vectorizeFilters.type = { "$in": filters.type };
-      } else {
-        vectorizeFilters.type = filters.type;
-      }
-    }
-    // if (filters.subcategory) vectorizeFilters.subcategory = filters.subcategory;
-    if (filters.subcategory) {
-      if (Array.isArray(filters.subcategory)) {
-        vectorizeFilters.subcategory = { "$in": filters.subcategory };
-      } else {
-        vectorizeFilters.subcategory = filters.subcategory;
-      }
-    }
-    if (filters.brand) vectorizeFilters.brand = filters.brand;
-
-    // Array fields (effects, flavor) - use $in operator
-    // if (filters.effects && Array.isArray(filters.effects) && filters.effects.length > 0) {
-    //   vectorizeFilters.effects = { "$in": filters.effects };
-    // }
-    // if (filters.flavor && Array.isArray(filters.flavor) && filters.flavor.length > 0) {
-    //   vectorizeFilters.flavor = { "$in": filters.flavor };
-    // }
-
-    // Numeric ranges
-    if (filters.price_min !== null && filters.price_min !== undefined || 
-        filters.price_max !== null && filters.price_max !== undefined) {
-      vectorizeFilters.price = {};
-      if (filters.price_min !== null && filters.price_min !== undefined) {
-        vectorizeFilters.price["$gte"] = filters.price_min;
-      }
-      if (filters.price_max !== null && filters.price_max !== undefined) {
-        vectorizeFilters.price["$lte"] = filters.price_max;
-      }
-    }
-
-    if (filters.thc_percentage_min !== null && filters.thc_percentage_min !== undefined || 
-        filters.thc_percentage_max !== null && filters.thc_percentage_max !== undefined) {
-      vectorizeFilters.thc_percentage = {};
-      if (filters.thc_percentage_min !== null && filters.thc_percentage_min !== undefined) {
-        vectorizeFilters.thc_percentage["$gte"] = filters.thc_percentage_min;
-      }
-      if (filters.thc_percentage_max !== null && filters.thc_percentage_max !== undefined) {
-        vectorizeFilters.thc_percentage["$lte"] = filters.thc_percentage_max;
-      }
-    }
-
-    if (filters.thc_per_unit_mg_min !== null && filters.thc_per_unit_mg_min !== undefined || 
-        filters.thc_per_unit_mg_max !== null && filters.thc_per_unit_mg_max !== undefined) {
-      vectorizeFilters.thc_per_unit_mg = {};
-      if (filters.thc_per_unit_mg_min !== null && filters.thc_per_unit_mg_min !== undefined) {
-        vectorizeFilters.thc_per_unit_mg["$gte"] = filters.thc_per_unit_mg_min;
-      }
-      if (filters.thc_per_unit_mg_max !== null && filters.thc_per_unit_mg_max !== undefined) {
-        vectorizeFilters.thc_per_unit_mg["$lte"] = filters.thc_per_unit_mg_max;
-      }
-    }
-
-    // Boolean
-    if (filters.inStock !== null && filters.inStock !== undefined) {
-      vectorizeFilters.inStock = filters.inStock;
-    }
-
-    // Use filters if any exist, otherwise no filter
-    const filterToUse = Object.keys(vectorizeFilters).length > 0 ? vectorizeFilters : undefined;
-
+    const filterToUse = buildVectorizeFilters(filters);
+    
+    // console.log("filterToUse", JSON.stringify(filterToUse, null, 2));
     // return c.json({ queryString: queryString, filterToUse: vectorizeFilters }, 200);
     
     searchResults = await store.similaritySearch(queryString, 10, filterToUse);
