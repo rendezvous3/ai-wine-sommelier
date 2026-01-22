@@ -341,6 +341,7 @@
     object-fit: cover;
     border-radius: 8px;
     flex-shrink: 0;
+    mix-blend-mode: multiply;
   }
 
   .product-recommendation__compact-info {
@@ -548,6 +549,7 @@
     height: 140px;
     object-fit: cover;
     background: #f3f4f6;
+    mix-blend-mode: multiply;
   }
 
   .product-recommendation__compact-grid-content {

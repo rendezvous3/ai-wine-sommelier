@@ -214,3 +214,35 @@ npm run dev
 
 Compiles everything to static files in dist/.
 The key file is dist/widget.js (plus CSS if any).
+
+## Theme Configuration
+
+The widget supports both light and dark themes. To change the theme:
+
+### 1. Change Initial Theme State
+
+Edit `client/src/theme.svelte.ts` and change the initial theme value:
+
+```typescript
+// For light theme:
+current: 'light' as 'light' | 'dark',
+
+// For dark theme:
+current: 'dark' as 'light' | 'dark',
+```
+
+### 2. Update Widget darkMode Prop
+
+Edit `client/src/Widget.svelte` and update the `darkMode` prop on the `ChatWidget` component:
+
+```svelte
+<!-- For light theme: -->
+darkMode={false}
+
+<!-- For dark theme: -->
+darkMode={true}
+```
+
+The theme is automatically applied when the widget initializes via the `theme.apply()` call in `onMount`.
+
+**Note**: Product images use `mix-blend-mode: multiply` to blend white backgrounds with the theme. In light mode, this may require additional styling adjustments if needed.
