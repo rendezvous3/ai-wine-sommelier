@@ -178,7 +178,7 @@
 
   /* Variant styles */
   .chat-bubble--user {
-    background: var(--chat-bubble-user-bg-custom, linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%));
+    background: var(--chat-bubble-user-bg-custom, #f2f2f7);
     color: var(--chat-bubble-user-text, #111827);
     margin-left: auto;
     border-bottom-right-radius: 3px;
@@ -375,9 +375,9 @@
 
   :global(.dark) .chat-bubble--user,
   :global([data-theme="dark"]) .chat-bubble--user {
-    background: var(--chat-bubble-user-bg-custom, #252526);
+    background: var(--chat-bubble-user-bg-custom, #323232d9);
     color: #cccccc;
-    box-shadow: 0 4px 16px var(--chat-bubble-user-shadow, rgba(30, 64, 175, 0.3)), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    /* box-shadow: 0 4px 16px var(--chat-bubble-user-shadow, rgba(57, 58, 61, 0.3)), 0 0 0 1px rgba(255, 255, 255, 0.1) inset; */
   }
 
   :global(.dark) .chat-bubble--assistant,

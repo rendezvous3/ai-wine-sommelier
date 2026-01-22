@@ -858,6 +858,7 @@
   guidedFlowConfig={mode === 'guided-flow' ? guidedFlowConfig : undefined}
   messagesCount={messages.length}
   darkMode={true}
+  noAssistantBubble={true}
 >
   {#snippet children()}
     {#if messages.length === 0}

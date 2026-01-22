@@ -119,88 +119,90 @@
 </script>
 
 <div class={messageClasses} role="group" onmouseenter={handleMouseEnter} onmouseleave={handleMouseLeave}>
-  {#if products && products.length > 0 && !productsInBubble}
-    <div class="chat-message__products-outside">
-      <ProductRecommendation
-        products={products}
-        layout={recommendationLayout}
-        onAddToCart={onAddToCart}
-        actionType={actionType}
-      />
-    </div>
-  {/if}
-  
-  <div class={bubbleWrapperClasses}>
-    <ChatBubble 
-      {variant} 
-      {sender} 
-      {timestamp} 
-      userBubbleBackgroundColor={userBubbleBgColor}
-      noBubble={variant === 'assistant' && noAssistantBubble}
-      assistantPadding={variant === 'assistant' && !noAssistantBubble ? '8px 12px' : undefined}
-    >
-      {#if recommendationTitle && products && products.length > 0}
-        {recommendationTitle}
-      {/if}
-      
-      {#if messageText !== undefined && messageText !== null}
-        {messageText}
-      {/if}
-      
-      {#if children}
-        {@render children()}
-      {/if}
-      
-      {#if products && products.length > 0 && productsInBubble}
-        <div class="chat-message__products">
-          <ProductRecommendation
-            products={products}
-            layout={recommendationLayout}
-            onAddToCart={onAddToCart}
-            actionType={actionType}
-          />
-        </div>
-      {/if}
-    </ChatBubble>
-
-    {#if showActions && showHoverActions && variant !== 'system'}
-      <div class="chat-message__actions" role="group" onmouseenter={handleMouseEnter} onmouseleave={handleMouseLeave}>
-      <button
-        class="chat-message__action"
-        onclick={() => handleAction('copy')}
-        aria-label="Copy message"
-        type="button"
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <rect x="6" y="6" width="8" height="8" rx="1" stroke="currentColor" stroke-width="1.5"/>
-          <path d="M4 10V4C4 2.89543 4.89543 2 6 2H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
-      </button>
-      <button
-        class="chat-message__action"
-        onclick={() => handleAction('react')}
-        aria-label="React to message"
-        type="button"
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path d="M8 14C11.3137 14 14 11.3137 14 8C14 4.68629 11.3137 2 8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14Z" stroke="currentColor" stroke-width="1.5"/>
-          <path d="M5.5 8C5.5 8.27614 5.72386 8.5 6 8.5C6.27614 8.5 6.5 8.27614 6.5 8C6.5 7.72386 6.27614 7.5 6 7.5C5.72386 7.5 5.5 7.72386 5.5 8Z" fill="currentColor"/>
-          <path d="M9.5 8C9.5 8.27614 9.72386 8.5 10 8.5C10.2761 8.5 10.5 8.27614 10.5 8C10.5 7.72386 10.2761 7.5 10 7.5C9.72386 7.5 9.5 7.72386 9.5 8Z" fill="currentColor"/>
-          <path d="M6 10C6.5 11 7.5 11.5 8 11.5C8.5 11.5 9.5 11 10 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
-      </button>
-      <button
-        class="chat-message__action"
-        onclick={() => handleAction('reply')}
-        aria-label="Reply to message"
-        type="button"
-      >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path d="M8 2L3 7L8 12M3 7H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
+  <div class="chat-message__content-wrapper">
+    {#if products && products.length > 0 && !productsInBubble}
+      <div class="chat-message__products-outside">
+        <ProductRecommendation
+          products={products}
+          layout={recommendationLayout}
+          onAddToCart={onAddToCart}
+          actionType={actionType}
+        />
       </div>
     {/if}
+
+    <div class={bubbleWrapperClasses}>
+      <ChatBubble
+        {variant}
+        {sender}
+        {timestamp}
+        userBubbleBackgroundColor={userBubbleBgColor}
+        noBubble={variant === 'assistant' && noAssistantBubble}
+        assistantPadding={variant === 'assistant' && !noAssistantBubble ? '8px 12px' : undefined}
+      >
+        {#if recommendationTitle && products && products.length > 0}
+          {recommendationTitle}
+        {/if}
+
+        {#if messageText !== undefined && messageText !== null}
+          {messageText}
+        {/if}
+
+        {#if children}
+          {@render children()}
+        {/if}
+
+        {#if products && products.length > 0 && productsInBubble}
+          <div class="chat-message__products">
+            <ProductRecommendation
+              products={products}
+              layout={recommendationLayout}
+              onAddToCart={onAddToCart}
+              actionType={actionType}
+            />
+          </div>
+        {/if}
+      </ChatBubble>
+
+      {#if showActions && showHoverActions && variant !== 'system'}
+        <div class="chat-message__actions" role="group" onmouseenter={handleMouseEnter} onmouseleave={handleMouseLeave}>
+        <button
+          class="chat-message__action"
+          onclick={() => handleAction('copy')}
+          aria-label="Copy message"
+          type="button"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <rect x="6" y="6" width="8" height="8" rx="1" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M4 10V4C4 2.89543 4.89543 2 6 2H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <button
+          class="chat-message__action"
+          onclick={() => handleAction('react')}
+          aria-label="React to message"
+          type="button"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 14C11.3137 14 14 11.3137 14 8C14 4.68629 11.3137 2 8 2C4.68629 2 2 4.68629 2 8C2 11.3137 4.68629 14 8 14Z" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M5.5 8C5.5 8.27614 5.72386 8.5 6 8.5C6.27614 8.5 6.5 8.27614 6.5 8C6.5 7.72386 6.27614 7.5 6 7.5C5.72386 7.5 5.5 7.72386 5.5 8Z" fill="currentColor"/>
+            <path d="M9.5 8C9.5 8.27614 9.72386 8.5 10 8.5C10.2761 8.5 10.5 8.27614 10.5 8C10.5 7.72386 10.2761 7.5 10 7.5C9.72386 7.5 9.5 7.72386 9.5 8Z" fill="currentColor"/>
+          <path d="M6 10C6.5 11 7.5 11.5 8 11.5C8.5 11.5 9.5 11 10 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        </button>
+        <button
+          class="chat-message__action"
+          onclick={() => handleAction('reply')}
+          aria-label="Reply to message"
+          type="button"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M8 2L3 7L8 12M3 7H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        </div>
+      {/if}
+    </div>
   </div>
 </div>
 
@@ -216,6 +218,12 @@
     cursor: pointer;
   }
 
+  .chat-message__content-wrapper {
+    padding-left: 12px;
+    padding-right: 12px;
+    margin-top: 20px;
+  }
+
   .chat-message__bubble-wrapper {
     position: relative;
     display: flex;
@@ -224,27 +232,9 @@
     max-width: 85%;
   }
 
-  /* User messages: add padding for spacing */
-  .chat-message:has(:global(.chat-bubble--user)) {
-    padding-left: 20px;
-    padding-right: 20px;
-  }
-
   /* First message needs top spacing */
   .chat-message:first-child {
     margin-top: 20px;
-  }
-
-  /* Assistant messages with bubble: add left padding */
-  .chat-message:has(:global(.chat-bubble--assistant):not(:global(.chat-bubble--no-bubble))) {
-    padding-left: 20px;
-    padding-right: 0;
-  }
-
-  /* Assistant no-bubble: no padding, full width */
-  .chat-message:has(:global(.chat-bubble--assistant.chat-bubble--no-bubble)) {
-    padding-left: 0;
-    padding-right: 0;
   }
 
   .chat-message__bubble-wrapper:has(:global(.chat-bubble--user)) {
