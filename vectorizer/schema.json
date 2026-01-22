@@ -1,5 +1,6 @@
 {
   "categories": ["flower", "prerolls", "edibles", "concentrates", "vaporizers", "cbd"],
+  "types": ["indica", "sativa", "hybrid", "indica-hybrid", "sativa-hybrid"],
   "subcategories": {
     "edibles": ["chews", "chocolates", "cooking-baking", "drinks", "gummies", "live-resin-gummies", "live-rosin-gummies"],
     "vaporizers": ["all-in-one", "cartridges", "disposables", "live-resin"],

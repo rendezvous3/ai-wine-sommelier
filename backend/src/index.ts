@@ -133,7 +133,7 @@ If they add a preference (e.g., 'And make it strong'), append it.
 CRITICAL VALIDATION RULE: ONLY use a field if there is EXPLICIT, CLEAR evidence in the conversation. Do NOT infer or assume preferences.
 
 - **Category**: Only extract if user explicitly mentions category name (flower, prerolls, edibles, concentrates, vaporizers, cbd) OR mentions a subcategory (which implies category)
-- **Type**: Only extract if user explicitly mentions indica, sativa, or hybrid
+- **Type**: Only extract if user explicitly mentions indica, indica-hybrid, sativa, sativa-hybrid, or hybrid
 - **THC/Potency**: Only extract if user explicitly mentions:
   - Numbers (e.g., "5mg", "22%", "below 66%", "from 18 to 22%")
   - Guided flow format (e.g., "Strong (22-28%)")
@@ -252,12 +252,14 @@ Type mapping:
 - "indica", "indica-dominant" → "indica"
 - "sativa", "sativa-dominant" → "sativa"
 - "hybrid" → "hybrid"
+- "indica-hybrid", "indica-hybrid-dominant" → "indica-hybrid"
+- "sativa-hybrid", "sativa-hybrid-dominant" → "sativa-hybrid"
 
 Return ONLY valid JSON with:
 1. "intent": "recommendation" or "general"
 2. "filters": { 
     "category": (flower, prerolls, edibles, concentrates, vaporizers, cbd) or array of these categories or null,
-    "type": (indica, sativa, hybrid) or null,
+    "type": (indica, sativa, hybrid, indica-hybrid, sativa-hybrid) or array of these types or null,
     "thc_percentage_min": (number) or null,
     "thc_percentage_max": (number) or null,
     "thc_per_unit_mg_min": (number) or null,
@@ -528,7 +530,7 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
     // Normalize type to lowercase
     if (response.filters.type) {
       const normalizedType = response.filters.type.toLowerCase();
-      if (["indica", "sativa", "hybrid"].includes(normalizedType)) {
+      if (["indica", "sativa", "hybrid", "indica-hybrid", "sativa-hybrid"].includes(normalizedType)) {
         normalizedFilters.type = normalizedType;
       }
     }

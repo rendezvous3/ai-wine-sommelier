@@ -2,6 +2,7 @@ import schemaData from './schema.json';
 
 interface Schema {
   categories: string[];
+  types: string[] | string;
   subcategories: Record<string, string[]>;
   categoryFieldMappings: {
     thc_percentage_fields: {
@@ -131,7 +132,10 @@ export function shouldUseTHCPerUnitMg(category: string): boolean {
  * Get schema for use in prompts (formatted string)
  */
 export function getSchemaForPrompt(): string {
-  let schemaStr = "Valid Categories: " + schema.categories.join(", ") + "\n\n";
+  let schemaStr = "Valid Categories: " + schema.categories.join(", ") + "\n";
+  schemaStr += "Note: Category can be a single value or an array of categories (e.g., [\"prerolls\", \"flower\"])\n\n";
+  schemaStr += "Valid Types: " + schema.types.join(", ") + "\n";
+  schemaStr += "Note: Type can be a single value or an array of types (e.g., [\"indica\", \"indica-hybrid\"])\n\n";
   schemaStr += "Valid Subcategories by Category:\n";
   
   for (const [cat, subcats] of Object.entries(schema.subcategories)) {
