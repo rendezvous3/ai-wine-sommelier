@@ -10,6 +10,8 @@
     expandable?: boolean;
     children?: Snippet;
     userBubbleBackgroundColor?: string;
+    noBubble?: boolean;
+    assistantPadding?: string;
   }
 
   // Helper function to convert hex to rgba for box shadow
@@ -28,7 +30,9 @@
     expanded = false,
     expandable = false,
     children,
-    userBubbleBackgroundColor
+    userBubbleBackgroundColor,
+    noBubble = false,
+    assistantPadding
   }: ChatBubbleProps = $props();
 
   let isExpanded = $state(false);
@@ -43,7 +47,8 @@
       'chat-bubble',
       `chat-bubble--${variant}`,
       expandable && 'chat-bubble--expandable',
-      isExpanded && 'chat-bubble--expanded'
+      isExpanded && 'chat-bubble--expanded',
+      noBubble && 'chat-bubble--no-bubble'
     ]
       .filter(Boolean)
       .join(' ')
@@ -66,9 +71,11 @@
 
 <div 
   class={bubbleClasses} 
-  style="{userBubbleBackgroundColor && variant === 'user' ? `
+  style="{variant === 'user' && userBubbleBackgroundColor ? `
     --chat-bubble-user-bg-custom: ${userBubbleBackgroundColor};
     --chat-bubble-user-shadow: ${boxShadowColor || 'rgba(36, 198, 213, 0.3)'};
+  ` : variant === 'assistant' && !noBubble && assistantPadding ? `
+    padding: ${assistantPadding};
   ` : ''}"
 >
   {#if sender || timestamp}
@@ -158,7 +165,7 @@
     position: relative;
     max-width: 85%;
     min-width: 200px;
-    border-radius: 20px;
+    border-radius: 6px;
     padding: 14px 18px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -171,21 +178,47 @@
 
   /* Variant styles */
   .chat-bubble--user {
-    background: var(--chat-bubble-user-bg-custom, linear-gradient(135deg, #24c6d5 0%, #25b4e4 100%));
-    color: var(--chat-bubble-user-text, #ffffff);
+    background: var(--chat-bubble-user-bg-custom, linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%));
+    color: var(--chat-bubble-user-text, #111827);
     margin-left: auto;
-    border-bottom-right-radius: 6px;
+    border-bottom-right-radius: 3px;
     box-shadow: 0 4px 16px var(--chat-bubble-user-shadow, rgba(36, 198, 213, 0.3)), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
     max-width: 90%;
   }
 
   .chat-bubble--assistant {
-    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    background: transparent;
     color: var(--chat-bubble-assistant-text);
     margin-right: auto;
-    border-bottom-left-radius: 6px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.08) inset;
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-bottom-left-radius: 0;
+    box-shadow: none;
+    border: none;
+    max-width: 95%;
+    padding: 0;
+  }
+
+  /* Assistant bubble padding can be overridden via inline style from assistantPadding prop */
+  /* Default padding is removed, must be set via prop if needed */
+
+  /* No bubble mode - removes all visual styling */
+  .chat-bubble--no-bubble {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+    max-width: 100%;
+  }
+
+  .chat-bubble--no-bubble.chat-bubble--assistant {
+    max-width: 100%;
+    margin-right: 0;
+    margin-left: 0;
+  }
+
+  .chat-bubble--no-bubble.chat-bubble--user {
+    max-width: 100%;
+    margin-left: 0;
+    margin-right: 0;
   }
 
   .chat-bubble--system {
@@ -342,15 +375,35 @@
 
   :global(.dark) .chat-bubble--user,
   :global([data-theme="dark"]) .chat-bubble--user {
-    background: var(--chat-bubble-user-bg-custom, linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%));
+    background: var(--chat-bubble-user-bg-custom, #252526);
+    color: #cccccc;
     box-shadow: 0 4px 16px var(--chat-bubble-user-shadow, rgba(30, 64, 175, 0.3)), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
   }
 
   :global(.dark) .chat-bubble--assistant,
   :global([data-theme="dark"]) .chat-bubble--assistant {
-    background: #252526;
+    background: transparent;
     color: #cccccc;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+    box-shadow: none;
+    border: none;
+  }
+
+  /* Dark mode no-bubble styles */
+  :global(.dark) .chat-bubble--no-bubble,
+  :global([data-theme="dark"]) .chat-bubble--no-bubble {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+
+  :global(.dark) .chat-bubble--no-bubble.chat-bubble--assistant,
+  :global([data-theme="dark"]) .chat-bubble--no-bubble.chat-bubble--assistant {
+    color: #cccccc;
+  }
+
+  :global(.dark) .chat-bubble--no-bubble.chat-bubble--user,
+  :global([data-theme="dark"]) .chat-bubble--no-bubble.chat-bubble--user {
+    color: #cccccc;
   }
 
   :global(.dark) .chat-bubble--system,

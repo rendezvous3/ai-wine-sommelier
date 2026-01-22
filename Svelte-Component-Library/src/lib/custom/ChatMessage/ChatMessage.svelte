@@ -57,9 +57,22 @@
     messageText
   }: ChatMessageProps = $props();
 
+  // Get noAssistantBubble from context (provided by ChatWidget)
+  let noAssistantBubbleContext = getContext<{ value: boolean }>('noAssistantBubble');
+  let noAssistantBubble = $derived(noAssistantBubbleContext?.value ?? false);
+
   // Get themeBackgroundColor from context (provided by ChatWidget) as fallback
   let contextThemeStore = getContext<{ value: string | undefined } | undefined>('themeBackgroundColor');
   let effectiveThemeColor = $derived(themeBackgroundColor ?? contextThemeStore?.value);
+
+  // Determine user bubble background color:
+  // - If noAssistantBubble is true, use undefined to let CSS use the default (old assistant background gradient)
+  // - Otherwise, use themeBackgroundColor or userBubbleBackgroundColor prop
+  let userBubbleBgColor = $derived(
+    noAssistantBubble 
+      ? undefined // Let CSS use the default assistant background gradient (linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%))
+      : (userBubbleBackgroundColor ?? effectiveThemeColor)
+  );
 
   let showActions = $state(false);
   let actionsTimeout: ReturnType<typeof setTimeout> | null = $state(null);
@@ -118,7 +131,14 @@
   {/if}
   
   <div class={bubbleWrapperClasses}>
-    <ChatBubble {variant} {sender} {timestamp} userBubbleBackgroundColor={userBubbleBackgroundColor ?? effectiveThemeColor}>
+    <ChatBubble 
+      {variant} 
+      {sender} 
+      {timestamp} 
+      userBubbleBackgroundColor={userBubbleBgColor}
+      noBubble={variant === 'assistant' && noAssistantBubble}
+      assistantPadding={variant === 'assistant' && !noAssistantBubble ? '8px 12px' : undefined}
+    >
       {#if recommendationTitle && products && products.length > 0}
         {recommendationTitle}
       {/if}
@@ -204,6 +224,29 @@
     max-width: 85%;
   }
 
+  /* User messages: add padding for spacing */
+  .chat-message:has(:global(.chat-bubble--user)) {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  /* First message needs top spacing */
+  .chat-message:first-child {
+    margin-top: 20px;
+  }
+
+  /* Assistant messages with bubble: add left padding */
+  .chat-message:has(:global(.chat-bubble--assistant):not(:global(.chat-bubble--no-bubble))) {
+    padding-left: 20px;
+    padding-right: 0;
+  }
+
+  /* Assistant no-bubble: no padding, full width */
+  .chat-message:has(:global(.chat-bubble--assistant.chat-bubble--no-bubble)) {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
   .chat-message__bubble-wrapper:has(:global(.chat-bubble--user)) {
     margin-left: auto;
     max-width: 90%;
@@ -211,6 +254,15 @@
 
   .chat-message__bubble-wrapper:has(:global(.chat-bubble--assistant)) {
     margin-right: auto;
+    max-width: 95%;
+  }
+
+  /* Assistant no-bubble: extend to full width */
+  .chat-message__bubble-wrapper:has(:global(.chat-bubble--assistant.chat-bubble--no-bubble)) {
+    margin-left: 0;
+    margin-right: 0;
+    max-width: 100%;
+    width: 100%;
   }
 
   .chat-message__bubble-wrapper--with-products {

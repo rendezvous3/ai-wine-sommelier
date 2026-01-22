@@ -45,6 +45,7 @@
     modeTogglePosition?: 'upper-left' | 'upper-right' | 'lower-left';
     guidedFlowConfig?: import('../GuidedFlow/types.js').GuidedFlowConfig;
     messagesCount?: number;
+    noAssistantBubble?: boolean;
   }
 
   let {
@@ -77,7 +78,8 @@
     onModeToggle,
     modeTogglePosition = 'upper-left',
     guidedFlowConfig,
-    messagesCount = 0
+    messagesCount = 0,
+    noAssistantBubble = false
   }: ChatWidgetProps = $props();
 
   // Provide themeBackgroundColor to child components via context
@@ -88,6 +90,15 @@
   // Update context when themeBackgroundColor prop changes
   $effect(() => {
     themeContext.value = themeBackgroundColor;
+  });
+
+  // Provide noAssistantBubble to child components via context
+  let noAssistantBubbleContext = $state<{ value: boolean }>({ value: false });
+  setContext('noAssistantBubble', noAssistantBubbleContext);
+  
+  // Update context when noAssistantBubble prop changes
+  $effect(() => {
+    noAssistantBubbleContext.value = noAssistantBubble;
   });
 
   // Use prop directly when parent controls it, otherwise use internal state
@@ -182,6 +193,7 @@
         guidedFlowConfig={guidedFlowConfig}
         messagesCount={messagesCount}
         onSend={onSend}
+        noAssistantBubble={noAssistantBubble}
       >
         {#if children}
           {@render children()}
@@ -323,7 +335,7 @@
     /* height: 600px; */
     max-height: calc(100vh - 120px);
     background: #ffffff;
-    border-radius: 20px;
+    border-radius: 6px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2), 0 8px 24px rgba(0, 0, 0, 0.15);
     display: flex;
     flex-direction: column;

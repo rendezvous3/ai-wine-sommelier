@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { setContext, getContext } from 'svelte';
   import Button from '../Button/Button.svelte';
   import ChatModeToggle from '../ChatModeToggle/ChatModeToggle.svelte';
   import GuidedFlow from '../GuidedFlow/GuidedFlow.svelte';
@@ -23,6 +24,7 @@
     guidedFlowConfig?: GuidedFlowConfig;
     messagesCount?: number;
     onSend?: (message: string) => void;
+    noAssistantBubble?: boolean;
   }
 
   let {
@@ -41,8 +43,22 @@
     modeTogglePosition = 'upper-left',
     guidedFlowConfig,
     messagesCount = 0,
-    onSend
+    onSend,
+    noAssistantBubble
   }: ChatWindowProps = $props();
+
+  // Get noAssistantBubble from parent context (ChatWidget) or use prop
+  let parentNoAssistantBubbleContext = getContext<{ value: boolean } | undefined>('noAssistantBubble');
+  let effectiveNoAssistantBubble = $derived(noAssistantBubble ?? parentNoAssistantBubbleContext?.value ?? false);
+
+  // Provide noAssistantBubble to child components via context (override parent if prop provided)
+  let noAssistantBubbleContext = $state<{ value: boolean }>({ value: false });
+  setContext('noAssistantBubble', noAssistantBubbleContext);
+  
+  // Update context when prop or parent context changes
+  $effect(() => {
+    noAssistantBubbleContext.value = effectiveNoAssistantBubble;
+  });
 
   let isExpanded = $state(expanded);
   let messagesEndRef: HTMLDivElement | null = $state(null);
@@ -424,10 +440,10 @@
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 20px;
+    padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 0;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
     background: #f9fafa;
