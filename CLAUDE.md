@@ -342,5 +342,59 @@ clearButtonIcon="trash"
 <ChatWindow expanded={false} showScrollButton={true} hasMessages={true} clearButtonIcon="trash">
 ```
 
+## Context Management
+
+### Focusing Claude on Specific Areas
+
+The project uses `.claude/settings.json` to control which files Claude can access. This reduces token usage and helps Claude focus on relevant code.
+
+**Default configuration** (team settings):
+- ✅ `client/src/` - Frontend widget
+- ✅ `Svelte-Component-Library/src/` - UI components
+- ✅ Documentation files (README.md, CLAUDE.md)
+- ❌ `backend/` - Backend API (excluded)
+- ❌ `vectorizer/` - Python scripts (excluded)
+- ❌ `node_modules/` - Dependencies (excluded)
+
+### Switching Work Context
+
+To switch focus areas:
+
+1. **Copy the template:**
+   ```bash
+   cp .claude/settings.local.json.example .claude/settings.local.json
+   ```
+
+2. **Choose a preset** from the example file and copy its `deny` array to `permissions.deny`
+
+3. **Restart Claude Code** to apply changes
+
+**Available presets:**
+- **UI Focus** (default) - Client + Component Library
+- **Backend Focus** - Backend API only
+- **Vectorizer Focus** - Python scripts only
+- **Full Access** - All areas (use sparingly)
+
+**Example - Switch to backend work:**
+```json
+{
+  "permissions": {
+    "deny": [
+      "Read(./Svelte-Component-Library/**)",
+      "Read(./client/**)",
+      "Read(./vectorizer/**)",
+      "Read(./node_modules/**)"
+    ]
+  }
+}
+```
+
+### Why This Matters
+
+- **Token efficiency**: Excluding irrelevant code reduces context usage by 60-70%
+- **Focus**: Claude only sees code relevant to your current task
+- **Safety**: Prevents accidental modifications to areas you're not working on
+- **Team harmony**: Personal overrides don't affect team defaults
+
 ---
 **Follow these rules strictly — they ensure clean, testable, and maintainable progress.**

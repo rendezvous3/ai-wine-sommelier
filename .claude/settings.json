@@ -1,0 +1,70 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./backend/**)",
+      "Read(./vectorizer/**)",
+
+      "Read(**/node_modules/**)",
+
+      "Read(**/.svelte-kit/**)",
+      "Read(**/dist/**)",
+      "Read(**/build/**)",
+      "Read(**/storybook-static/**)",
+      "Read(**/.wrangler/**)",
+      "Read(**/.output/**)",
+      "Read(**/.vercel/**)",
+      "Read(**/.netlify/**)",
+
+      "Read(**/venv/**)",
+      "Read(**/.venv/**)",
+      "Read(**/env/**)",
+      "Read(**/__pycache__/**)",
+      "Read(**/*.pyc)",
+      "Read(**/*.pyo)",
+      "Read(**/*.pyd)",
+      "Read(**/.Python)",
+
+      "Read(**/.cache/**)",
+      "Read(**/.vite/**)",
+      "Read(**/.parcel-cache/**)",
+      "Read(**/.turbo/**)",
+      "Read(**/.next/**)",
+
+      "Read(**/package-lock.json)",
+      "Read(**/yarn.lock)",
+      "Read(**/pnpm-lock.yaml)",
+
+      "Read(**/.storybook/**)",
+      "Read(**/*.stories.ts)",
+      "Read(**/*.stories.svelte)",
+
+      "Read(**/coverage/**)",
+      "Read(**/test-results/**)",
+      "Read(**/.nyc_output/**)",
+
+      "Read(**/*.log)",
+      "Read(**/*.tmp)",
+      "Read(**/*.swp)",
+      "Read(**/*~)",
+      "Read(**/.DS_Store)",
+      "Read(**/Thumbs.db)",
+
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(./backend/.dev.vars)",
+
+      "Read(**/.vscode/**)",
+      "Read(**/.idea/**)",
+      "Read(**/*.code-workspace)",
+      "Read(**/*.sublime-*)",
+
+      "Read(**/.history)",
+      "Read(**/.git.backup/**)",
+
+      "Edit(./backend/**)",
+      "Edit(./vectorizer/**)",
+      "Edit(**/node_modules/**)",
+      "Edit(**/__pycache__/**)"
+    ]
+  }
+}

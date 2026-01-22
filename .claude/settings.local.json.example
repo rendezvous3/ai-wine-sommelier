@@ -1,0 +1,146 @@
+{
+  "_comment": "Copy this file to .claude/settings.local.json and choose one of the presets below",
+  "_usage": "Copy the 'deny' array from your chosen preset to the permissions.deny array above",
+
+  "permissions": {
+    "deny": []
+  },
+
+  "_context_presets": {
+    "ui_focus": {
+      "description": "Focus on Client + Component Library (DEFAULT - matches team settings)",
+      "instructions": "Copy this entire deny array to permissions.deny above",
+      "deny": [
+        "Read(./backend/**)",
+        "Read(./vectorizer/**)",
+        "Read(**/node_modules/**)",
+        "Read(**/.svelte-kit/**)",
+        "Read(**/dist/**)",
+        "Read(**/build/**)",
+        "Read(**/storybook-static/**)",
+        "Read(**/.wrangler/**)",
+        "Read(**/venv/**)",
+        "Read(**/.venv/**)",
+        "Read(**/__pycache__/**)",
+        "Read(**/.cache/**)",
+        "Read(**/.vite/**)",
+        "Read(**/package-lock.json)",
+        "Read(**/yarn.lock)",
+        "Read(**/pnpm-lock.yaml)",
+        "Read(**/.storybook/**)",
+        "Read(**/*.stories.ts)",
+        "Read(**/*.stories.svelte)",
+        "Read(**/coverage/**)",
+        "Read(**/*.log)",
+        "Read(**/.DS_Store)",
+        "Read(**/.env)",
+        "Read(**/.env.*)",
+        "Read(**/.vscode/**)",
+        "Read(**/.idea/**)",
+        "Edit(./backend/**)",
+        "Edit(./vectorizer/**)",
+        "Edit(**/node_modules/**)"
+      ]
+    },
+
+    "backend_focus": {
+      "description": "Focus on Backend API only",
+      "instructions": "Copy this entire deny array to permissions.deny above",
+      "deny": [
+        "Read(./Svelte-Component-Library/**)",
+        "Read(./client/**)",
+        "Read(./vectorizer/**)",
+        "Read(**/node_modules/**)",
+        "Read(**/.svelte-kit/**)",
+        "Read(**/dist/**)",
+        "Read(**/build/**)",
+        "Read(**/.wrangler/**)",
+        "Read(**/venv/**)",
+        "Read(**/.venv/**)",
+        "Read(**/__pycache__/**)",
+        "Read(**/.cache/**)",
+        "Read(**/.vite/**)",
+        "Read(**/package-lock.json)",
+        "Read(**/yarn.lock)",
+        "Read(**/pnpm-lock.yaml)",
+        "Read(**/coverage/**)",
+        "Read(**/*.log)",
+        "Read(**/.DS_Store)",
+        "Read(**/.env)",
+        "Read(**/.env.*)",
+        "Read(**/.vscode/**)",
+        "Read(**/.idea/**)",
+        "Edit(./Svelte-Component-Library/**)",
+        "Edit(./client/**)",
+        "Edit(./vectorizer/**)",
+        "Edit(**/node_modules/**)"
+      ]
+    },
+
+    "vectorizer_focus": {
+      "description": "Focus on Python vectorization scripts",
+      "instructions": "Copy this entire deny array to permissions.deny above",
+      "deny": [
+        "Read(./Svelte-Component-Library/**)",
+        "Read(./client/**)",
+        "Read(./backend/**)",
+        "Read(**/node_modules/**)",
+        "Read(**/.svelte-kit/**)",
+        "Read(**/dist/**)",
+        "Read(**/build/**)",
+        "Read(**/.wrangler/**)",
+        "Read(**/venv/**)",
+        "Read(**/.venv/**)",
+        "Read(**/__pycache__/**)",
+        "Read(**/.cache/**)",
+        "Read(**/.vite/**)",
+        "Read(**/coverage/**)",
+        "Read(**/*.log)",
+        "Read(**/.DS_Store)",
+        "Read(**/.env)",
+        "Read(**/.env.*)",
+        "Read(**/.vscode/**)",
+        "Read(**/.idea/**)",
+        "Edit(./Svelte-Component-Library/**)",
+        "Edit(./client/**)",
+        "Edit(./backend/**)",
+        "Edit(**/node_modules/**)",
+        "Edit(**/__pycache__/**)"
+      ]
+    },
+
+    "full_access": {
+      "description": "Access all areas (use sparingly - increases context usage)",
+      "instructions": "Copy this entire deny array to permissions.deny above",
+      "deny": [
+        "Read(**/node_modules/**)",
+        "Read(**/.svelte-kit/**)",
+        "Read(**/dist/**)",
+        "Read(**/build/**)",
+        "Read(**/storybook-static/**)",
+        "Read(**/.wrangler/**)",
+        "Read(**/venv/**)",
+        "Read(**/.venv/**)",
+        "Read(**/__pycache__/**)",
+        "Read(**/.cache/**)",
+        "Read(**/.vite/**)",
+        "Read(**/package-lock.json)",
+        "Read(**/yarn.lock)",
+        "Read(**/pnpm-lock.yaml)",
+        "Read(**/.storybook/**)",
+        "Read(**/*.stories.ts)",
+        "Read(**/*.stories.svelte)",
+        "Read(**/coverage/**)",
+        "Read(**/*.log)",
+        "Read(**/.DS_Store)",
+        "Read(**/.env)",
+        "Read(**/.env.*)",
+        "Read(./backend/.dev.vars)",
+        "Read(**/.vscode/**)",
+        "Read(**/.idea/**)",
+        "Edit(**/node_modules/**)",
+        "Edit(**/__pycache__/**)"
+      ]
+    }
+  }
+}

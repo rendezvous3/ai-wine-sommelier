@@ -49,3 +49,6 @@ Thumbs.db
 coverage/
 test-results/
 Svelte-Component-Library/.git.backup/
+
+# Claude Code local settings (personal context switching)
+.claude/settings.local.json
