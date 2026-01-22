@@ -181,7 +181,7 @@
     height: 100%;
     object-fit: cover;
     transition: transform 0.3s ease-out;
-    mix-blend-mode: multiply;
+    /* mix-blend-mode: multiply; */
   }
 
   .product-card:hover .product-card__image {
