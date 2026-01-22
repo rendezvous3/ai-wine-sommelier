@@ -221,6 +221,8 @@ Subcategory Notes:
 - If uncertain about subcategory, omit it entirely
 - If user mentions multiple subcategories (e.g., "Chews and Gummies"), return as an array: ["chews", "gummies"]
 - Subcategory can be a single string or an array of strings
+- IMPORTANT: Subcategory must be a VALID subcategory value (premium-flower, gummies, cartridges, etc.)
+- NEVER put category names (flower, edibles, prerolls, etc.) in the subcategory field
 
 Effects Notes:
 - Valid canonical effects: calm, happy, relaxed, energetic, clear-mind, creative, focused, inspired, sleepy, uplifted
@@ -283,6 +285,16 @@ Examples:
     "semantic_search": "sleepy relaxed nighttime"
   }
   Note: Extract effects (working well), but NO category, type, or THC extracted - user didn't specify them
+
+- "Any decent Indica hybrid?"
+  Result: {
+    "intent": "recommendation",
+    "filters": {
+      "type": "indica-hybrid"
+    },
+    "semantic_search": "indica hybrid"
+  }
+  Note: "indica-hybrid" is a TYPE, not a category. Do NOT infer category - user didn't mention flower, prerolls, or any other category.
 
 - "Can you recommend sativa flower that keeps me energized and is uplifting?"
   Result: {

@@ -1,8 +1,8 @@
 {
   "permissions": {
     "deny": [
-      "Read(./backend/**)",
-      "Read(./vectorizer/**)",
+      "Read(./client/**)",
+      "Read(./Svelte-Component-Library/**)",
 
       "Read(**/node_modules/**)",
 
@@ -61,8 +61,8 @@
       "Read(**/.history)",
       "Read(**/.git.backup/**)",
 
-      "Edit(./backend/**)",
-      "Edit(./vectorizer/**)",
+      "Edit(./client/**)",
+      "Edit(./Svelte-Component-Library/**)",
       "Edit(**/node_modules/**)",
       "Edit(**/__pycache__/**)"
     ]
