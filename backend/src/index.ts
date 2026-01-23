@@ -275,6 +275,14 @@ Return ONLY valid JSON with:
 }
 3. "semantic_search": "3-5 keywords describing desired mood/effect/flavor" or empty string
 
+Semantic Search Generation Guidelines:
+- Focus on EFFECT-RELATED keywords that match product description vocabulary
+- Include effect synonyms: energizing → energetic, uplifting, focused, creative, sativa, daytime
+- Include mood/context words: party → social, festive, upbeat; sleep → nighttime, bedtime, restful
+- De-emphasize category names (category is filtered via metadata, not semantic search)
+- Good: "energetic uplifting focused creative sativa daytime" (effect-vocabulary focused)
+- Bad: "energizing flower edibles" (category-blended, doesn't match embeddings)
+
 Examples:
 - "Can you recommend something to get me sleepy and relaxed?"
   Result: {
@@ -295,6 +303,17 @@ Examples:
     "semantic_search": "indica hybrid"
   }
   Note: "indica-hybrid" is a TYPE, not a category. Do NOT infer category - user didn't mention flower, prerolls, or any other category.
+
+- "How about energizing flower and edibles?"
+  Result: {
+    "intent": "recommendation",
+    "filters": {
+      "category": ["flower", "edibles"],
+      "effects": ["energized"]
+    },
+    "semantic_search": "energetic uplifting focused creative sativa daytime boost"
+  }
+  Note: semantic_search focuses on effect vocabulary that matches product embeddings, not category names. Categories are filtered via metadata.
 
 - "Can you recommend sativa flower that keeps me energized and is uplifting?"
   Result: {
@@ -885,6 +904,9 @@ You are a Master Budtender with deep domain expertise. Your goal is to rank cann
    - If user requests effects like "energized", "uplifting", "focused", "creative", "energetic" → STRONGLY prefer Sativa products (rank Sativa highest)
    - If user requests effects like "sleepy", "sedated", "calm", "relaxed", "sleep", "rest" → STRONGLY prefer Indica products (rank Indica highest)
    - Effects matching is MORE important than category diversity - don't sacrifice effect quality for variety
+   - CRITICAL EXCLUSION: If user requests stimulating effects (energized, uplifting, focused, creative) and a product has ONLY relaxing effects (sleepy, sedated, calm, relaxed) with NO stimulating effects, EXCLUDE it from ranking entirely
+   - CRITICAL EXCLUSION: If user requests relaxing effects (sleepy, calm, relaxed) and a product has ONLY stimulating effects with NO relaxing effects, EXCLUDE it from ranking entirely
+   - Only include products that have AT LEAST ONE effect matching or compatible with the user's request
 
 2. **Category Match** (when category is specified):
    - Rank products matching the specified category(s) highest

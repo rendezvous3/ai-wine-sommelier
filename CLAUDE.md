@@ -140,6 +140,25 @@ The system is built as **four loosely coupled components** for maximum flexibili
   3. The re-ranking prompt includes user-requested effects and flavors as one factor among many, ensuring they're considered despite Vectorize limitations
 - **Result**: Accurate recommendations that consider all user preferences (category, type, price, effects, flavors, etc.) while still benefiting from fast metadata filtering for exact matches on non-array fields
 
+#### RAG Architecture Flow & Debugging
+
+**Flow:** `/intent` → UI → `/recommendations` → `validateAndExpandFilters` → Vector Search → Re-ranker → Results
+
+**Debugging Unsatisfactory Queries:**
+
+When recommendations are poor, check these three failure points in order:
+
+| Failure Point | Symptoms | How to Debug |
+|---------------|----------|--------------|
+| **A) Intent** | Wrong filters, wrong semantic_search | Check `/intent` response - are filters and semantic_search correct? |
+| **B) Vector DB** | Good intent but wrong products retrieved | Check `preRankedProducts` - do they match the query semantically? |
+| **C) Re-ranker** | Good retrieval but wrong final ranking | Compare `preRankedProducts` vs `recommendations` - did good products get dropped? |
+
+**Common Issues:**
+- **Intent:** Category/type hallucination, poor semantic_search formulation
+- **Vector DB:** semantic_search doesn't match product embedding vocabulary (effects: "energizing" vs "energetic")
+- **Re-ranker:** Not enforcing effects priority, keeping contradicting products
+
 #### THC Classification System
 
 The system uses **category-specific THC potency scales** to standardize THC percentage classifications across the UI, API, and recommendation engine.

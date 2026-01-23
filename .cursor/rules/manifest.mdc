@@ -65,11 +65,11 @@ The system is built as **four loosely coupled components** for maximum flexibili
 {
   "intent": "recommendation" | "general",
   "filters": {
-    "category": "flower" | "prerolls" | "edibles" | "concentrates" | "tincture" | "vaporizers" | null,
+    "category": "flower" | "prerolls" | "edibles" | "concentrates" | "tincture" | "vaporizers" | string[] | null,
     "type": "indica" | "sativa" | "hybrid" | null,
     "thc_percentage_min": number | null,
     "thc_percentage_max": number | null,
-    "subcategory": string | null,
+    "subcategory": string[] | string | null,
     "effects": string[] | null,
     "flavor": string[] | null,
     "brand": string | null,
@@ -79,6 +79,25 @@ The system is built as **four loosely coupled components** for maximum flexibili
   "semantic_search": "3-5 keywords describing desired mood/effect/flavor"
 }
 ```
+
+#### RAG Architecture Flow & Debugging
+
+**Flow:** `/intent` → UI → `/recommendations` → `validateAndExpandFilters` → Vector Search → Re-ranker → Results
+
+**Debugging Unsatisfactory Queries:**
+
+When recommendations are poor, check these three failure points in order:
+
+| Failure Point | Symptoms | How to Debug |
+|---------------|----------|--------------|
+| **A) Intent** | Wrong filters, wrong semantic_search | Check `/intent` response - are filters and semantic_search correct? |
+| **B) Vector DB** | Good intent but wrong products retrieved | Check `preRankedProducts` - do they match the query semantically? |
+| **C) Re-ranker** | Good retrieval but wrong final ranking | Compare `preRankedProducts` vs `recommendations` - did good products get dropped? |
+
+**Common Issues:**
+- **Intent:** Category/type hallucination, poor semantic_search formulation
+- **Vector DB:** semantic_search doesn't match product embedding vocabulary (effects: "energizing" vs "energetic")
+- **Re-ranker:** Not enforcing effects priority, keeping contradicting products
 
 **Key Features**:
 - Uses last 7 messages for context
