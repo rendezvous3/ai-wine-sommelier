@@ -287,6 +287,10 @@ export function validateAndExpandFilters(filters: Record<string, any>): Record<s
 export function buildVectorizeFilters(filters: Record<string, any>): Record<string, any> | undefined {
   const vectorizeFilters: Record<string, any> = {};
 
+  // Check if multiple categories are present - THC scales differ between categories
+  // so we skip THC filters when querying across multiple categories
+  const hasMultipleCategories = Array.isArray(filters.category) && filters.category.length > 1;
+
   // Category - handle both string and array
   if (filters.category) {
     if (Array.isArray(filters.category)) {
@@ -310,10 +314,33 @@ export function buildVectorizeFilters(filters: Record<string, any>): Record<stri
 
   // Subcategory - handle both string and array
   if (filters.subcategory) {
-    if (Array.isArray(filters.subcategory)) {
-      vectorizeFilters.subcategory = { "$in": filters.subcategory };
+    // Normalize to array format
+    const subcategoryArray = Array.isArray(filters.subcategory) 
+      ? [...filters.subcategory] 
+      : [filters.subcategory];
+    
+    // Check if any subcategory contains infused-related terms
+    const hasInfused = subcategoryArray.some(subcat => 
+      typeof subcat === 'string' && (
+        subcat.includes('infused') || 
+        subcat === 'infused-prerolls' || 
+        subcat === 'infused-preroll-packs'
+      )
+    );
+    
+    // If infused-related subcategory found, ensure both infused subcategories are included
+    if (hasInfused) {
+      const expandedSubcategories = new Set(subcategoryArray);
+      expandedSubcategories.add('infused-prerolls');
+      expandedSubcategories.add('infused-preroll-packs');
+      vectorizeFilters.subcategory = { "$in": Array.from(expandedSubcategories) };
     } else {
-      vectorizeFilters.subcategory = filters.subcategory;
+      // No infused subcategories, use original array
+      if (subcategoryArray.length === 1) {
+        vectorizeFilters.subcategory = subcategoryArray[0];
+      } else {
+        vectorizeFilters.subcategory = { "$in": subcategoryArray };
+      }
     }
   }
 
@@ -334,9 +361,9 @@ export function buildVectorizeFilters(filters: Record<string, any>): Record<stri
     }
   }
 
-  // THC percentage ranges
-  if (filters.thc_percentage_min !== null && filters.thc_percentage_min !== undefined || 
-      filters.thc_percentage_max !== null && filters.thc_percentage_max !== undefined) {
+  // THC percentage ranges - skip if multiple categories (THC scales differ between categories)
+  if (!hasMultipleCategories && (filters.thc_percentage_min !== null && filters.thc_percentage_min !== undefined ||
+      filters.thc_percentage_max !== null && filters.thc_percentage_max !== undefined)) {
     vectorizeFilters.thc_percentage = {};
     if (filters.thc_percentage_min !== null && filters.thc_percentage_min !== undefined) {
       vectorizeFilters.thc_percentage["$gte"] = filters.thc_percentage_min;
@@ -346,9 +373,9 @@ export function buildVectorizeFilters(filters: Record<string, any>): Record<stri
     }
   }
 
-  // THC per unit mg ranges
-  if (filters.thc_per_unit_mg_min !== null && filters.thc_per_unit_mg_min !== undefined || 
-      filters.thc_per_unit_mg_max !== null && filters.thc_per_unit_mg_max !== undefined) {
+  // THC per unit mg ranges - skip if multiple categories (THC scales differ between categories)
+  if (!hasMultipleCategories && (filters.thc_per_unit_mg_min !== null && filters.thc_per_unit_mg_min !== undefined ||
+      filters.thc_per_unit_mg_max !== null && filters.thc_per_unit_mg_max !== undefined)) {
     vectorizeFilters.thc_per_unit_mg = {};
     if (filters.thc_per_unit_mg_min !== null && filters.thc_per_unit_mg_min !== undefined) {
       vectorizeFilters.thc_per_unit_mg["$gte"] = filters.thc_per_unit_mg_min;

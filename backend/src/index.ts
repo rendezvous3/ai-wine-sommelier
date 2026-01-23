@@ -174,8 +174,15 @@ Category-Specific THC Fields:
 THC Potency Extraction - Three Scenarios:
 
 **Scenario 1: Explicit Numbers**
-- User mentions specific numbers: "5mg", "22%", "below 66%", "above 28%", "from 18 to 22%", "between 13 and 18%"
-- Extract exact values as thc_percentage_min/max or thc_per_unit_mg_min/max based on category
+- User mentions specific numbers: "5mg", "22%", "below 66%", "above 28%", "from 18 to 22%"
+- For EXACT values ("5mg", "10mg THC", "22% THC"):
+  - Use BOTH min AND max with the SAME value
+  - "5mg edibles" → thc_per_unit_mg_min: 5, thc_per_unit_mg_max: 5
+  - "22% flower" → thc_percentage_min: 22, thc_percentage_max: 22
+- For ranges ("from 18 to 22%", "between 5 and 10mg"):
+  - Use different min and max values
+- For bounds ("below 66%", "above 28%", "at least 10mg"):
+  - Use only the relevant min or max
 
 **Scenario 2: Guided Flow Format**
 - User mentions classification with range in Guided Flow format: "Strong (22-28%)", "Moderate (18-22%)", "Mild (<66%)"
@@ -186,24 +193,36 @@ THC Potency Extraction - Three Scenarios:
   - Single bound (Mild <X%, Very Strong >X%) → Use ONLY the relevant min or max (omit the other)
   - Range (Balanced X-Y%, Moderate X-Y%, Strong X-Y%) → Use BOTH thc_percentage_min and thc_percentage_max
 
-**Scenario 3: Natural Language Potency Terms**
-- User mentions potency terms without Guided Flow format (e.g., "something strong", "mild flower", "potent vape")
-- Use BROADER 3-category classification (not the 5-category Guided Flow scale):
-  
+**Scenario 3: Natural Language Potency Terms (OPEN-ENDED)**
+- User mentions potency terms WITHOUT Guided Flow format or explicit number ranges
+- CRITICAL RULE: For strong/potent direction → Use ONLY thc_percentage_min (no max, open ceiling)
+- CRITICAL RULE: For mild/weak direction → Use ONLY thc_percentage_max (no min, open floor)
+- ONLY use BOTH min AND max when user provides:
+  1. Guided Flow format with range: "Strong (85-90%)", "Moderate (18-22%)"
+  2. Explicit numeric range: "from 72 to 95%", "between 75 and 90"
+- SUPERLATIVES ("most potent", "strongest", "highest THC", "maximum strength"):
+  - ALWAYS use ONLY minimum, NEVER maximum
+  - "most potent vapes" → thc_percentage_min: 90 (NO max)
+  - "strongest flower" → thc_percentage_min: 28 (NO max)
+  - Superlatives imply "the highest available" - no upper bound
+
   **For Flower/Prerolls:**
   - Mild/Weak/Light/Low/Gentle/Beginner-friendly → thc_percentage_max: 13 (no min)
-  - Balanced/Moderate/Medium/Average/Middle-ground → thc_percentage_min: 13, thc_percentage_max: 22
-  - Strong/Very Strong/Potent/High/Extreme/Heavy/Intense → thc_percentage_min: 22 (no max)
-  
+  - Balanced/Moderate/Medium/Average → thc_percentage_min: 13 (no max)
+  - Strong/Potent/High/Intense → thc_percentage_min: 22 (no max)
+  - Very Strong/Most Potent/Extreme/Maximum → thc_percentage_min: 28 (no max)
+
   **For Edibles:**
   - Mild/Weak/Light/Low/Gentle/Beginner-friendly → thc_per_unit_mg_max: 4 (no min)
-  - Balanced/Moderate/Medium/Average/Middle-ground → thc_per_unit_mg_min: 5, thc_percentage_max: 22
-  - Strong/Very Strong/Potent/High/Extreme/Heavy/Intense → thc_per_unit_mg_min: 10 (no max)
-  
+  - Balanced/Moderate/Medium/Average → thc_per_unit_mg_min: 5 (no max)
+  - Strong/Potent/High/Intense → thc_per_unit_mg_min: 10 (no max)
+  - Very Strong/Most Potent/Extreme/Maximum → thc_per_unit_mg_min: 15 (no max)
+
   **For Vaporizers/Concentrates:**
   - Mild/Weak/Light/Low/Gentle/Beginner-friendly → thc_percentage_max: 66 (no min)
-  - Balanced/Moderate/Medium/Average/Middle-ground → thc_percentage_min: 66, thc_percentage_max: 85
-  - Strong/Very Strong/Potent/High/Extreme/Heavy/Intense → thc_percentage_min: 85 (no max)
+  - Balanced/Moderate/Medium/Average → thc_percentage_min: 66 (no max)
+  - Strong/Potent/High/Intense → thc_percentage_min: 85 (no max)
+  - Very Strong/Most Potent/Extreme/Maximum → thc_percentage_min: 90 (no max)
 
 - **CRITICAL**: If user says "something strong" without category, DO NOT extract THC (category must be known first)
 - Only extract if category is explicitly mentioned or can be inferred from subcategory
@@ -223,6 +242,24 @@ Subcategory Notes:
 - Subcategory can be a single string or an array of strings
 - IMPORTANT: Subcategory must be a VALID subcategory value (premium-flower, gummies, cartridges, etc.)
 - NEVER put category names (flower, edibles, prerolls, etc.) in the subcategory field
+- DO NOT infer subcategory from potency, effects, or quality terms
+- "potent vapes" → category: vaporizers, NO subcategory
+- "potent flower" → category: flower, NO subcategory (NOT premium-flower!)
+- "strong flower" → category: flower, NO subcategory
+- "best flower" → category: flower, NO subcategory (NOT premium-flower!)
+- Only extract subcategory when user EXPLICITLY says the subcategory name (cartridges, gummies, premium-flower, etc.)
+- CRITICAL: Subcategory must EXACTLY match a valid subcategory value - NEVER create compound subcategories
+- NEVER combine adjectives with subcategory names:
+  - "fruity drinks" → subcategory: "drinks", flavor: ["fruity"] (NOT subcategory: "fruity drinks")
+  - "berry gummies" → subcategory: "gummies", flavor: ["berry"] (NOT subcategory: "berry gummies")
+- CRITICAL: These words ARE subcategories - if user mentions them, ALWAYS add as subcategory:
+  - "drinks" → MUST add subcategory: "drinks" AND category: "edibles"
+  - "chocolates" → MUST add subcategory: "chocolates" AND category: "edibles"
+  - "gummies" → MUST add subcategory: "gummies" AND category: "edibles"
+  - "infused" or "infused prerolls" → MUST add subcategory: ["infused-prerolls", "infused-preroll-packs"] AND category: "prerolls"
+  - "cartridges" or "carts" → MUST add subcategory: "cartridges" AND category: "vaporizers"
+- Example: "concentrates and drinks" → category: ["concentrates", "edibles"], subcategory: ["drinks"]
+- Example: "flower and gummies" → category: ["flower", "edibles"], subcategory: ["gummies"]
 
 Effects Notes:
 - Valid canonical effects: calm, happy, relaxed, energetic, clear-mind, creative, focused, inspired, sleepy, uplifted
@@ -249,6 +286,12 @@ Effects Notes:
 - Effects should be lowercase
 - Effects can be an array of strings
 - Always prefer canonical effects when mapping is available
+- ALWAYS apply effect mapping and DEDUPLICATE - never return both original and mapped effect
+- DO NOT EVER return non-canonical effects like "joyful", "tired", "euphoric" in the effects array
+- "joyful" → MUST become "happy" (do NOT return "joyful")
+- "happy and joyful" → return ONLY ["happy"] since joyful maps to happy
+- "sleepy and tired" → return ONLY ["sleepy"] since tired maps to sleepy
+- If user mentions ANY word from the effects mapping, return ONLY the canonical effect it maps to
 
 Type mapping:
 - "indica", "indica-dominant" → "indica"
@@ -841,6 +884,7 @@ app.post("/chat/recommendations", async (c) => {
   const user_message = enrichedHistory[enrichedHistory.length - 1]?.content || "";
 
   let searchResults;
+  let filtersToUse;
   try {
     const embeddings = new CloudflareWorkersAIEmbeddings({
       binding: c.env.AI,
@@ -855,16 +899,16 @@ app.post("/chat/recommendations", async (c) => {
     const queryString = semantic_search || user_message;
     
     // Convert filters to Vectorize format
-    const filterToUse = buildVectorizeFilters(filters);
+    filtersToUse = buildVectorizeFilters(filters);
     
-    // console.log("filterToUse", JSON.stringify(filterToUse, null, 2));
-    // return c.json({ queryString: queryString, filterToUse: vectorizeFilters }, 200);
+    // console.log("filtersToUse", JSON.stringify(filtersToUse, null, 2));
+    // return c.json({ queryString: queryString, filtersToUse: vectorizeFilters }, 200);
     
-    searchResults = await store.similaritySearch(queryString, 10, filterToUse);
+    searchResults = await store.similaritySearch(queryString, 10, filtersToUse);
     // searchResults = await store.similaritySearch(queryString, 10, { "effects": { "$in": ["energetic", "happy"] } });
   } catch (err) {
     console.error("Vector search error:", err);
-    return c.json({ recommendations: [] }, 200);
+    return c.json({ recommendations: [], filtersToUse: filtersToUse, error: "Vector search error" }, 200);
   }
 
 // Transform searchResults to metadata format
@@ -1076,18 +1120,25 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.
       // If re-ranking failed or returned empty, fallback to original search results
       if (rankedProducts.length === 0) {
         return c.json({ 
-          recommendations: results
+          recommendations: results,
+          filtersToUse: filtersToUse,
+          error: "No ranked names found"
         }, 200);
       }
       
-      return c.json({ recommendations: rankedProducts, preRankedProducts: results }, 200);
+      return c.json({ 
+        recommendations: rankedProducts, 
+        preRankedProducts: results, 
+        filtersToUse: filtersToUse }, 200);
     } catch (err) {
       console.error("Invalid JSON from LLM:", text);
       console.error("Extracted JSON:", jsonText);
       console.error("Error:", err);
       // Fallback to original search results if re-ranking fails
       return c.json({ 
-        recommendations: results 
+        recommendations: results,
+        filtersToUse: filtersToUse,
+        error: "Invalid JSON from LLM"
       }, 200);
     }
 
