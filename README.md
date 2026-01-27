@@ -176,7 +176,7 @@ Comment out create_index after first successful run.
 Run Locally:
 
 ```bash
-cd vectorizer
+cd vectorizer/src
 python vectorize.py
 ```
 

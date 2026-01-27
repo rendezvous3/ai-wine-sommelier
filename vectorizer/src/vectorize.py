@@ -8,7 +8,7 @@ from langchain_core.documents import Document
 from tqdm import tqdm
 import requests
 
-load_dotenv()
+load_dotenv("../.env")
 
 # Load schema for validation
 with open("schema.json", "r") as f:

@@ -2,8 +2,12 @@
   "permissions": {
     "deny": [
       "Read(./Svelte-Component-Library/**)",
+      "Edit(./Svelte-Component-Library/**)",
+
+      "Read(./client/**)",
 
       "Read(**/node_modules/**)",
+      "Edit(**/node_modules/**)",
 
       "Read(**/.svelte-kit/**)",
       "Read(**/dist/**)",
@@ -15,9 +19,12 @@
       "Read(**/.netlify/**)",
 
       "Read(**/venv/**)",
+      "Edit(**/venv/**)",
       "Read(**/.venv/**)",
+      "Edit(**/.venv/**)",
       "Read(**/env/**)",
       "Read(**/__pycache__/**)",
+      "Edit(**/__pycache__/**)",
       "Read(**/*.pyc)",
       "Read(**/*.pyo)",
       "Read(**/*.pyd)",
@@ -59,10 +66,6 @@
 
       "Read(**/.history)",
       "Read(**/.git.backup/**)",
-
-      "Edit(./Svelte-Component-Library/**)",
-      "Edit(**/node_modules/**)",
-      "Edit(**/__pycache__/**)"
     ]
   }
 }

@@ -19,7 +19,7 @@ The system is built as **four loosely coupled components** for maximum flexibili
 
 ## Architecture & Components
 
-### 1. **Vectorizer (`vectorizer/vectorize.py`)**
+### 1. **Vectorizer (`vectorizer/src/vectorize.py`)**
 - **Technology**: Python + LangChain + Cloudflare Vectorize
 - **Purpose**: Script to embed and upload the product catalog into the vector database
 - **Key Features**:
@@ -310,7 +310,7 @@ When intent is `"product-question"`:
 1. **Develop locally first** — use `wrangler dev` for backend, `npm run dev` for widget
 2. **Test streaming + recommendations thoroughly** — verify no cutoffs, correct order, persistence across refresh
 3. **Update widget embed URL only after deploy** — never point production embeds to localhost
-4. **Vectorize new/changed products** — run `vectorize.py` whenever inventory updates
+4. **Vectorize new/changed products** — run `vectorizer/src/vectorize.py` whenever inventory updates
 5. **Use VITE_ environment variables** — all URLs, store names, and secrets must come from `import.meta.env.VITE_*`
 6. **Commit small and often** — one feature or fix per commit for clear history
 7. **Wait for explicit instruction** — do not add new features or components without clear approval
