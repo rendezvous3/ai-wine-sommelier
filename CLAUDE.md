@@ -60,7 +60,7 @@ The system is built as **four loosely coupled components** for maximum flexibili
 **Output**:
 ```json
 {
-  "intent": "recommendation" | "general",
+  "intent": "recommendation" | "product-question" | "general",
   "filters": {
     "category": "flower" | "prerolls" | "edibles" | "concentrates" | "tincture" | "vaporizers" | null,
     "type": "indica" | "sativa" | "hybrid" | null,
@@ -73,9 +73,15 @@ The system is built as **four loosely coupled components** for maximum flexibili
     "price_min": number | null,
     "price_max": number | null
   },
-  "semantic_search": "3-5 keywords describing desired mood/effect/flavor"
+  "semantic_search": "3-5 keywords describing desired mood/effect/flavor",
+  "product_query": "raw text for product lookup (only for product-question intent)"
 }
 ```
+
+**Intent Types**:
+- `"recommendation"` - User wants product recommendations (triggers `/recommendations` API)
+- `"product-question"` - User asking about a specific product (triggers product lookup flow)
+- `"general"` - General questions about store, hours, policies (streams directly)
 
 **Key Features**:
 - Uses last 7 messages for context
@@ -83,6 +89,36 @@ The system is built as **four loosely coupled components** for maximum flexibili
 - Generates semantic search query for nuanced preferences (mood, effects, flavors)
 - Returns filters even when intent is "recommendation" (used by `/recommendations` endpoint)
 - Robust JSON parsing with markdown stripping and fallback handling
+
+##### `/chat/product-lookup` - Product Semantic Search
+**Purpose**: Searches for a product by semantic similarity when it's NOT found in conversation history.
+
+**Input**:
+```json
+{
+  "product_query": "Gelato Cake"
+}
+```
+
+**Output**:
+```json
+{
+  "product": { "id": "...", "name": "...", ... } | null,
+  "confidence": 0.85,
+  "needsClarification": false | true,
+  "suggestedNames": ["Luci Gelato", "Candy Rain"],
+  "message": "I'm not quite sure which one you mean. Did you mean Luci Gelato or Candy Rain?"
+}
+```
+
+**Key Features**:
+- Uses native Cloudflare Vectorize API (`c.env.VECTORIZE_INDEX.query()`) for confidence scores
+- Generates embeddings using Cloudflare Workers AI (`@cf/baai/bge-large-en-v1.5`)
+- Returns top 3 matches with cosine similarity scores
+
+**Confidence Thresholds**:
+- `>0.7`: High confidence - returns single product (auto-answer)
+- `<0.7`: Low/medium confidence - returns `needsClarification: true` with suggested names for follow-up question
 
 ##### `/chat/recommendations` - Hybrid RAG Recommendation Engine
 **Purpose**: Retrieves and ranks products using a hybrid approach combining metadata filtering, semantic search, and LLM re-ranking.
@@ -139,6 +175,28 @@ The system is built as **four loosely coupled components** for maximum flexibili
   2. Use LLM re-ranking for **general best-match ranking** (primary purpose)
   3. The re-ranking prompt includes user-requested effects and flavors as one factor among many, ensuring they're considered despite Vectorize limitations
 - **Result**: Accurate recommendations that consider all user preferences (category, type, price, effects, flavors, etc.) while still benefiting from fast metadata filtering for exact matches on non-array fields
+
+##### `/chat/stream` - Conversational Streaming Agent
+**Purpose**: Streams natural conversation using the Maitre D role (handles general questions and product-question intents).
+
+**Input**:
+```json
+{
+  "messages": [...],
+  "productContext": "{ full product JSON }" | null,
+  "clarificationContext": "follow-up question text" | null
+}
+```
+
+**Key Parameters**:
+- `messages`: Conversation history
+- `productContext`: Full product data (JSON string) when answering product questions
+- `clarificationContext`: Text for follow-up question when clarification is needed
+
+**Behavior**:
+- When `productContext` is provided: LLM answers detailed questions about that product (effects, THC%, price, etc.)
+- When `clarificationContext` is provided: LLM asks the follow-up question naturally
+- When neither is provided: Normal general conversation flow
 
 #### RAG Architecture Flow & Debugging
 
@@ -203,7 +261,40 @@ The system uses **category-specific THC potency scales** to standardize THC perc
 - **Current State**: Functional with basic UI implementation
 - **Planned Improvement**: Migrating to use Component Library Chat Components for production-grade UI
 - **Import Pattern**: Direct imports from `Svelte-Component-Library/src/lib/custom/` (tree-shaking safe, Storybook files excluded)
+- **Product Question Flow**: Two-phase lookup for handling product-related questions
 - **Status**: Functional, but work needed to be production UI
+
+#### Product Question Flow (Frontend)
+
+When the intent is `"product-question"`, the widget uses a two-phase lookup:
+
+**Phase 1: Frontend Fuzzy Matching**
+```
+1. Extract product_query from intent response
+2. Fuzzy match against conversation history (recommended products)
+3. If high confidence (>0.7): Stream with full product context
+4. If low confidence: Stream follow-up question ("Do you mean [product name]?")
+5. If no match: Proceed to Phase 2
+```
+
+**Phase 2: Backend Semantic Search**
+```
+1. Call /chat/product-lookup with product_query
+2. If high confidence (>0.7): Stream with product context
+3. If low/medium confidence: Stream follow-up question with suggested names
+4. If no match: Offer to search for recommendations
+```
+
+**Key Functions**:
+- `fuzzyFindProduct()`: Word-based matching against recommended products in history
+- `handleProductQuestion()`: Orchestrates the two-phase lookup
+- `streamWithProductContext()`: Calls stream API with product data
+- `streamFollowUp()`: Calls stream API with clarification context
+
+**Design Philosophy**: Prefer follow-up questions over auto-search for ambiguous queries to:
+- Avoid LLM hallucination risks
+- Build natural conversation (user feels heard)
+- Reduce unnecessary API calls
 
 ### CSS Best Practices
 - **NEVER use `!important`** - Fix CSS specificity issues properly instead
@@ -230,7 +321,8 @@ The system uses **category-specific THC potency scales** to standardize THC perc
 - **Recommendations**: Appear in conversation, preserved in order, but poor UI and sometimes empty bubbles are showing
 - **Context Memory**: Agent remembers and references past recommendations naturally
 - **Persistence**: Full chat (text + recommendations) survives refresh
-- **Intent Detection**: Accurate and fast
+- **Intent Detection**: Three intents (recommendation, product-question, general) — accurate and fast
+- **Product Questions**: Users can ask detailed questions about recommended products without re-triggering recommendations
 - **UX**: Warm, human-like, engaging — but work left to do making it look amazing, looks very basic
 - **UI Improvements**: In progress — migrating to Component Library Chat Components for production-grade interface
 
@@ -256,6 +348,7 @@ The system uses **category-specific THC potency scales** to standardize THC perc
 - **Always maintain correct message order** — recommendations must appear in the exact conversation position where they were made (as part of the same assistant message)
 - **Never filter `effects` or `flavor` via metadata filters** — Vectorize doesn't support array element filtering. These fields are stored as arrays in metadata but must be handled via semantic search + LLM re-ranking instead
 - **Always pass filters and semantic_search from `/intent` to `/recommendations`** — The intent endpoint extracts structured filters and semantic search query that must be passed to the recommendations endpoint for optimal results
+- **Handle product-question intent correctly** — When intent is "product-question", do NOT call `/recommendations`. Instead use two-phase lookup: (1) fuzzy match in frontend conversation history, (2) fallback to `/product-lookup` semantic search. Pass full product context to `/stream` when found.
 
 ### Component Library Integration Rules
 - **Import patterns** — Always import directly from `.svelte` files (e.g., `import ChatWidget from '../Svelte-Component-Library/src/lib/custom/ChatWidget/ChatWidget.svelte'`), never import `.stories.ts` files
