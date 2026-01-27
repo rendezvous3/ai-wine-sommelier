@@ -105,6 +105,13 @@ Analyze the conversation history and the latest user message.
   - Insinuates desired effect ("Something for sleep", "How about for social setting", "anything for partying", "stuff to cheer me up")
   - Requests recommendations ("recommend", "suggest", "best options", "what's good for")
   - Mentions effects, categories, types, or product preferences
+- Use "product-question" intent when user:
+  - Asks about a SPECIFIC product by name ("tell me more about X", "what can you tell me about X", "what else about X")
+  - Asks questions about a previously recommended product ("what are the effects of that one?", "how strong is that?")
+  - Wants details about a specific product (THC%, effects, price, description, flavors)
+  - Compares specific products ("how does X compare to Y?")
+  - References a product they saw before ("that sleepy one", "the first one you showed me", "that Gelato")
+  - CRITICAL: This is NOT for wanting NEW recommendations - it's for asking about a SPECIFIC product
 - Use "general" intent ONLY when user asks about:
   - Store information (hours, location, address, contact)
   - Policies (returns, age requirements, payment methods)
@@ -120,6 +127,15 @@ Analyze the conversation history and the latest user message.
 - "How about for partying?" → recommendation
 - "How about for XYZ?" → recommendation
 - "good stuff for social setting" → recommendation
+
+**Examples of "product-question" intent:**
+- "What else can you tell me about Luci Gelato?" → product-question
+- "Tell me more about that first one" → product-question
+- "What are the effects of Mendo Breath?" → product-question
+- "How strong is that edible you mentioned?" → product-question
+- "Tell me about that sleepy one from before" → product-question
+- "What's the THC percentage of that flower?" → product-question
+- "How does the Gelato compare to the Purple Punch?" → product-question
 
 **Examples of "general" intent:**
 - "What are your hours?" → general
@@ -301,8 +317,8 @@ Type mapping:
 - "sativa-hybrid", "sativa-hybrid-dominant" → "sativa-hybrid"
 
 Return ONLY valid JSON with:
-1. "intent": "recommendation" or "general"
-2. "filters": { 
+1. "intent": "recommendation" or "product-question" or "general"
+2. "filters": {
     "category": (flower, prerolls, edibles, concentrates, vaporizers, cbd) or array of these categories or null,
     "type": (indica, sativa, hybrid, indica-hybrid, sativa-hybrid) or array of these types or null,
     "thc_percentage_min": (number) or null,
@@ -317,6 +333,7 @@ Return ONLY valid JSON with:
     "price_max": (number) or null
 }
 3. "semantic_search": "3-5 keywords describing desired mood/effect/flavor" or empty string
+4. "product_query": (string or null) - ONLY for "product-question" intent: the raw text describing which product the user is asking about (e.g., "Luci Gelato", "that sleepy one", "the first edible"). This is used for fuzzy/semantic matching. Do NOT normalize or hallucinate exact product names.
 
 Semantic Search Generation Guidelines:
 - Focus on EFFECT-RELATED keywords that match product description vocabulary
@@ -493,14 +510,52 @@ Additional recommendation intent examples:
   Note: Asking for products ("any") → recommendation intent. Category and effects extracted.
 - "anything for deep deep sleep, like a baby?" → "intent": "recommendation",
   Note: Asking for products ("anything for") → recommendation intent. "deep sleep" maps to "sleepy" effect.
-- Followup on existing conversation: how about effect XYZ, or how about category XYZ? 
+- Followup on existing conversation: how about effect XYZ, or how about category XYZ?
 - We should refer to the most recent request and also be able to interpet short requests like that as "recommendation" intent.
+
+**Product-question intent examples:**
+- "What else can you tell me about Luci Gelato?"
+  Result: {
+    "intent": "product-question",
+    "filters": {},
+    "semantic_search": "",
+    "product_query": "Luci Gelato"
+  }
+  Note: Asking about a SPECIFIC product by name → product-question intent.
+
+- "Tell me more about that first one"
+  Result: {
+    "intent": "product-question",
+    "filters": {},
+    "semantic_search": "",
+    "product_query": "that first one"
+  }
+  Note: Reference to a specific product shown before → product-question intent.
+
+- "What are the effects of that sleepy indica you showed me?"
+  Result: {
+    "intent": "product-question",
+    "filters": {},
+    "semantic_search": "",
+    "product_query": "that sleepy indica"
+  }
+  Note: Reference to a specific product by description → product-question intent.
+
+- "How strong is that Granddaddy Purple?"
+  Result: {
+    "intent": "product-question",
+    "filters": {},
+    "semantic_search": "",
+    "product_query": "Granddaddy Purple"
+  }
+  Note: Asking about specific product's THC/potency → product-question intent.
 
 - "What are your hours?"
   Result: {
     "intent": "general",
     "filters": {},
-    "semantic_search": ""
+    "semantic_search": "",
+    "product_query": null
   }
 
 ${conversationHistory ? `Conversation history:\n${conversationHistory}\n\n` : ""}
@@ -571,10 +626,12 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
     const parsed = JSON.parse(cleanedText);
     
     // Validate and normalize response structure
+    const validIntents = ["recommendation", "product-question", "general"];
     const response = {
-      intent: parsed.intent === "recommendation" ? "recommendation" : "general",
+      intent: validIntents.includes(parsed.intent) ? parsed.intent : "general",
       filters: parsed.filters || {},
-      semantic_search: parsed.semantic_search || ""
+      semantic_search: parsed.semantic_search || "",
+      product_query: parsed.product_query || null
     };
 
     // Validate and normalize filters
@@ -747,16 +804,101 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
     return c.json({
       intent: response.intent,
       filters: normalizedFilters,
-      semantic_search: response.semantic_search
+      semantic_search: response.semantic_search,
+      product_query: response.product_query
     });
   } catch (err) {
     console.error("Failed to parse intent response:", err);
     console.error("Raw response:", text);
     // Fallback to general intent with empty filters
-    return c.json({ 
-      intent: "general", 
-      filters: {}, 
-      semantic_search: "" 
+    return c.json({
+      intent: "general",
+      filters: {},
+      semantic_search: "",
+      product_query: null
+    });
+  }
+});
+
+// Product lookup endpoint - searches for a product by semantic similarity
+// Used when user asks about a product NOT in conversation history
+app.post("/chat/product-lookup", async (c) => {
+  const body = await c.req.json();
+  const productQuery = body.product_query || "";
+
+  if (!productQuery) {
+    return c.json({
+      product: null,
+      confidence: 0,
+      needsClarification: false,
+      message: "No product query provided"
+    });
+  }
+
+  try {
+    // 1. Generate embedding for the query using Cloudflare Workers AI
+    const embeddingResponse = await c.env.AI.run("@cf/baai/bge-large-en-v1.5", {
+      text: [productQuery],
+    });
+    const queryVector = embeddingResponse.data[0];
+
+    // 2. Query Vectorize directly (native API with confidence scores)
+    const matches = await c.env.VECTORIZE_INDEX.query(queryVector, {
+      topK: 3,
+      returnMetadata: true,
+    });
+
+    if (matches.matches.length === 0) {
+      return c.json({
+        product: null,
+        confidence: 0,
+        needsClarification: false,
+        message: "I couldn't find that product in our inventory. Would you like me to search for recommendations?"
+      });
+    }
+
+    // 3. Access confidence score (Cloudflare uses Cosine Similarity)
+    // Score interpretation:
+    // - 0.95+: Almost exact name match
+    // - 0.75-0.85: Good semantic match
+    // - Below 0.70: AI guessing, should trigger follow-up
+    const topMatch = matches.matches[0];
+    const confidence = topMatch.score || 0;
+
+    // High confidence (>0.7): Return single product
+    if (confidence > 0.7) {
+      return c.json({
+        product: { id: topMatch.id, ...topMatch.metadata },
+        confidence,
+        needsClarification: false
+      });
+    }
+
+    // Medium/Low confidence (<0.7): Return top matches for follow-up question
+    // Frontend will use these names in a clarifying question
+    const topNames = matches.matches
+      .slice(0, 2)
+      .map(m => m.metadata?.name)
+      .filter(Boolean);
+
+    return c.json({
+      product: null,
+      confidence,
+      needsClarification: true,
+      suggestedNames: topNames,
+      message: topNames.length > 0
+        ? `I'm not quite sure which one you mean. Did you mean ${topNames.join(' or ')}?`
+        : "I couldn't find that exact product. Could you tell me more, like the brand or type?"
+    });
+
+  } catch (err) {
+    console.error("Product lookup error:", err);
+    return c.json({
+      product: null,
+      confidence: 0,
+      needsClarification: false,
+      error: "Product lookup service temporarily unavailable",
+      message: "I'm having trouble searching for that product. Would you like me to search for recommendations instead?"
     });
   }
 });
@@ -764,6 +906,8 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
 app.post("/chat/stream", async (c) => {
   const body = await c.req.json();
   const messages = body.messages || [];
+  const productContext = body.productContext || null;  // Full product data for product-question intent
+  const clarificationContext = body.clarificationContext || null;  // Follow-up question context
 
   const API_KEY = getApiKey(ACTIVE_PROVIDER, c.env);
   const MODEL = getModelForRole(ACTIVE_PROVIDER, "STREAM");
@@ -783,14 +927,13 @@ app.post("/chat/stream", async (c) => {
 
   const conversation_history = formatConversationHistory(enrichedHistory);
   const user_message = enrichedHistory[enrichedHistory.length - 1]?.content || "";
-  // const conversation_history = formatConversationHistory(lastMessages);
-  // const user_message = lastMessages[lastMessages.length - 1]?.content || "";
 
   const prompt = generatePrompt(
     MODEL_PROVIDER.LLAMA,
     user_message,
     conversation_history,
-    ""
+    productContext || "",  // Pass product context if available
+    clarificationContext || undefined  // Pass clarification context if available
   );
 
   // @ts-ignore

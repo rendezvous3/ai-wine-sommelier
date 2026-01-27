@@ -45,6 +45,49 @@
 
   let productRecommendations = $state<Recommendation[]>([]);
 
+  // Fuzzy matching result interface
+  interface FuzzyResult {
+    product: Recommendation | null;
+    confident: boolean;
+    score: number;
+  }
+
+  // Fuzzy find product in conversation history
+  function fuzzyFindProduct(query: string, msgs: Message[]): FuzzyResult {
+    const queryLower = query.toLowerCase();
+    let bestMatch: Recommendation | null = null;
+    let bestScore = 0;
+
+    for (const msg of msgs) {
+      if (!msg.recommendations) continue;
+
+      for (const product of msg.recommendations) {
+        const nameLower = product.name.toLowerCase();
+        const brandLower = (product.brand || '').toLowerCase();
+
+        // Simple fuzzy: check if query words appear in name or brand
+        const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2); // Filter out short words
+        if (queryWords.length === 0) continue;
+
+        const matchedWords = queryWords.filter(word =>
+          nameLower.includes(word) || brandLower.includes(word)
+        );
+
+        const score = matchedWords.length / queryWords.length;
+        if (score > bestScore && score > 0.3) {
+          bestScore = score;
+          bestMatch = product;
+        }
+      }
+    }
+
+    return {
+      product: bestMatch,
+      confident: bestScore > 0.7,
+      score: bestScore
+    };
+  }
+
   // Menu items for the header
   const menuItems = [
     { id: 'settings', label: 'Settings', icon: 'settings', iconType: 'svg' as const },
@@ -524,6 +567,218 @@
   });
 
   // ------------------------------------------------------
+  // PRODUCT QUESTION HANDLER
+  // ------------------------------------------------------
+  async function handleProductQuestion(productQuery: string, payload: { messages: Message[] }) {
+    // Phase 1: Fuzzy match in conversation history (no API call)
+    const fuzzyResult = fuzzyFindProduct(productQuery, messages);
+
+    if (fuzzyResult.confident && fuzzyResult.product) {
+      // High confidence match in history - stream with full context
+      await streamWithProductContext(fuzzyResult.product, payload);
+      return;
+    } else if (fuzzyResult.product) {
+      // Low confidence match - ask follow-up: "Do you mean [product name]?"
+      await streamFollowUp(`Do you mean ${fuzzyResult.product.name}?`, payload);
+      return;
+    }
+
+    // Phase 2: Semantic search via backend (product not in history)
+    try {
+      const lookupResp = await fetch(`${BASE_URL}/product-lookup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_query: productQuery })
+      });
+
+      if (!lookupResp.ok) {
+        // Fallback to regular stream if lookup fails
+        await streamFollowUp(
+          "I couldn't find that product. Would you like me to search for recommendations?",
+          payload
+        );
+        return;
+      }
+
+      const lookupResult = await lookupResp.json();
+
+      if (lookupResult.confidence > 0.7 && lookupResult.product) {
+        // High confidence - stream with product context
+        await streamWithProductContext(lookupResult.product, payload);
+      } else if (lookupResult.needsClarification) {
+        // Low/medium confidence - stream follow-up question
+        await streamFollowUp(lookupResult.message, payload);
+      } else {
+        // No match - offer to search for recommendations
+        await streamFollowUp(
+          "I couldn't find that product in our inventory. Would you like me to search for recommendations?",
+          payload
+        );
+      }
+    } catch (err) {
+      console.error("Product lookup failed:", err);
+      await streamFollowUp(
+        "I'm having trouble finding that product. Could you tell me more about what you're looking for?",
+        payload
+      );
+    }
+  }
+
+  // Stream response with product context
+  async function streamWithProductContext(product: Recommendation | Record<string, any> | null, payload: { messages: Message[] }) {
+    let buffer = "";
+    let botMessageContent = "";
+    let streamingMessageIndex: number | null = null;
+
+    try {
+      const resp = await fetch(`${BASE_URL}/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...payload,
+          productContext: product ? JSON.stringify(product, null, 2) : null
+        }),
+      });
+
+      if (!resp.ok || !resp.body) {
+        messages = [...messages, {
+          role: "assistant",
+          content: "I'm having trouble getting that information. Please try again."
+        }];
+        return;
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        let parts = buffer.split("\n\n");
+
+        for (let i = 0; i < parts.length - 1; i++) {
+          const event = parts[i].trim();
+          if (!event) continue;
+
+          const dataIndex = event.indexOf("data: ");
+          if (dataIndex === -1) continue;
+
+          const jsonStr = event.slice(dataIndex + 6);
+          if (jsonStr === "[DONE]") continue;
+
+          try {
+            const json = JSON.parse(jsonStr);
+            const token = json.choices?.[0]?.delta?.content ?? "";
+            if (token) {
+              botMessageContent += token;
+
+              if (streamingMessageIndex === null) {
+                streamingMessageIndex = messages.length;
+                messages = [...messages, { role: "assistant", content: botMessageContent }];
+              } else {
+                messages = [
+                  ...messages.slice(0, streamingMessageIndex),
+                  { role: "assistant", content: botMessageContent },
+                  ...messages.slice(streamingMessageIndex + 1)
+                ];
+              }
+            }
+          } catch (err) {
+            console.error("Stream parse error:", err);
+          }
+        }
+
+        buffer = parts[parts.length - 1];
+      }
+    } catch (err) {
+      console.error("Stream failed:", err);
+      messages = [...messages, {
+        role: "assistant",
+        content: "I'm having trouble getting that information. Please try again."
+      }];
+    }
+  }
+
+  // Stream follow-up question for clarification
+  async function streamFollowUp(clarificationMessage: string, payload: { messages: Message[] }) {
+    let buffer = "";
+    let botMessageContent = "";
+    let streamingMessageIndex: number | null = null;
+
+    try {
+      const resp = await fetch(`${BASE_URL}/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...payload,
+          clarificationContext: clarificationMessage
+        }),
+      });
+
+      if (!resp.ok || !resp.body) {
+        messages = [...messages, {
+          role: "assistant",
+          content: clarificationMessage  // Fallback to showing the clarification directly
+        }];
+        return;
+      }
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        let parts = buffer.split("\n\n");
+
+        for (let i = 0; i < parts.length - 1; i++) {
+          const event = parts[i].trim();
+          if (!event) continue;
+
+          const dataIndex = event.indexOf("data: ");
+          if (dataIndex === -1) continue;
+
+          const jsonStr = event.slice(dataIndex + 6);
+          if (jsonStr === "[DONE]") continue;
+
+          try {
+            const json = JSON.parse(jsonStr);
+            const token = json.choices?.[0]?.delta?.content ?? "";
+            if (token) {
+              botMessageContent += token;
+
+              if (streamingMessageIndex === null) {
+                streamingMessageIndex = messages.length;
+                messages = [...messages, { role: "assistant", content: botMessageContent }];
+              } else {
+                messages = [
+                  ...messages.slice(0, streamingMessageIndex),
+                  { role: "assistant", content: botMessageContent },
+                  ...messages.slice(streamingMessageIndex + 1)
+                ];
+              }
+            }
+          } catch (err) {
+            console.error("Stream parse error:", err);
+          }
+        }
+
+        buffer = parts[parts.length - 1];
+      }
+    } catch (err) {
+      console.error("Stream failed:", err);
+      messages = [...messages, {
+        role: "assistant",
+        content: clarificationMessage  // Fallback to showing the clarification directly
+      }];
+    }
+  }
+
+  // ------------------------------------------------------
   // MAIN HANDLER (Decision + Stream + Recommendation Tool)
   // ------------------------------------------------------
   async function handleChat(message?: string) {
@@ -542,14 +797,14 @@
     let intent = "general";
     let intentFilters: Record<string, any> = {};
     let semanticSearch = "";
+    let productQuery = "";  // For product-question intent
     try {
       const decide = await fetch(`${BASE_URL}/intent`, {
-        // const decide = await fetch("http://localhost:8787/chat/intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      
+
       // Check response status before parsing
       if (!decide.ok) {
         try {
@@ -567,9 +822,9 @@
         loading = false;
         return; // Stop processing - can't proceed without intent
       }
-      
+
       const d = await decide.json();
-      
+
       // Check for error field in response
       if (d.error) {
         messages = [...messages, {
@@ -579,12 +834,16 @@
         loading = false;
         return; // Stop processing - can't proceed without intent
       }
-      
+
       intent = d.intent || "general";
       // Capture filters and semantic_search when intent is recommendation
       if (d.intent === "recommendation") {
         intentFilters = d.filters || {};
         semanticSearch = d.semantic_search || "";
+      }
+      // Capture product_query when intent is product-question
+      if (d.intent === "product-question") {
+        productQuery = d.product_query || "";
       }
     } catch (err) {
       console.warn("Decision failed, defaulting to general.");
@@ -593,6 +852,13 @@
         role: "assistant",
         content: "Our AI understanding service is experiencing technical difficulties. Please try again."
       }];
+      loading = false;
+      return;
+    }
+
+    // STEP 1.5 — Handle product-question intent
+    if (intent === "product-question" && productQuery) {
+      await handleProductQuestion(productQuery, payload);
       loading = false;
       return;
     }
