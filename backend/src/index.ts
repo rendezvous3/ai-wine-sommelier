@@ -15,7 +15,7 @@ import type {
 // import { groq } from '@ai-sdk/groq';
 // import { streamText } from 'ai';
 import { generatePrompt } from "./prompt";
-import { MODEL_PROVIDER, LLM_PROVIDER, STORE_NAME, AGENT_ROLE, AGENT_ROLE_MODEL, getModelForRole, getBaseUrl, getApiKey, getTokenLimitsForModel, getModelId, type Tier } from "./types-and-constants";
+import { MODEL_PROVIDER, LLM_PROVIDER, STORE_NAME, AGENT_ROLE, AGENT_ROLE_MODEL, getModelForRole, getBaseUrl, getApiKey, getTokenLimitsForModel, type Tier } from "./types-and-constants";
 import { formatConversationHistory, validateAndExpandFilters, buildVectorizeFilters } from "./utils";
 import {
   isValidCategory,
@@ -1051,8 +1051,6 @@ app.post("/chat/recommendations", async (c) => {
 
   // Validate, normalize, and expand filters
   filters = validateAndExpandFilters(filters);
-  // console.log("filters", JSON.stringify(filters, null, 2));
-
   const lastMessages = messages.slice(-5);
   const enrichedHistory = lastMessages.map(msg => {
     if (msg.recommendations?.length > 0) {
@@ -1085,9 +1083,7 @@ app.post("/chat/recommendations", async (c) => {
     
     // Convert filters to Vectorize format
     filtersToUse = buildVectorizeFilters(filters);
-    
-    // console.log("filtersToUse", JSON.stringify(filtersToUse, null, 2));
-    // return c.json({ queryString: queryString, filtersToUse: vectorizeFilters }, 200);
+        // return c.json({ queryString: queryString, filtersToUse: vectorizeFilters }, 200);
     
     searchResults = await store.similaritySearch(queryString, 10, filtersToUse);
     // searchResults = await store.similaritySearch(queryString, 10, { "effects": { "$in": ["energetic", "happy"] } });

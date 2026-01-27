@@ -187,4 +187,6 @@ export {
     getModelForRole,
     getBaseUrl,
     getApiKey,
+    getTokenLimitsForModel,
 }
+export type { Tier }
