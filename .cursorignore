@@ -17,11 +17,12 @@
 !backend/
 
 # Step 3: Allow the specific source directories you want
-!Svelte-Component-Library/src/
-!Svelte-Component-Library/src/**
-!client/src/
-!client/src/**
-!vectorizer/**
+# !Svelte-Component-Library/src/
+# !Svelte-Component-Library/src/**
+# !client/src/
+# !client/src/**
+!vectorizer/src
+!vectorizer/src/**
 !backend/src/
 !backend/src/**
 

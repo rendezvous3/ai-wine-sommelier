@@ -71,6 +71,110 @@ function getApiKey(provider: LLM_PROVIDER, env: EnvBindings): string | undefined
 
 const STORE_NAME = "Cannavita"
 
+// ---------- MODEL IDS (NEW, ADDITIVE) ----------
+const enum MODEL_ID {
+  // GROQ
+  GROQ_LLAMA_31_8B_INSTANT = "groq_llama_31_8b_instant",
+  GROQ_LLAMA_33_70B = "groq_llama_33_70b",
+  GROQ_QWEN_3_32B = "groq_qwen_3_32b",
+
+  // CEREBRAS
+  CEREBRAS_LLAMA_31_8B = "cerebras_llama_31_8b",
+  CEREBRAS_LLAMA_33_70B = "cerebras_llama_33_70b",
+  CEREBRAS_QWEN_3_32B = "cerebras_qwen_3_32b",
+}
+
+// ---------- MODEL → ID MAP (NEW) ----------
+const MODEL_ID_MAP = {
+  // Groq
+  [GROQ_MODELS.INTENT]: MODEL_ID.GROQ_LLAMA_31_8B_INSTANT,
+  [GROQ_MODELS.STREAM]: MODEL_ID.GROQ_LLAMA_33_70B,
+  [GROQ_MODELS.RECOMMEND]: MODEL_ID.GROQ_QWEN_3_32B,
+
+  // Cerebras
+  [CEREBRAS_MODELS.INTENT]: MODEL_ID.CEREBRAS_LLAMA_31_8B,
+  [CEREBRAS_MODELS.STREAM]: MODEL_ID.CEREBRAS_LLAMA_33_70B,
+  [CEREBRAS_MODELS.RECOMMEND]: MODEL_ID.CEREBRAS_QWEN_3_32B,
+} as const;
+
+// ---------- TOKEN LIMITS (NEW) ----------
+type Tier = "FREE" | "PAID";
+
+interface ModelTokenLimits {
+  contextWindow: number;
+  maxOutputTokens: number;
+}
+
+const MODEL_TOKEN_LIMITS: Record<
+  MODEL_ID,
+  Record<Tier, ModelTokenLimits>
+> = {
+  // ---------- GROQ  ----------
+  [MODEL_ID.GROQ_LLAMA_31_8B_INSTANT]: {
+    FREE: { contextWindow: 128_000, maxOutputTokens: 8_192 },
+    PAID: { contextWindow: 128_000, maxOutputTokens: 8_192 },
+  },
+
+  [MODEL_ID.GROQ_LLAMA_33_70B]: {
+    FREE: { contextWindow: 131_072, maxOutputTokens: 32_768 },
+    PAID: { contextWindow: 131_072, maxOutputTokens: 32_768 },
+  },
+
+  [MODEL_ID.GROQ_QWEN_3_32B]: {
+    FREE: { contextWindow: 131_072, maxOutputTokens: 40_960 },
+    PAID: { contextWindow: 131_072, maxOutputTokens: 40_960 },
+  },
+
+  // ---------- CEREBRAS ----------
+  [MODEL_ID.CEREBRAS_LLAMA_31_8B]: {
+    FREE: { contextWindow: 32_000, maxOutputTokens: 4_096 },
+    PAID: { contextWindow: 64_000, maxOutputTokens: 8_192 },
+  },
+
+  [MODEL_ID.CEREBRAS_LLAMA_33_70B]: {
+    FREE: { contextWindow: 32_000, maxOutputTokens: 8_192 },
+    PAID: { contextWindow: 128_000, maxOutputTokens: 32_768 },
+  },
+
+  [MODEL_ID.CEREBRAS_QWEN_3_32B]: {
+    FREE: { contextWindow: 32_000, maxOutputTokens: 8_192 },
+    PAID: { contextWindow: 131_072, maxOutputTokens: 32_768 },
+  },
+};
+
+// ---------- SAFE TOKEN CLAMP (NEW) ----------
+function getTokenLimitsForModel(
+  modelName: string,
+  tier: Tier,
+): ModelTokenLimits {
+  const modelId = MODEL_ID_MAP[modelName as keyof typeof MODEL_ID_MAP];
+  if (!modelId) {
+    // Fallback to conservative defaults if model not found
+    return { contextWindow: 32_000, maxOutputTokens: 4_096 };
+  }
+  return MODEL_TOKEN_LIMITS[modelId][tier];
+}
+
+function clampMaxTokens(
+  modelName: string,
+  tier: Tier,
+  promptTokens: number,
+  requestedOutputTokens: number,
+): number {
+  const { contextWindow, maxOutputTokens } =
+    getTokenLimitsForModel(modelName, tier);
+
+  const remaining = contextWindow - promptTokens;
+  return Math.max(
+    0,
+    Math.min(requestedOutputTokens, remaining, maxOutputTokens),
+  );
+}
+
+function getModelId(modelName: string): MODEL_ID | null {
+  return MODEL_ID_MAP[modelName as keyof typeof MODEL_ID_MAP] || null;
+}
+
 export {
     MODEL_PROVIDER,
     LLM_PROVIDER,

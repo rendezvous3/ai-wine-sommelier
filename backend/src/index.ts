@@ -15,7 +15,7 @@ import type {
 // import { groq } from '@ai-sdk/groq';
 // import { streamText } from 'ai';
 import { generatePrompt } from "./prompt";
-import { MODEL_PROVIDER, LLM_PROVIDER, STORE_NAME, AGENT_ROLE, AGENT_ROLE_MODEL, getModelForRole, getBaseUrl, getApiKey } from "./types-and-constants";
+import { MODEL_PROVIDER, LLM_PROVIDER, STORE_NAME, AGENT_ROLE, AGENT_ROLE_MODEL, getModelForRole, getBaseUrl, getApiKey, getTokenLimitsForModel, getModelId, type Tier } from "./types-and-constants";
 import { formatConversationHistory, validateAndExpandFilters, buildVectorizeFilters } from "./utils";
 import {
   isValidCategory,
@@ -40,6 +40,44 @@ interface Bindings {
 // Change this to switch between Groq and Cerebras
 // ============================================
 const ACTIVE_PROVIDER = LLM_PROVIDER.CEREBRAS; // or LLM_PROVIDER.GROQ
+
+// Default tier - can be made configurable via environment variable later
+const TIER: Tier = "FREE";
+
+// Helper function to build token usage response object
+function buildTokenUsageResponse(
+  modelName: string,
+  usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | undefined,
+  tier: Tier = TIER
+): {
+  tokenUsage: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+  model: string;
+  modelContextLimit: number;
+} | null {
+  if (!usage) {
+    return null;
+  }
+
+  const promptTokens = usage.prompt_tokens || 0;
+  const completionTokens = usage.completion_tokens || 0;
+  const totalTokens = usage.total_tokens || (promptTokens + completionTokens);
+
+  const tokenLimits = getTokenLimitsForModel(modelName, tier);
+
+  return {
+    tokenUsage: {
+      promptTokens,
+      completionTokens,
+      totalTokens,
+    },
+    model: modelName,
+    modelContextLimit: tokenLimits.contextWindow,
+  };
+}
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -93,6 +131,8 @@ app.post("/chat/intent", async (c) => {
   const BASE_URL = getBaseUrl(ACTIVE_PROVIDER);
 
   const schemaInfo = getSchemaForPrompt();
+
+  let tokenUsage: ReturnType<typeof buildTokenUsageResponse> = null;
 
   const prompt = `
 You are the Brain of a Cannabis Dispensary AI.
@@ -589,6 +629,7 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
 
     const data = await resp.json();
     text = data.choices?.[0]?.message?.content || "";
+    tokenUsage = buildTokenUsageResponse(MODEL, data.usage, TIER);
     
     if (!text || text.trim().length === 0) {
       console.error("Groq API returned empty response:", JSON.stringify(data, null, 2));
@@ -805,7 +846,8 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
       intent: response.intent,
       filters: normalizedFilters,
       semantic_search: response.semantic_search,
-      product_query: response.product_query
+      product_query: response.product_query,
+      ...(tokenUsage ? { tokenUsage } : {})
     });
   } catch (err) {
     console.error("Failed to parse intent response:", err);
@@ -1072,6 +1114,8 @@ app.post("/chat/recommendations", async (c) => {
   const MODEL = getModelForRole(ACTIVE_PROVIDER, "RECOMMEND");
   const BASE_URL = getBaseUrl(ACTIVE_PROVIDER);
 
+  let tokenUsage: ReturnType<typeof buildTokenUsageResponse> = null;
+
   const reRankPrompt = `
 You are a Master Budtender with deep domain expertise. Your goal is to rank cannabis products based on how perfectly they match a user's specific request.
 
@@ -1211,6 +1255,7 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.
 
     const data = await resp.json();
     text = data.choices?.[0]?.message?.content || "";
+    tokenUsage = buildTokenUsageResponse(MODEL, data.usage, TIER);
     
     if (!text || text.trim().length === 0) {
       console.error("Groq Re-ranking API returned empty response:", JSON.stringify(data, null, 2));
@@ -1218,7 +1263,8 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.
       return c.json({ 
         recommendations: results,
         error: "Our recommendation service is experiencing technical difficulties. Showing results without AI ranking.",
-        service: "recommendations"
+        service: "recommendations",
+        ...(tokenUsage ? { tokenUsage } : {})
       }, 200);
     }
 
@@ -1265,14 +1311,17 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.
         return c.json({ 
           recommendations: results,
           filtersToUse: filtersToUse,
-          error: "No ranked names found"
+          error: "No ranked names found",
+          ...(tokenUsage ? { tokenUsage } : {})
         }, 200);
       }
       
       return c.json({ 
         recommendations: rankedProducts, 
         preRankedProducts: results, 
-        filtersToUse: filtersToUse }, 200);
+        filtersToUse: filtersToUse,
+        ...(tokenUsage ? { tokenUsage } : {})
+      }, 200);
     } catch (err) {
       console.error("Invalid JSON from LLM:", text);
       console.error("Extracted JSON:", jsonText);
@@ -1281,7 +1330,8 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.
       return c.json({ 
         recommendations: results,
         filtersToUse: filtersToUse,
-        error: "Invalid JSON from LLM"
+        error: "Invalid JSON from LLM",
+        ...(tokenUsage ? { tokenUsage } : {})
       }, 200);
     }
 
