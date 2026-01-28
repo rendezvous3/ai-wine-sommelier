@@ -1,0 +1,1989 @@
+[
+    {
+        "brand": {
+            "description": "Chef For Higher is a culinary lifestyle company founded in NY and cultivated for this moment in the medicinal plant movement. CFH uses the universal language of food to normalize the use of cannabinoids as an essential for optimal human health and holistic well-being. Since 2015, Chef For Higher has produced over 300 supper clubs and catered events, pioneering the new age of infused dining. Chef For Higher launched April 19th, 2023 as a legacy to legal company and the first culinary brand in New York’s legal dispensaries. CFH offers a line of infused consumer-packaged goods, B2B services and curated dining experiences globally. ",
+            "id": "58c564c1-24cb-410c-a916-4fe81e0460ad",
+            "imageUrl": "https://s3-us-west-2.amazonaws.com/dutchie-images/a1010408c5034a8d2207ffc1711fc325",
+            "name": "CHEF FOR HIGHER"
+        },
+        "category": "EDIBLES",
+        "description": "Our first press EVOO is organic and unrefined. A spoonful of extra virgin olive oil has many health benefits. EVOO is high in monounsaturated fats, antioxidants and vitamins, as well as a dietary supplement that does wonders for skin and hair. Use it on hot and cold dishes as a finishing oil or incorporate into your favorite recipes.",
+        "descriptionHtml": "<p>Our first press EVOO is organic and unrefined. A spoonful of extra virgin olive oil has many health benefits. EVOO is high in monounsaturated fats, antioxidants and vitamins, as well as a dietary supplement that does wonders for skin and hair. Use it on hot and cold dishes as a finishing oil or incorporate into your favorite recipes.</p>",
+        "effects": [
+            "ENERGETIC",
+            "FOCUSED",
+            "RELAXED"
+        ],
+        "enterpriseProductId": "65e652cf50468d0007672d3f",
+        "id": "65e63fe1c461740001f61d73",
+        "productBatchId": "ad4b44c8-c04c-45f6-9797-c5cf22f49778",
+        "image": "https://images.dutchie.com/57cb57b6307f89bb2a7d5d21e41a5245",
+        "images": [
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/57cb57b6307f89bb2a7d5d21e41a5245",
+                "label": null,
+                "description": null
+            },
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/4bf143cd4e942a9c46e5cd429d670166",
+                "label": null,
+                "description": null
+            },
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/24141d647f83f682252ea4418eb80301",
+                "label": null,
+                "description": null
+            },
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/57c25efdf35261df01189e6fab72feb7",
+                "label": null,
+                "description": null
+            },
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/5b4974f947e2ab833e307e14b0d5603f",
+                "label": null,
+                "description": null
+            }
+        ],
+        "menuTypes": [
+            "MEDICAL",
+            "RECREATIONAL"
+        ],
+        "name": "Chef For Higher EVOO - 240 MG",
+        "slug": "chef-for-higher-evoo-240-mg-5118",
+        "posId": "3057925",
+        "potencyCbd": {
+            "formatted": "",
+            "range": [],
+            "unit": "mg"
+        },
+        "potencyThc": {
+            "formatted": "240mg",
+            "range": [
+                240
+            ],
+            "unit": "mg"
+        },
+        "posMetaData": {
+            "id": "3057925",
+            "category": "Edibles",
+            "sku": "06841990"
+        },
+        "staffPick": false,
+        "strainType": "HYBRID",
+        "subcategory": "COOKING_BAKING",
+        "tags": [
+            "THC"
+        ],
+        "variants": [
+            {
+                "id": "65e63fe1c461740001f61d73~0.24g",
+                "option": "0.24g",
+                "priceMed": 50,
+                "priceRec": 50,
+                "specialPriceMed": null,
+                "specialPriceRec": null,
+                "quantity": 7,
+                "flowerEquivalent": null
+            }
+        ],
+        "terpenes": [],
+        "cannabinoids": []
+    },
+    {
+        "brand": {
+            "description": "Through combining an obsession for innovation, knowledge of cannabis science, and precision production processes, Flav provides a complete product line to consumers under the trusted Flav brand as well as white label production capabilities for their partner brands.",
+            "id": "be67282d-dea4-433f-b507-632582c2e5dd",
+            "imageUrl": "https://s3-us-west-2.amazonaws.com/dutchie-images/3b34ed096210cb6f54b2c6e5626f2e07",
+            "name": "Flav"
+        },
+        "category": "EDIBLES",
+        "description": "Discover mouthwatering bliss with Flav cannabis-infused gummy belts. These sugarcoated belts provide a euphoric snacking experience. With only the finest ingredients, our delicious award-winning gummies provide controllable dosing with uncontrollable fun. Contains 10 belts, 10mg per piece. 100mg per package.\n",
+        "descriptionHtml": "<p>Discover mouthwatering bliss with Flav cannabis-infused gummy belts. These sugarcoated belts provide a euphoric snacking experience. With only the finest ingredients, our delicious award-winning gummies provide controllable dosing with uncontrollable fun. Contains 10 belts, 10mg per piece. 100mg per package.</p>",
+        "effects": [
+            "CALM",
+            "ENERGETIC",
+            "HAPPY",
+            "RELAXED"
+        ],
+        "enterpriseProductId": "670884369d645500074d0aa9",
+        "id": "6708799e1487879501d29be1",
+        "productBatchId": "87215346-4911-4ccc-b66d-e21b0e44869b",
+        "image": "https://images.dutchie.com/5c349f3bf95b44e2c7570f0d72a38251",
+        "images": [
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/5c349f3bf95b44e2c7570f0d72a38251",
+                "label": null,
+                "description": null
+            },
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/f6a40ff01f32c597df1aa040443557e9",
+                "label": null,
+                "description": null
+            },
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/9cde5546a0162ec278ab088e91726943",
+                "label": null,
+                "description": null
+            },
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/d918b34d2a8c9fad8ba309a6cebddc93",
+                "label": null,
+                "description": null
+            },
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/b149ce70d856bb83b30b4a74d87580a0",
+                "label": null,
+                "description": null
+            }
+        ],
+        "menuTypes": [
+            "MEDICAL",
+            "RECREATIONAL"
+        ],
+        "name": "Apple Belts - Live Resin  - 100mg - Hybrid",
+        "slug": "apple-belts-live-resin-100mg-hybrid-48819",
+        "posId": "3460791",
+        "potencyCbd": {
+            "formatted": "",
+            "range": [],
+            "unit": "mg"
+        },
+        "potencyThc": {
+            "formatted": "100mg",
+            "range": [
+                100
+            ],
+            "unit": "mg"
+        },
+        "posMetaData": {
+            "id": "3460791",
+            "category": "Gummies",
+            "sku": "88811974"
+        },
+        "staffPick": false,
+        "strainType": "HYBRID",
+        "subcategory": "LIVE_RESIN_GUMMIES",
+        "tags": [
+            "Hybrid"
+        ],
+        "variants": [
+            {
+                "id": "6708799e1487879501d29be1~.1g",
+                "option": ".1g",
+                "priceMed": 24,
+                "priceRec": 24,
+                "specialPriceMed": null,
+                "specialPriceRec": null,
+                "quantity": 14,
+                "flowerEquivalent": null
+            }
+        ],
+        "terpenes": [],
+        "cannabinoids": []
+    },
+    {
+        "brand": {
+            "description": "Marijuana Farms New York is New York’s very own premier adult-use cannabis brand\nand state licensed operation located in Hudson Valley, New York: we are full-cycle and\nsingle-source which means we are in full control of the quality every step of the way:\nfrom seed to your local shelf.\nNew Yorkers are people from all generations, origins, and walks of life sharing space\nand creative energy–from the stimulation of the city to the lushness of the land. And\ncannabis has the amazing ability to elevate everything New Yorkers do; encouraging\nconnection, building community, and heightening creativity.\nWhat’s our big MF-ing difference? All our non-flower products include live resin or\nrosin that offer the full expression of the plant’s terpenes, trichomes, and cannabinoids\n(you’ll never see us using distillates). It’s just one of the ways we honor the plant and its\npower–all so we can deliver the very best to New Yorkers. \nWe stay True-to-Plant: With all our products, we respect and stay true to the\nauthenticity of the plant, the terpenes, and the legacy of the farmers and breeders who\ncreated each strain.\nWe believe in “Fire In, Fire Out”: The golden rule of cannabis extraction which means\nthat the quality of the final product is determined by the quality of the starting material. \nWe will always be Single-Source: All our products are sourced, grown, and produced\nin-house at our farm in New York’s Hudson Valley. This is cannabis by New Yorkers, for\nNew Yorkers.\nWe aim to elevate every product: We spend the time and energy to extract pure and\npotent concentrate (rosin and resin) that showcases the plant&#39;s naturally-produced\nflavor profile and tastes. We also infuse these concentrates into our edibles and offer\nthem in vaping forms.\nMFNY products are available exclusively at legal dispensaries in NY State. When you\nbuy our products at legal dispensaries, you’re helping to support the work it takes to\nprovide safe, effective cannabis products to more New Yorkers. More important,\nthe communities disproportionately affected by the War on Ds also benefit.\nEver UpwardTM",
+            "id": "d094af4e-efd8-433e-8fd5-a255ae95df55",
+            "imageUrl": "https://s3-us-west-2.amazonaws.com/dutchie-images/99ff592896b4888a187b1b5e0344798a",
+            "name": "MFNY"
+        },
+        "category": "EDIBLES",
+        "description": "Terpene-rich edibles at an even tastier price. Introducing our live resin Pinacolada x Strawpaya gummies. These vegan gummies are infused with MFNY’s single-source, in-house produced Strawpaya live resin. We start with fresh-frozen flower buds, then use the hydrocarbon extraction method (plus years of experience and scientific precision) to deliver the purest plant extract. An extract that showcases the cultivar's naturally-produced, full-spectrum cannabinoids and remarkable natural terpenes. Strawpaya is known for its tropical guava and strawberry flavor from one side of its cross and complemented by the notes of pepper and papaya from the other. To complement the Strawpaya cultivar, we add the minimum amount of sugar and Pinacolada flavors.\n",
+        "descriptionHtml": "<p>Terpene-rich edibles at an even tastier price. Introducing our live resin Pinacolada x Strawpaya gummies. These vegan gummies are infused with MFNY’s single-source, in-house produced Strawpaya live resin. We start with fresh-frozen flower buds, then use the hydrocarbon extraction method (plus years of experience and scientific precision) to deliver the purest plant extract. An extract that showcases the cultivar's naturally-produced, full-spectrum cannabinoids and remarkable natural terpenes. Strawpaya is known for its tropical guava and strawberry flavor from one side of its cross and complemented by the notes of pepper and papaya from the other. To complement the Strawpaya cultivar, we add the minimum amount of sugar and Pinacolada flavors.</p>",
+        "effects": [
+            "ENERGETIC",
+            "UPLIFTED"
+        ],
+        "enterpriseProductId": "67118afe9794f90007df43bd",
+        "id": "67118535a644f2aa27e1a80e",
+        "productBatchId": "46ad1845-fca9-4b4d-a02b-b3065311f43c",
+        "image": "https://images.dutchie.com/58185b5bd916e58d98a726527b859f44",
+        "images": [
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/58185b5bd916e58d98a726527b859f44",
+                "label": null,
+                "description": null
+            },
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/716c08cd8ed8cc26248e3a953fbf05ce",
+                "label": null,
+                "description": null
+            }
+        ],
+        "menuTypes": [
+            "MEDICAL",
+            "RECREATIONAL"
+        ],
+        "name": "Pina Colada x StrawPaya Live Resin Gummies | 10 pk",
+        "slug": "pina-colada-x-strawpaya-live-resin-gummies-10-pk-47663",
+        "posId": "3462140",
+        "potencyCbd": {
+            "formatted": "",
+            "range": [],
+            "unit": "mg"
+        },
+        "potencyThc": {
+            "formatted": "110mg",
+            "range": [
+                110
+            ],
+            "unit": "mg"
+        },
+        "posMetaData": {
+            "id": "3462140",
+            "category": "Gummies",
+            "sku": "81898003"
+        },
+        "staffPick": false,
+        "strainType": "SATIVA",
+        "subcategory": "LIVE_RESIN_GUMMIES",
+        "tags": [
+            "Sativa"
+        ],
+        "variants": [
+            {
+                "id": "67118535a644f2aa27e1a80e~.1g",
+                "option": ".1g",
+                "priceMed": 25,
+                "priceRec": 25,
+                "specialPriceMed": null,
+                "specialPriceRec": null,
+                "quantity": 11,
+                "flowerEquivalent": null
+            }
+        ],
+        "terpenes": [
+            {
+                "id": "ce79b6cf-090d-4133-85dc-006093d44893",
+                "terpene": {
+                    "aliasList": [
+                        ""
+                    ],
+                    "aromas": [
+                        "Cloves",
+                        "Earthy",
+                        "Musk"
+                    ],
+                    "description": "One of the most common terpenes found in cannabis. Myrcene is known to increase the effects of the psychoactive properties of THC in addition to some of the health benefits found in CBD. Commonly found in parsley, mangoes & hops, Myrcene is a good option for those looking to add a little relaxation to their overall experience. ",
+                    "effects": [
+                        "Comfort"
+                    ],
+                    "id": "c98feb28-1cd3-4905-8a4e-7290ffb5bf20",
+                    "name": "Myrcene",
+                    "potentialHealthBenefits": [
+                        "Anti-anxiety",
+                        "Cancer Fighting",
+                        "Anti-inflammatory",
+                        "Sedative"
+                    ],
+                    "unitSymbol": null
+                },
+                "name": null,
+                "terpeneId": "c98feb28-1cd3-4905-8a4e-7290ffb5bf20",
+                "unit": "PERCENTAGE",
+                "unitSymbol": "%",
+                "value": 0
+            },
+            {
+                "id": "e1c84d43-2902-437e-907d-7b5ccbebe710",
+                "terpene": {
+                    "aliasList": [
+                        ""
+                    ],
+                    "aromas": [
+                        "Sharp",
+                        "Spice",
+                        "Sweet",
+                        "Pepper"
+                    ],
+                    "description": "Caryophyllene, or more specifically Beta-caryophyllene is known for it's wide variety of potential health benefits both physically & mentally. This terpene has a unique ability to bind to the CB2 receptors; CB2 receptors are targeted when treating pain & inflammation with cannabis. Beta-caryophyllene is also approved for use in food by the FDA & is commonly found in black pepper, cinnamon, & basil. ",
+                    "effects": [],
+                    "id": "c0a406e2-4b16-4c11-9aad-580cce9497ed",
+                    "name": "Caryophyllene",
+                    "potentialHealthBenefits": [
+                        "Anti-depression",
+                        "Anti-inflammatory",
+                        "Cancer Fighting",
+                        "Pain Relief",
+                        "Gastrointestinal",
+                        "Anti-anxiety",
+                        "Anti-diabetic"
+                    ],
+                    "unitSymbol": null
+                },
+                "name": null,
+                "terpeneId": "c0a406e2-4b16-4c11-9aad-580cce9497ed",
+                "unit": "PERCENTAGE",
+                "unitSymbol": "%",
+                "value": 0
+            },
+            {
+                "id": "8b4f6f71-12c0-475a-99ba-ccf3d85fafde",
+                "terpene": {
+                    "aliasList": [
+                        "δ-Limonene"
+                    ],
+                    "aromas": [
+                        "Citrus",
+                        "Lemon",
+                        "Herbal"
+                    ],
+                    "description": "Limonene is found in citrus rinds and is the second most commonly occurring terpene in nature. This terpene has been used in high dosages as a catalyst in topical products to allow other chemical compounds to pass through the skin for absorption in the blood. ",
+                    "effects": [],
+                    "id": "0b06cb0c-507e-4319-b1a7-591bfa1d2eec",
+                    "name": "Limonene",
+                    "potentialHealthBenefits": [
+                        "Cancer Fighting",
+                        "Anti-anxiety",
+                        "Anti-depression",
+                        "Stress Relief",
+                        "Brain Function",
+                        "Gastrointestinal",
+                        "Anti-inflammatory"
+                    ],
+                    "unitSymbol": null
+                },
+                "name": null,
+                "terpeneId": "0b06cb0c-507e-4319-b1a7-591bfa1d2eec",
+                "unit": "PERCENTAGE",
+                "unitSymbol": "%",
+                "value": 0
+            }
+        ],
+        "cannabinoids": []
+    },
+    {
+        "brand": {
+            "description": "Marijuana Farms New York is New York’s very own premier adult-use cannabis brand\nand state licensed operation located in Hudson Valley, New York: we are full-cycle and\nsingle-source which means we are in full control of the quality every step of the way:\nfrom seed to your local shelf.\nNew Yorkers are people from all generations, origins, and walks of life sharing space\nand creative energy–from the stimulation of the city to the lushness of the land. And\ncannabis has the amazing ability to elevate everything New Yorkers do; encouraging\nconnection, building community, and heightening creativity.\nWhat’s our big MF-ing difference? All our non-flower products include live resin or\nrosin that offer the full expression of the plant’s terpenes, trichomes, and cannabinoids\n(you’ll never see us using distillates). It’s just one of the ways we honor the plant and its\npower–all so we can deliver the very best to New Yorkers. \nWe stay True-to-Plant: With all our products, we respect and stay true to the\nauthenticity of the plant, the terpenes, and the legacy of the farmers and breeders who\ncreated each strain.\nWe believe in “Fire In, Fire Out”: The golden rule of cannabis extraction which means\nthat the quality of the final product is determined by the quality of the starting material. \nWe will always be Single-Source: All our products are sourced, grown, and produced\nin-house at our farm in New York’s Hudson Valley. This is cannabis by New Yorkers, for\nNew Yorkers.\nWe aim to elevate every product: We spend the time and energy to extract pure and\npotent concentrate (rosin and resin) that showcases the plant&#39;s naturally-produced\nflavor profile and tastes. We also infuse these concentrates into our edibles and offer\nthem in vaping forms.\nMFNY products are available exclusively at legal dispensaries in NY State. When you\nbuy our products at legal dispensaries, you’re helping to support the work it takes to\nprovide safe, effective cannabis products to more New Yorkers. More important,\nthe communities disproportionately affected by the War on Ds also benefit.\nEver UpwardTM",
+            "id": "d094af4e-efd8-433e-8fd5-a255ae95df55",
+            "imageUrl": "https://s3-us-west-2.amazonaws.com/dutchie-images/99ff592896b4888a187b1b5e0344798a",
+            "name": "MFNY"
+        },
+        "category": "EDIBLES",
+        "description": "Terpene-rich edibles at an even tastier price. Introducing our live resin Grape x Grape Guava gummies. These vegan gummies are infused with MFNY’s single-source, in-house produced Grape Guava live resin. We start with fresh-frozen flower buds, then use the hydrocarbon extraction method (plus years of experience and scientific precision) to deliver the purest plant extract. An extract that showcases the cultivar's naturally-produced, full-spectrum cannabinoids and remarkable natural terpenes. Grape Guava is known for its flavors of natural grape, white grape juice, and grape jelly alongside pungent background notes of guava. To complement the Grape Guava cultivar, we add the minimum amount of sugar and grape flavors.\n",
+        "descriptionHtml": "<p>Terpene-rich edibles at an even tastier price. Introducing our live resin Grape x Grape Guava gummies. These vegan gummies are infused with MFNY’s single-source, in-house produced Grape Guava live resin. We start with fresh-frozen flower buds, then use the hydrocarbon extraction method (plus years of experience and scientific precision) to deliver the purest plant extract. An extract that showcases the cultivar's naturally-produced, full-spectrum cannabinoids and remarkable natural terpenes. Grape Guava is known for its flavors of natural grape, white grape juice, and grape jelly alongside pungent background notes of guava. To complement the Grape Guava cultivar, we add the minimum amount of sugar and grape flavors.</p>",
+        "effects": [
+            "HAPPY",
+            "RELAXED",
+            "SLEEPY"
+        ],
+        "enterpriseProductId": "67267b3f7ac4d900072526a9",
+        "id": "672670b7b1e2b94565b688eb",
+        "productBatchId": "84d9f66c-6f66-427f-9df9-0703c7d9da5b",
+        "image": "https://images.dutchie.com/6846d38a4a3b2f1ae74a4fa096e09012",
+        "images": [
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/6846d38a4a3b2f1ae74a4fa096e09012",
+                "label": null,
+                "description": null
+            },
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/c779fd1e12fbaecefc00b848cdef2710",
+                "label": null,
+                "description": null
+            }
+        ],
+        "menuTypes": [
+            "MEDICAL",
+            "RECREATIONAL"
+        ],
+        "name": "Grape x Grape Guava Live Resin Gummies | 10 pk",
+        "slug": "grape-x-grape-guava-live-resin-gummies-10-pk",
+        "posId": "3465448",
+        "potencyCbd": {
+            "formatted": "",
+            "range": [],
+            "unit": "mg"
+        },
+        "potencyThc": {
+            "formatted": "103mg",
+            "range": [
+                103
+            ],
+            "unit": "mg"
+        },
+        "posMetaData": {
+            "id": "3465448",
+            "category": "Gummies",
+            "sku": "39505258"
+        },
+        "staffPick": false,
+        "strainType": "INDICA",
+        "subcategory": "LIVE_RESIN_GUMMIES",
+        "tags": [
+            "Indica"
+        ],
+        "variants": [
+            {
+                "id": "672670b7b1e2b94565b688eb~.1g",
+                "option": ".1g",
+                "priceMed": 25,
+                "priceRec": 25,
+                "specialPriceMed": null,
+                "specialPriceRec": null,
+                "quantity": 1,
+                "flowerEquivalent": null
+            }
+        ],
+        "terpenes": [
+            {
+                "id": "5944c652-e020-4000-a34b-ce9bfcd79310",
+                "terpene": {
+                    "aliasList": [
+                        ""
+                    ],
+                    "aromas": [
+                        "Cloves",
+                        "Earthy",
+                        "Musk"
+                    ],
+                    "description": "One of the most common terpenes found in cannabis. Myrcene is known to increase the effects of the psychoactive properties of THC in addition to some of the health benefits found in CBD. Commonly found in parsley, mangoes & hops, Myrcene is a good option for those looking to add a little relaxation to their overall experience. ",
+                    "effects": [
+                        "Comfort"
+                    ],
+                    "id": "c98feb28-1cd3-4905-8a4e-7290ffb5bf20",
+                    "name": "Myrcene",
+                    "potentialHealthBenefits": [
+                        "Anti-anxiety",
+                        "Cancer Fighting",
+                        "Anti-inflammatory",
+                        "Sedative"
+                    ],
+                    "unitSymbol": null
+                },
+                "name": null,
+                "terpeneId": "c98feb28-1cd3-4905-8a4e-7290ffb5bf20",
+                "unit": "PERCENTAGE",
+                "unitSymbol": "%",
+                "value": 0
+            },
+            {
+                "id": "c7ebf957-22d0-49bd-8256-eef03ce5c8ac",
+                "terpene": {
+                    "aliasList": [
+                        ""
+                    ],
+                    "aromas": [
+                        "Sharp",
+                        "Spice",
+                        "Sweet",
+                        "Pepper"
+                    ],
+                    "description": "Caryophyllene, or more specifically Beta-caryophyllene is known for it's wide variety of potential health benefits both physically & mentally. This terpene has a unique ability to bind to the CB2 receptors; CB2 receptors are targeted when treating pain & inflammation with cannabis. Beta-caryophyllene is also approved for use in food by the FDA & is commonly found in black pepper, cinnamon, & basil. ",
+                    "effects": [],
+                    "id": "c0a406e2-4b16-4c11-9aad-580cce9497ed",
+                    "name": "Caryophyllene",
+                    "potentialHealthBenefits": [
+                        "Anti-depression",
+                        "Anti-inflammatory",
+                        "Cancer Fighting",
+                        "Pain Relief",
+                        "Gastrointestinal",
+                        "Anti-anxiety",
+                        "Anti-diabetic"
+                    ],
+                    "unitSymbol": null
+                },
+                "name": null,
+                "terpeneId": "c0a406e2-4b16-4c11-9aad-580cce9497ed",
+                "unit": "PERCENTAGE",
+                "unitSymbol": "%",
+                "value": 0
+            },
+            {
+                "id": "283c5e4a-fbd4-4f0e-a724-525b0323d4c6",
+                "terpene": {
+                    "aliasList": [
+                        "δ-Limonene"
+                    ],
+                    "aromas": [
+                        "Citrus",
+                        "Lemon",
+                        "Herbal"
+                    ],
+                    "description": "Limonene is found in citrus rinds and is the second most commonly occurring terpene in nature. This terpene has been used in high dosages as a catalyst in topical products to allow other chemical compounds to pass through the skin for absorption in the blood. ",
+                    "effects": [],
+                    "id": "0b06cb0c-507e-4319-b1a7-591bfa1d2eec",
+                    "name": "Limonene",
+                    "potentialHealthBenefits": [
+                        "Cancer Fighting",
+                        "Anti-anxiety",
+                        "Anti-depression",
+                        "Stress Relief",
+                        "Brain Function",
+                        "Gastrointestinal",
+                        "Anti-inflammatory"
+                    ],
+                    "unitSymbol": null
+                },
+                "name": null,
+                "terpeneId": "0b06cb0c-507e-4319-b1a7-591bfa1d2eec",
+                "unit": "PERCENTAGE",
+                "unitSymbol": "%",
+                "value": 0
+            }
+        ],
+        "cannabinoids": []
+    },
+    {
+        "brand": {
+            "description": "Olio's team of hash enthusiasts first started perfecting cannabis extraction back in 2012 and have been pushing the envelope ever since. They are focused on terpene preservation and unique flavor profiles in our concentrates. Their growers and genetic library are the finest in the state and they employ both butane and solventless extraction methods to harvest every last wonderful trichome.\n\nOlio's mission is to provide delicious, beautiful, clean and potent concentrate to folks who love smoking hash as much as they do!",
+            "id": "d79d5396-4758-4cf1-965b-139a323bd095",
+            "imageUrl": "https://s3-us-west-2.amazonaws.com/dutchie-images/204502f9814368d6f92a65c9e9b8bc8a",
+            "name": "Olio"
+        },
+        "category": "EDIBLES",
+        "description": "Experience a bold, tangy twist with Olio’s Sour Grape Live Rosin Gummies. Infused with premium, solventless live rosin, these gummies capture the full-spectrum benefits of cannabis, preserving its natural terpenes and cannabinoids for a potent and flavorful experience.\n\n\n\nEach pack includes 10 gummies, with 10mg of THC per piece, offering a consistent and controlled dose. The juicy sour grape flavor delivers the perfect balance of tart and sweet, making every bite a mouthwatering treat with long-lasting effects.\n\n\n\nPure. Potent. Delicious. Elevate your edible game with Olio - Sour Grape Live Rosin Gummies today!",
+        "descriptionHtml": "<p>Experience a bold, tangy twist with Olio’s Sour Grape Live Rosin Gummies. Infused with premium, solventless live rosin, these gummies capture the full-spectrum benefits of cannabis, preserving its natural terpenes and cannabinoids for a potent and flavorful experience.</p><p> </p><p> </p><p> </p><p>Each pack includes 10 gummies, with 10mg of THC per piece, offering a consistent and controlled dose. The juicy sour grape flavor delivers the perfect balance of tart and sweet, making every bite a mouthwatering treat with long-lasting effects.</p><p> </p><p> </p><p> </p><p>Pure. Potent. Delicious. Elevate your edible game with Olio - Sour Grape Live Rosin Gummies today!</p>",
+        "effects": [
+            "CALM",
+            "HAPPY",
+            "RELAXED",
+            "ENERGETIC"
+        ],
+        "enterpriseProductId": "682d4963b7fa510007057551",
+        "id": "682e10faa2b6fcd7f3eaf2f6",
+        "productBatchId": "ab5224c7-a40b-47e0-9ba1-d7fb2b4a38be",
+        "image": "https://images.dutchie.com/a5ba06bd3113d55424f8c5863306a542",
+        "images": [
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/a6ace117ded79779dca302851ef60c65",
+                "label": null,
+                "description": null
+            },
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/a5ba06bd3113d55424f8c5863306a542",
+                "label": "",
+                "description": ""
+            }
+        ],
+        "menuTypes": [
+            "MEDICAL",
+            "RECREATIONAL"
+        ],
+        "name": "Olio | Sour Grape | Hybrid | Rosin | 10pk Gummies | 100mg",
+        "slug": "olio-sour-grape-hybrid-rosin-10pk-gummies-100mg",
+        "posId": "3528433",
+        "potencyCbd": {
+            "formatted": "",
+            "range": [],
+            "unit": "mg"
+        },
+        "potencyThc": {
+            "formatted": "100mg",
+            "range": [
+                100
+            ],
+            "unit": "mg"
+        },
+        "posMetaData": {
+            "id": "3528433",
+            "category": "Gummies",
+            "sku": "46221648"
+        },
+        "staffPick": false,
+        "strainType": "HYBRID",
+        "subcategory": "LIVE_ROSIN_GUMMIES",
+        "tags": [
+            "Hybrid"
+        ],
+        "variants": [
+            {
+                "id": "682e10faa2b6fcd7f3eaf2f6~1g",
+                "option": "1g",
+                "priceMed": 26,
+                "priceRec": 26,
+                "specialPriceMed": null,
+                "specialPriceRec": null,
+                "quantity": 17,
+                "flowerEquivalent": null
+            }
+        ],
+        "terpenes": [],
+        "cannabinoids": []
+    },
+    {
+        "brand": {
+            "description": "Bursting with tropical goodness, Good Tide gummies transport you to a place where the sun is always shining. Made with solventless hash rosin, and full of naturally occurring terpenes and minor cannabinoids, Good Tide is made for fun in the sun, hanging with friends, and turning on your inner chill.  Take a tropical vacation and enjoy all that cannabis has to offer.  \nThey want to make the world a better place, and they take that seriously. With compostable packaging, carbon neutral operations, and community partnerships, they work hard to contribute to healthy communities and ecosystems. They make waves with their products and approach, staying true to what they believe in. Good Tide challenges norms and sets the bar higher.  \nGood Tide is vegan and made with real fruit. They are proud to be a Climate Neutral Certified brand. ",
+            "id": "c6349e33-3c1e-4c16-9bf8-00fa42d59469",
+            "imageUrl": "https://s3-us-west-2.amazonaws.com/dutchie-images/212508846aaf8a8e7034debf5d4634fa",
+            "name": "Good Tide"
+        },
+        "category": "EDIBLES",
+        "description": "MELLOW\nVibe out poolside with Good Tide mango gummies.\n\nNaturally rich in myrcene, real mango makes an ideal match for our indica-leaning rosin. With naturally occurring terpenes and minor cannabinoids present in our solventless hash rosin, our mango gummies are dripping with relaxing plant properties to produce a mellow, laid back high.",
+        "descriptionHtml": "<p>MELLOW</p><p>Vibe out poolside with Good Tide mango gummies.</p><p> </p><p>Naturally rich in myrcene, real mango makes an ideal match for our indica-leaning rosin. With naturally occurring terpenes and minor cannabinoids present in our solventless hash rosin, our mango gummies are dripping with relaxing plant properties to produce a mellow, laid back high.</p>",
+        "effects": [
+            "RELAXED",
+            "SLEEPY",
+            "HAPPY"
+        ],
+        "enterpriseProductId": "68a7713f8a5c6e0007632d4b",
+        "id": "68a769bd10b64c6a34516fe1",
+        "productBatchId": "87e60c6a-f41c-4061-a073-f61416b51dfc",
+        "image": "https://images.dutchie.com/d96d8abb4be36af143955f04c4fb1e21",
+        "images": [
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/d96d8abb4be36af143955f04c4fb1e21",
+                "label": null,
+                "description": null
+            }
+        ],
+        "menuTypes": [
+            "MEDICAL",
+            "RECREATIONAL"
+        ],
+        "name": "Good Tide | Mango | Indica | Infused Rosin | 10 Pack Gummies | 100mg",
+        "slug": "good-tide-mango-indica-infused-rosin-10-pack-gummies-100mg",
+        "posId": "3553905",
+        "potencyCbd": {
+            "formatted": "",
+            "range": [],
+            "unit": "mg"
+        },
+        "potencyThc": {
+            "formatted": "100mg",
+            "range": [
+                100
+            ],
+            "unit": "mg"
+        },
+        "posMetaData": {
+            "id": "3553905",
+            "category": "Gummies",
+            "sku": "77241723"
+        },
+        "staffPick": false,
+        "strainType": "INDICA",
+        "subcategory": "LIVE_ROSIN_GUMMIES",
+        "tags": [
+            "Indica"
+        ],
+        "variants": [
+            {
+                "id": "68a769bd10b64c6a34516fe1~.1g",
+                "option": ".1g",
+                "priceMed": 28,
+                "priceRec": 28,
+                "specialPriceMed": null,
+                "specialPriceRec": null,
+                "quantity": 25,
+                "flowerEquivalent": null
+            }
+        ],
+        "terpenes": [],
+        "cannabinoids": []
+    },
+    {
+        "brand": {
+            "description": "Bursting with tropical goodness, Good Tide gummies transport you to a place where the sun is always shining. Made with solventless hash rosin, and full of naturally occurring terpenes and minor cannabinoids, Good Tide is made for fun in the sun, hanging with friends, and turning on your inner chill.  Take a tropical vacation and enjoy all that cannabis has to offer.  \nThey want to make the world a better place, and they take that seriously. With compostable packaging, carbon neutral operations, and community partnerships, they work hard to contribute to healthy communities and ecosystems. They make waves with their products and approach, staying true to what they believe in. Good Tide challenges norms and sets the bar higher.  \nGood Tide is vegan and made with real fruit. They are proud to be a Climate Neutral Certified brand. ",
+            "id": "c6349e33-3c1e-4c16-9bf8-00fa42d59469",
+            "imageUrl": "https://s3-us-west-2.amazonaws.com/dutchie-images/212508846aaf8a8e7034debf5d4634fa",
+            "name": "Good Tide"
+        },
+        "category": "EDIBLES",
+        "description": "BLISSFUL\n1:1:1 THC:CBD:CBC\n\nGood Tide Grapefruit THC:CBD:CBC gummies pair a Sativa single-strain rosin with the mood-boosting effects of CBC for citrusy, decadent treat that will have you feeling your very best with every bite.",
+        "descriptionHtml": "<p>BLISSFUL</p><p>1:1:1 THC:CBD:CBC</p><p> </p><p>Good Tide Grapefruit THC:CBD:CBC gummies pair a Sativa single-strain rosin with the mood-boosting effects of CBC for citrusy, decadent treat that will have you feeling your very best with every bite.</p>",
+        "effects": [
+            "ENERGETIC",
+            "HAPPY",
+            "CREATIVE",
+            "FOCUSED",
+            "INSPIRED"
+        ],
+        "enterpriseProductId": "68a7713f8a5c6e0007632d48",
+        "id": "68a769bd10b64c6a34516fe2",
+        "productBatchId": "af362cac-320b-4283-b1a9-f9835d4ba858",
+        "image": "https://images.dutchie.com/77a8d9e880948b78afab42ba63455c53",
+        "images": [
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/77a8d9e880948b78afab42ba63455c53",
+                "label": null,
+                "description": null
+            }
+        ],
+        "menuTypes": [
+            "MEDICAL",
+            "RECREATIONAL"
+        ],
+        "name": "Good Tide | Grapefruit | Sativa | 1:1:1 THC:CBD:CBC | Infused Rosin | 10 Pack Gummies | 100mg",
+        "slug": "good-tide-grapefruit-sativa-1-1-1-thc-cbd-cbc-infused-rosin-10-pack-gummies-100mg",
+        "posId": "3553910",
+        "potencyCbd": {
+            "formatted": "100mg",
+            "range": [
+                100
+            ],
+            "unit": "mg"
+        },
+        "potencyThc": {
+            "formatted": "100mg",
+            "range": [
+                100
+            ],
+            "unit": "mg"
+        },
+        "posMetaData": {
+            "id": "3553910",
+            "category": "Gummies",
+            "sku": "61396022"
+        },
+        "staffPick": false,
+        "strainType": "SATIVA",
+        "subcategory": "LIVE_ROSIN_GUMMIES",
+        "tags": [
+            "Sativa"
+        ],
+        "variants": [
+            {
+                "id": "68a769bd10b64c6a34516fe2~.1g",
+                "option": ".1g",
+                "priceMed": 30,
+                "priceRec": 30,
+                "specialPriceMed": null,
+                "specialPriceRec": null,
+                "quantity": 15,
+                "flowerEquivalent": null
+            }
+        ],
+        "terpenes": [],
+        "cannabinoids": [
+            {
+                "cannabinoidId": "50e2395f-c63e-44b8-92e5-0b2258ece9b3",
+                "cannabinoid": {
+                    "description": "CBC is a unique cannabinoid and is best known for its ability to bind to the TRPV1 and TRPA1 receptors in the brain which are responsible for pain perception. Topical applications of products high in CBC have also shown promise for the treatment of osteoarthritis symptoms and in the treatment of skin conditions such as acne.",
+                    "id": "50e2395f-c63e-44b8-92e5-0b2258ece9b3",
+                    "name": "CBC (Cannabichromene)"
+                },
+                "unit": "MILLIGRAMS",
+                "value": 100
+            }
+        ]
+    },
+    {
+        "brand": {
+            "description": "Grön, pronounced 'Grewn', makes the finest handcrafted Sugar-Coated Pearls, Mega Pearls, Candy-Coated Pips, and Fair Trade chocolate. This passionate team comes from all over the world and every walk of life, joining together to create something beautifully delicious for you. Grön's ingredients are organic, single-origin, Fair Trade Certified, and locally sourced whenever possible. They're happy to make others happy and to make a positive difference in this world, one bite at a time. ❤️",
+            "id": "49afa5e7-f5ff-43e1-ad8b-68371d99b13c",
+            "imageUrl": "https://s3-us-west-2.amazonaws.com/dutchie-images/2a97bd6c5d9c0b6aa2887b9ca58b3ef3",
+            "name": "Grön"
+        },
+        "category": "EDIBLES",
+        "description": "Wind down and snuggle up with a bite of Fair Trade dark chocolate dusted with Jacobsen vanilla bean sea salt. Infused with CBD, CBN and THC in a 1:1:1 ratio, the sleepy indica effects will keep you dreaming all night long. 72% Cacao • Vegan • Soy-Free • Gluten-Free • Microdose Friendly 1 PIECE PER SERVING | 10 SERVINGS PER PACKAGE\n",
+        "descriptionHtml": "<p>Wind down and snuggle up with a bite of Fair Trade dark chocolate dusted with Jacobsen vanilla bean sea salt. Infused with CBD, CBN and THC in a 1:1:1 ratio, the sleepy indica effects will keep you dreaming all night long. 72% Cacao • Vegan • Soy-Free • Gluten-Free • Microdose Friendly 1 PIECE PER SERVING | 10 SERVINGS PER PACKAGE</p>",
+        "effects": [
+            "HAPPY",
+            "RELAXED",
+            "SLEEPY"
+        ],
+        "enterpriseProductId": "678ad767e5fec70007c416c1",
+        "id": "678ac869a8c01443b13a0dea",
+        "productBatchId": "35268e7e-7d7c-4257-8118-33acdbd31d8c",
+        "image": "https://images.dutchie.com/e3d466d446b1462c45e782dc341f4a97",
+        "images": [
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/e3d466d446b1462c45e782dc341f4a97",
+                "label": "",
+                "description": ""
+            },
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/6f51c84b2d5db25240e4b4124933313e",
+                "label": null,
+                "description": null
+            }
+        ],
+        "menuTypes": [
+            "MEDICAL",
+            "RECREATIONAL"
+        ],
+        "name": "1:1:1 Dark Chocolate w/ Vanilla Bean Sea Salt – CBD/CBN/THC",
+        "slug": "1-1-1-dark-chocolate-w-vanilla-bean-sea-salt-cbd-cbn-thc-12673",
+        "posId": "3482572",
+        "potencyCbd": {
+            "formatted": "100mg",
+            "range": [
+                100
+            ],
+            "unit": "mg"
+        },
+        "potencyThc": {
+            "formatted": "100mg",
+            "range": [
+                100
+            ],
+            "unit": "mg"
+        },
+        "posMetaData": {
+            "id": "3482572",
+            "category": "Edibles",
+            "sku": "11828278"
+        },
+        "staffPick": false,
+        "strainType": "INDICA",
+        "subcategory": "CHOCOLATES",
+        "tags": [
+            "Indica"
+        ],
+        "variants": [
+            {
+                "id": "678ac869a8c01443b13a0dea~.1g",
+                "option": ".1g",
+                "priceMed": 22,
+                "priceRec": 22,
+                "specialPriceMed": null,
+                "specialPriceRec": null,
+                "quantity": 25,
+                "flowerEquivalent": null
+            }
+        ],
+        "terpenes": [],
+        "cannabinoids": [
+            {
+                "cannabinoidId": "0b72e56a-b6fb-4873-8e8a-b28c5769ac41",
+                "cannabinoid": {
+                    "description": "CBN is a cannabinoid that is created during the breakdown of THC by UV light and exposure to oxygen. This breakdown usually begins during the drying and curing process. CBN is most commonly found in older or improperly stored cannabis samples. This compound is mildly psychoactive and is best known for its sedative effects. Strains and products with high concentrations of CBN can be a great choice for users looking to utilize cannabis products to ease restlessness and promote healthy sleep.",
+                    "id": "0b72e56a-b6fb-4873-8e8a-b28c5769ac41",
+                    "name": "CBN (Cannabinol)"
+                },
+                "unit": "MILLIGRAMS",
+                "value": 100
+            }
+        ]
+    },
+    {
+        "brand": {
+            "description": "Grön, pronounced 'Grewn', makes the finest handcrafted Sugar-Coated Pearls, Mega Pearls, Candy-Coated Pips, and Fair Trade chocolate. This passionate team comes from all over the world and every walk of life, joining together to create something beautifully delicious for you. Grön's ingredients are organic, single-origin, Fair Trade Certified, and locally sourced whenever possible. They're happy to make others happy and to make a positive difference in this world, one bite at a time. ❤️",
+            "id": "49afa5e7-f5ff-43e1-ad8b-68371d99b13c",
+            "imageUrl": "https://s3-us-west-2.amazonaws.com/dutchie-images/2a97bd6c5d9c0b6aa2887b9ca58b3ef3",
+            "name": "Grön"
+        },
+        "category": "EDIBLES",
+        "description": "A little chocolate bar with big sleep potential. Made with handcrafted dark chocolate and infused with a 1:1 ratio of CBN and THC, it’s perfect to help you wind down at the end of a long day.",
+        "descriptionHtml": "<p>A little chocolate bar with big sleep potential. Made with handcrafted dark chocolate and infused with a 1:1 ratio of CBN and THC, it’s perfect to help you wind down at the end of a long day.</p>",
+        "effects": [
+            "HAPPY",
+            "RELAXED",
+            "SLEEPY"
+        ],
+        "enterpriseProductId": "678ad768e5fec70007c416ca",
+        "id": "678acf3945b20c9dc8d1f9bf",
+        "productBatchId": "3f108ccd-f682-4e88-997c-0869d5bc8c8f",
+        "image": "https://images.dutchie.com/d55a673f06cc4c220e7a6388925984ea",
+        "images": [
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/d55a673f06cc4c220e7a6388925984ea",
+                "label": "",
+                "description": ""
+            },
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/ea140527cdef6e5ce491e8cd5f104db1",
+                "label": null,
+                "description": null
+            }
+        ],
+        "menuTypes": [
+            "MEDICAL",
+            "RECREATIONAL"
+        ],
+        "name": "1:1 Dark Chocolate Mini Bar - Sleepy Indica - CBN/THC",
+        "slug": "1-1-dark-chocolate-mini-bar-sleepy-indica-cbn-thc-66330",
+        "posId": "3482588",
+        "potencyCbd": {
+            "formatted": "",
+            "range": [],
+            "unit": "mg"
+        },
+        "potencyThc": {
+            "formatted": "100mg",
+            "range": [
+                100
+            ],
+            "unit": "mg"
+        },
+        "posMetaData": {
+            "id": "3482588",
+            "category": "Edibles",
+            "sku": "05402427"
+        },
+        "staffPick": false,
+        "strainType": "INDICA",
+        "subcategory": "CHOCOLATES",
+        "tags": [
+            "Indica"
+        ],
+        "variants": [
+            {
+                "id": "678acf3945b20c9dc8d1f9bf~.1g",
+                "option": ".1g",
+                "priceMed": 14,
+                "priceRec": 14,
+                "specialPriceMed": null,
+                "specialPriceRec": null,
+                "quantity": 22,
+                "flowerEquivalent": null
+            }
+        ],
+        "terpenes": [],
+        "cannabinoids": [
+            {
+                "cannabinoidId": "0b72e56a-b6fb-4873-8e8a-b28c5769ac41",
+                "cannabinoid": {
+                    "description": "CBN is a cannabinoid that is created during the breakdown of THC by UV light and exposure to oxygen. This breakdown usually begins during the drying and curing process. CBN is most commonly found in older or improperly stored cannabis samples. This compound is mildly psychoactive and is best known for its sedative effects. Strains and products with high concentrations of CBN can be a great choice for users looking to utilize cannabis products to ease restlessness and promote healthy sleep.",
+                    "id": "0b72e56a-b6fb-4873-8e8a-b28c5769ac41",
+                    "name": "CBN (Cannabinol)"
+                },
+                "unit": "MILLIGRAMS",
+                "value": 100
+            }
+        ]
+    },
+    {
+        "brand": {
+            "description": "Grön, pronounced 'Grewn', makes the finest handcrafted Sugar-Coated Pearls, Mega Pearls, Candy-Coated Pips, and Fair Trade chocolate. This passionate team comes from all over the world and every walk of life, joining together to create something beautifully delicious for you. Grön's ingredients are organic, single-origin, Fair Trade Certified, and locally sourced whenever possible. They're happy to make others happy and to make a positive difference in this world, one bite at a time. ❤️",
+            "id": "49afa5e7-f5ff-43e1-ad8b-68371d99b13c",
+            "imageUrl": "https://s3-us-west-2.amazonaws.com/dutchie-images/2a97bd6c5d9c0b6aa2887b9ca58b3ef3",
+            "name": "Grön"
+        },
+        "category": "EDIBLES",
+        "description": "Cannabis chocolates are popular because the dominant chocolate flavor overpowers the \"green\" taste you may find in other edibles. Because edibles are digested and absorbed by your stomach and liver, the activation is often longer than other consumption methods, taking on average 45 minutes, and sometimes up to 2 hours. It is important to start low and slow when consuming edibles so you don't over do it. Take extra caution to ensure edibles are out of the reach of children.\n\nTHC Dark Chocolate: \n\nFair Trade Cacao\nGluten-Free\nSoy-Free\nVegan\n\nIngredients:\nFair Trade Dark Chocolate (Cacao Beans, Pure Cane Sugar, Cocoa Butter, Sunflower Lecithin, Vanilla Bean), Cannabis Extract.",
+        "descriptionHtml": "<p>Cannabis chocolates are popular because the dominant chocolate flavor overpowers the \"green\" taste you may find in other edibles. Because edibles are digested and absorbed by your stomach and liver, the activation is often longer than other consumption methods, taking on average 45 minutes, and sometimes up to 2 hours. It is important to start low and slow when consuming edibles so you don't over do it. Take extra caution to ensure edibles are out of the reach of children.</p><p> </p><p>THC Dark Chocolate: </p><p> </p><p>Fair Trade Cacao</p><p>Gluten-Free</p><p>Soy-Free</p><p>Vegan</p><p> </p><p>Ingredients:</p><p>Fair Trade Dark Chocolate (Cacao Beans, Pure Cane Sugar, Cocoa Butter, Sunflower Lecithin, Vanilla Bean), Cannabis Extract.</p>",
+        "effects": [
+            "HAPPY",
+            "RELAXED",
+            "SLEEPY"
+        ],
+        "enterpriseProductId": "678ad768e5fec70007c416d3",
+        "id": "678acf3945b20c9dc8d1f9c2",
+        "productBatchId": "8d3fa465-04ab-4400-b780-55bd5d074efe",
+        "image": "https://images.dutchie.com/367f23ea4a1df26da02b2be0775879fa",
+        "images": [
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/367f23ea4a1df26da02b2be0775879fa",
+                "label": "",
+                "description": ""
+            },
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/f9e38e59c313ffaf3d36c3f80d79fb3b",
+                "label": null,
+                "description": null
+            }
+        ],
+        "menuTypes": [
+            "MEDICAL",
+            "RECREATIONAL"
+        ],
+        "name": "Dark Chocolate - THC - Indica",
+        "slug": "dark-chocolate-thc-indica",
+        "posId": "3482609",
+        "potencyCbd": {
+            "formatted": "",
+            "range": [],
+            "unit": "mg"
+        },
+        "potencyThc": {
+            "formatted": "100mg",
+            "range": [
+                100
+            ],
+            "unit": "mg"
+        },
+        "posMetaData": {
+            "id": "3482609",
+            "category": "Edibles",
+            "sku": "53347054"
+        },
+        "staffPick": false,
+        "strainType": "INDICA",
+        "subcategory": "CHOCOLATES",
+        "tags": [
+            "Indica"
+        ],
+        "variants": [
+            {
+                "id": "678acf3945b20c9dc8d1f9c2~.1g",
+                "option": ".1g",
+                "priceMed": 22,
+                "priceRec": 22,
+                "specialPriceMed": null,
+                "specialPriceRec": null,
+                "quantity": 25,
+                "flowerEquivalent": null
+            }
+        ],
+        "terpenes": [],
+        "cannabinoids": []
+    },
+    {
+        "brand": {
+            "description": "",
+            "id": "1b71b590-b0a8-43b2-8432-739888852540",
+            "imageUrl": null,
+            "name": "Canopi"
+        },
+        "category": "EDIBLES",
+        "description": "New York’s 1st cannabis elixir crafted to have straight and in mixed drinks. \nCANOPI artisanal, all natural, zero sugar & shelf-stable.\n\n\nCANOPI 500 mL is crafted deliver best-in-class cannabis experience in every pour.\n\n\nAdd CANOPI to your day, your night, life, flow and your bar, and shake before sharing responsibly.",
+        "descriptionHtml": "<p>New York’s 1st cannabis elixir crafted to have straight and in mixed drinks. </p><p>CANOPI artisanal, all natural, zero sugar & shelf-stable.</p><p> </p><p> </p><p>CANOPI 500 mL is crafted deliver best-in-class cannabis experience in every pour.</p><p> </p><p> </p><p>Add CANOPI to your day, your night, life, flow and your bar, and shake before sharing responsibly.</p>",
+        "effects": [
+            "ENERGETIC",
+            "HAPPY",
+            "CALM",
+            "RELAXED"
+        ],
+        "enterpriseProductId": "690e1dd5e72db500070a8454",
+        "id": "690e1b0d20c4273b954994ee",
+        "productBatchId": "61548f42-6056-4416-92c7-f86c93c6da89",
+        "image": "https://images.dutchie.com/b1e4aa3215a8c601ab9f74d3c75c127a",
+        "images": [
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/4a58d2d1090ca68ec434d090927e3e4b",
+                "label": null,
+                "description": null
+            },
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/b1e4aa3215a8c601ab9f74d3c75c127a",
+                "label": "",
+                "description": ""
+            },
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/bf44a96606986f7ce3b14f58b507baa9",
+                "label": "",
+                "description": ""
+            }
+        ],
+        "menuTypes": [
+            "MEDICAL",
+            "RECREATIONAL"
+        ],
+        "name": "Canopi | THC Botanical Elixir |  500ml | 100mg",
+        "slug": "canopi-thc-botanical-elixir-500ml-100mg",
+        "posId": "3575278",
+        "potencyCbd": {
+            "formatted": "",
+            "range": [],
+            "unit": "mg"
+        },
+        "potencyThc": {
+            "formatted": "100mg",
+            "range": [
+                100
+            ],
+            "unit": "mg"
+        },
+        "posMetaData": {
+            "id": "3575278",
+            "category": "Beverages",
+            "sku": "34365595"
+        },
+        "staffPick": false,
+        "strainType": "HYBRID",
+        "subcategory": "DRINKS",
+        "tags": [
+            "Hybrid"
+        ],
+        "variants": [
+            {
+                "id": "690e1b0d20c4273b954994ee~.1g",
+                "option": ".1g",
+                "priceMed": 60,
+                "priceRec": 60,
+                "specialPriceMed": null,
+                "specialPriceRec": null,
+                "quantity": 8,
+                "flowerEquivalent": null
+            }
+        ],
+        "terpenes": [],
+        "cannabinoids": []
+    },
+    {
+        "brand": {
+            "description": "",
+            "id": "1b71b590-b0a8-43b2-8432-739888852540",
+            "imageUrl": null,
+            "name": "Canopi"
+        },
+        "category": "EDIBLES",
+        "description": "New York’s 1st cannabis elixir crafted to have straight and in mixed drinks. \nCANOPI artisanal, all natural, zero sugar & shelf-stable.\n\n\nCANOPI 60 ml  is crafted to deliver best-in-class cannabis experience in on the go.\n\nAdd CANOPI to your flow and your bar, to shake & share responsibly.",
+        "descriptionHtml": "<p>New York’s 1st cannabis elixir crafted to have straight and in mixed drinks. </p><p>CANOPI artisanal, all natural, zero sugar & shelf-stable.</p><p> </p><p> </p><p>CANOPI 60 ml  is crafted to deliver best-in-class cannabis experience in on the go.</p><p> </p><p>Add CANOPI to your flow and your bar, to shake & share responsibly.</p>",
+        "effects": [
+            "ENERGETIC",
+            "HAPPY",
+            "CALM",
+            "RELAXED"
+        ],
+        "enterpriseProductId": "690e1dd5e72db500070a8458",
+        "id": "690e1b0d20c4273b954994ef",
+        "productBatchId": "6376aff1-a8bf-4887-bcf9-457fb502ea17",
+        "image": "https://images.dutchie.com/3ad32892531ce6abddf49d6cbaf039a0",
+        "images": [
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/3ad32892531ce6abddf49d6cbaf039a0",
+                "label": null,
+                "description": null
+            },
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/bf44a96606986f7ce3b14f58b507baa9",
+                "label": null,
+                "description": null
+            }
+        ],
+        "menuTypes": [
+            "MEDICAL",
+            "RECREATIONAL"
+        ],
+        "name": "Canopi | THC Botanical | Elixir | 60ml | 12mg",
+        "slug": "canopi-thc-botanical-elixir-60ml-12mg",
+        "posId": "3575287",
+        "potencyCbd": {
+            "formatted": "",
+            "range": [],
+            "unit": "mg"
+        },
+        "potencyThc": {
+            "formatted": "12mg",
+            "range": [
+                12
+            ],
+            "unit": "mg"
+        },
+        "posMetaData": {
+            "id": "3575287",
+            "category": "Beverages",
+            "sku": "63375113"
+        },
+        "staffPick": false,
+        "strainType": "HYBRID",
+        "subcategory": "DRINKS",
+        "tags": [
+            "Hybrid"
+        ],
+        "variants": [
+            {
+                "id": "690e1b0d20c4273b954994ef~0.012g",
+                "option": "0.012g",
+                "priceMed": 12,
+                "priceRec": 12,
+                "specialPriceMed": null,
+                "specialPriceRec": null,
+                "quantity": 21,
+                "flowerEquivalent": null
+            }
+        ],
+        "terpenes": [],
+        "cannabinoids": []
+    },
+    {
+        "brand": {
+            "description": "From the family that brought you Beak & Skiff & 1911 Established, ayrloom™ showcases the fifth generation’s commitment to quality, innovation and sustaining over 1,000 acres of land in upstate New York. 110+ years of agricultural experience coupled with a passion for cannabis results in products that would make their great-great grandfathers proud. The team at ayrloom™ offers a full line of products to incorporate into daily routines, and they invite you to ADJUST YOUR ALTITUDE with them.",
+            "id": "8374e403-36b9-4c14-9250-ee689d9ebb71",
+            "imageUrl": "https://s3-us-west-2.amazonaws.com/dutchie-images/1e843999287bd8ca91e08187c0fea4d7",
+            "name": "ayrloom"
+        },
+        "category": "EDIBLES",
+        "description": "Honeycrisp reimagined for the roar of orchard park. made for the ones who shout louder, cheer harder + only crash land when it’s through a table. orchard park honeycrisp is made for those who thrive when the temps drop + the stakes rise. here’s to the loyal, the loud, + the ones who make sunday feel like home.",
+        "descriptionHtml": "<p>Honeycrisp reimagined for the roar of orchard park. made for the ones who shout louder, cheer harder + only crash land when it’s through a table. orchard park honeycrisp is made for those who thrive when the temps drop + the stakes rise. here’s to the loyal, the loud, + the ones who make sunday feel like home.</p>",
+        "effects": [
+            "CALM",
+            "CLEAR_MIND",
+            "CREATIVE",
+            "HAPPY",
+            "INSPIRED",
+            "RELAXED"
+        ],
+        "enterpriseProductId": "695441de72f43900070f629d",
+        "id": "6954356b58b0103d12f28315",
+        "productBatchId": "0d1a0ffe-da5a-4b3d-a8c8-25ec9131ea48",
+        "image": "https://images.dutchie.com/dcc29edd7ff7a57246d6b6bcfdc197fd",
+        "images": [
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/dcc29edd7ff7a57246d6b6bcfdc197fd",
+                "label": "",
+                "description": ""
+            },
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/079ae5996c99ba88927541792672adc2",
+                "label": null,
+                "description": null
+            },
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/dd1533366369fde9f9dcdbc4c0de4296",
+                "label": null,
+                "description": null
+            }
+        ],
+        "menuTypes": [
+            "MEDICAL",
+            "RECREATIONAL"
+        ],
+        "name": "Ayrloom | Honeycrisp \"Orchard Park\" | 2:1 | 10MG THC : 5MG CBD",
+        "slug": "ayrloom-honeycrisp-orchard-park-2-1-10mg-thc-5mg-cbd-72199",
+        "posId": "3588649",
+        "potencyCbd": {
+            "formatted": "5mg",
+            "range": [
+                5
+            ],
+            "unit": "mg"
+        },
+        "potencyThc": {
+            "formatted": "10mg",
+            "range": [
+                10
+            ],
+            "unit": "mg"
+        },
+        "posMetaData": {
+            "id": "3588649",
+            "category": "Beverages",
+            "sku": "71378922"
+        },
+        "staffPick": false,
+        "strainType": "HYBRID",
+        "subcategory": "DRINKS",
+        "tags": [
+            "Hybrid"
+        ],
+        "variants": [
+            {
+                "id": "6954356b58b0103d12f28315~0.01g",
+                "option": "0.01g",
+                "priceMed": 5,
+                "priceRec": 5,
+                "specialPriceMed": null,
+                "specialPriceRec": null,
+                "quantity": 25,
+                "flowerEquivalent": null
+            }
+        ],
+        "terpenes": [],
+        "cannabinoids": []
+    },
+    {
+        "brand": {
+            "description": "Higher standards since day one\nIn 2010, a young cannabis-loving couple set out on a mission to create a better edible experience for legal consumers. Scott Palmer and Kristi Knoblich Palmer were inspired by a visit to a local chocolatier, and soon started crafting the first Kiva bars in their home kitchen. They didn’t realize it at the time, but they weren’t just creating a premium edible product, they were setting the gold standard for the entire legal cannabis industry.\nIn the last decade, customer support has turned this family-owned business into the #1 edibles brand in the country. Today, they are proud to employ 200+ passionate people, and have added Terra, Petra and Camino to their happy family of premium cannabis products.",
+            "id": "677de0df-da8a-4253-9a02-ff71a42ae0dc",
+            "imageUrl": "https://s3-us-west-2.amazonaws.com/dutchie-images/ed17f90758095fef56ab816d90038a14",
+            "name": "Kiva"
+        },
+        "category": "EDIBLES",
+        "description": "Sleep Boysenberry -Fruit Chews\nTHC :10mg : CBN:5mg ,CBG:5mg\n\nImagine slipping into a peaceful evening, where the stresses of the day gradually fade away, and the rising moon gently ushers you toward restful sleep. This is the perfect time to reach for Camino Chews Boysenberry ‘Sleep’, crafted to help you unwind and drift off effortlessly.\n\nEach sweet fruit chew is infused with a soothing blend of 10MG THC, 5MG CBN  and 5 MG CBG enhanced by chamomile and lavender extracts plus indica-like terpenes.\n\nTHC sets the stage by promoting relaxation- many people turn to it for its mellowing effects.\nCBN, especially when combined with THC, is often appreciated for its ability to create a sense of calm and tranquility.\n\nChamomile has been cherished for generations as part of a nighttime routine.\nLavender is known for its calming, soothing properties.\nAs the lightly tart boysenberry flavor dances on your tastebuds, you'll feel the day's tensions melt away, supporting you into a serene, dream-like state. Boysenberry ‘Sleep’ Camino Chews are your perfect companion for nights when you need to relax and let go- then wake up feeling refreshed and rejuvenated.\n",
+        "descriptionHtml": "<p>Sleep Boysenberry -Fruit Chews</p><p>THC :10mg : CBN:5mg ,CBG:5mg</p><p><br></p><p>Imagine slipping into a peaceful evening, where the stresses of the day gradually fade away, and the rising moon gently ushers you toward restful sleep. This is the perfect time to reach for Camino Chews Boysenberry ‘Sleep’, crafted to help you unwind and drift off effortlessly.</p><p><br></p><p>Each sweet fruit chew is infused with a soothing blend of 10MG THC, 5MG CBN  and 5 MG CBG enhanced by chamomile and lavender extracts plus indica-like terpenes.</p><p><br></p><p><strong>THC</strong>&nbsp;sets the stage by promoting relaxation- many people turn to it for its mellowing effects.</p><p><strong>CBN</strong>, especially when combined with THC, is often appreciated for its ability to create a sense of calm and tranquility.</p><p><br></p><p><strong>Chamomile</strong>&nbsp;has been cherished for generations as part of a nighttime routine.</p><p><strong>Lavender</strong>&nbsp;is known for its calming, soothing properties.</p><p>As the lightly tart boysenberry flavor dances on your tastebuds, you'll feel the day's tensions melt away, supporting you into a serene, dream-like state. Boysenberry ‘Sleep’ Camino Chews are your perfect companion for nights when you need to relax and let go- then wake up feeling refreshed and&nbsp;rejuvenated.</p>",
+        "effects": [
+            "CALM",
+            "RELAXED",
+            "SLEEPY"
+        ],
+        "enterpriseProductId": "6917f5eaf526bf000734e687",
+        "id": "695580813cdabcaa1454f52c",
+        "productBatchId": "d9e47064-36d2-48eb-b084-6dcc773feaf4",
+        "image": "https://images.dutchie.com/74db0f2c3e51510e7c7d91a5f0feb717",
+        "images": [
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/74db0f2c3e51510e7c7d91a5f0feb717",
+                "label": "",
+                "description": ""
+            },
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/a5ba036e1d4833c586e24bd8fd6c2ef0",
+                "label": "",
+                "description": ""
+            }
+        ],
+        "menuTypes": [
+            "MEDICAL",
+            "RECREATIONAL"
+        ],
+        "name": "Boysenberry 'Soothing Sleep' Camino Chews 10mg THC: 5mg CBN: 5mg CBG [10pk]",
+        "slug": "boysenberry-soothing-sleep-camino-chews-10mg-thc-5mg-cbn-5mg-cbg-10pk",
+        "posId": "3577279",
+        "potencyCbd": {
+            "formatted": "",
+            "range": [],
+            "unit": "%"
+        },
+        "potencyThc": {
+            "formatted": "100mg",
+            "range": [
+                100
+            ],
+            "unit": "mg"
+        },
+        "posMetaData": {
+            "id": "3577279",
+            "category": "Edibles",
+            "sku": "17084163"
+        },
+        "staffPick": false,
+        "strainType": "INDICA",
+        "subcategory": "CHEWS",
+        "tags": [
+            "Indica"
+        ],
+        "variants": [
+            {
+                "id": "695580813cdabcaa1454f52c~.1g",
+                "option": ".1g",
+                "priceMed": 30,
+                "priceRec": 30,
+                "specialPriceMed": null,
+                "specialPriceRec": null,
+                "quantity": 13,
+                "flowerEquivalent": null
+            }
+        ],
+        "terpenes": [
+            {
+                "id": "6ba64515-dbeb-40bf-844f-cc4d69b76fd8",
+                "terpene": {
+                    "aliasList": [
+                        ""
+                    ],
+                    "aromas": [
+                        "Floral",
+                        "Sweet",
+                        "Woody"
+                    ],
+                    "description": "Nerolidol also known as trans-nerolidol is a secondary terpene that gives depth of field to scents of plants like ginger, lavender, oranges, lemongrass and tea tree. Nerolidol has a sweet and flowery smell with hints of apple, rose and citrus. It has been found to have anti-insomnia and sedative properties in addition to acting as an anti-microbial and anti-fungal agent.",
+                    "effects": [],
+                    "id": "39bfe316-39eb-4f9a-836f-d145f964c376",
+                    "name": "Nerolidol",
+                    "potentialHealthBenefits": [
+                        "Sedative",
+                        "Stress Relief"
+                    ],
+                    "unitSymbol": null
+                },
+                "name": "Nerolidol",
+                "terpeneId": "39bfe316-39eb-4f9a-836f-d145f964c376",
+                "unit": "PERCENTAGE",
+                "unitSymbol": "%",
+                "value": 0
+            },
+            {
+                "id": "dc0f69e6-52e6-40ca-9402-d07f32507153",
+                "terpene": {
+                    "aliasList": [
+                        "β-Caryophyllene",
+                        "B Carophyllene"
+                    ],
+                    "aromas": [
+                        "Sharp",
+                        "Spice",
+                        "Sweet",
+                        "Wood"
+                    ],
+                    "description": "Beta-caryophyllene is known for it's wide variety of potential health benefits both physically & mentally. This terpene has a unique ability to bind to the CB2 receptors; CB2 receptors are targeted when treating pain & inflammation with cannabis. Beta-caryophyllene is also approved for use in food by the FDA & is commonly found in black pepper, cinnamon, & basil. ",
+                    "effects": [],
+                    "id": "7c0dfdd7-3dae-46e6-b9ee-c90bea8e342a",
+                    "name": "Beta Caryophyllene",
+                    "potentialHealthBenefits": [
+                        "Anti-inflammatory",
+                        "Gastrointestinal",
+                        "Cancer Fighting",
+                        "Anti-depression",
+                        "Anti-anxiety",
+                        "Pain Relief",
+                        "Brain Function",
+                        "Anti-diabetic"
+                    ],
+                    "unitSymbol": null
+                },
+                "name": "Beta Caryophyllene",
+                "terpeneId": "7c0dfdd7-3dae-46e6-b9ee-c90bea8e342a",
+                "unit": "PERCENTAGE",
+                "unitSymbol": "%",
+                "value": 0
+            },
+            {
+                "id": "c5ae6792-ae16-41f9-99c2-5c4142f970a5",
+                "terpene": {
+                    "aliasList": [
+                        "α-Humulene"
+                    ],
+                    "aromas": [
+                        "Herbal",
+                        "Spice",
+                        "Woody",
+                        "Earthy"
+                    ],
+                    "description": "Commonly found in ginseng, ginger, & hops, Humulene is known to lend its robust characteristics to the different scents of cannabis. This terpene has been used in holistic practices for hundreds of years due to its strong anti-inflammatory properties. Humulene has also been reported to act as an appetite suppressant. ",
+                    "effects": [],
+                    "id": "108eefed-dc5b-436f-b929-46e1c17773de",
+                    "name": "Humulene",
+                    "potentialHealthBenefits": [
+                        "Anti-inflammatory",
+                        "Cancer Fighting",
+                        "Appetite Suppressant"
+                    ],
+                    "unitSymbol": null
+                },
+                "name": "Humulene",
+                "terpeneId": "108eefed-dc5b-436f-b929-46e1c17773de",
+                "unit": "PERCENTAGE",
+                "unitSymbol": "%",
+                "value": 0
+            },
+            {
+                "id": "48e8d43a-a4d2-46b9-9398-e4866d6ae7a6",
+                "terpene": {
+                    "aliasList": [
+                        "δ-Limonene"
+                    ],
+                    "aromas": [
+                        "Citrus",
+                        "Lemon",
+                        "Herbal"
+                    ],
+                    "description": "Limonene is found in citrus rinds and is the second most commonly occurring terpene in nature. This terpene has been used in high dosages as a catalyst in topical products to allow other chemical compounds to pass through the skin for absorption in the blood. ",
+                    "effects": [],
+                    "id": "0b06cb0c-507e-4319-b1a7-591bfa1d2eec",
+                    "name": "Limonene",
+                    "potentialHealthBenefits": [
+                        "Cancer Fighting",
+                        "Anti-anxiety",
+                        "Anti-depression",
+                        "Stress Relief",
+                        "Brain Function",
+                        "Gastrointestinal",
+                        "Anti-inflammatory"
+                    ],
+                    "unitSymbol": null
+                },
+                "name": "Limonene",
+                "terpeneId": "0b06cb0c-507e-4319-b1a7-591bfa1d2eec",
+                "unit": "PERCENTAGE",
+                "unitSymbol": "%",
+                "value": 0
+            },
+            {
+                "id": "88150922-865d-4bab-b824-5156052b3800",
+                "terpene": {
+                    "aliasList": [
+                        ""
+                    ],
+                    "aromas": [
+                        "Cloves",
+                        "Earthy",
+                        "Musk"
+                    ],
+                    "description": "One of the most common terpenes found in cannabis. Myrcene is known to increase the effects of the psychoactive properties of THC in addition to some of the health benefits found in CBD. Commonly found in parsley, mangoes & hops, Myrcene is a good option for those looking to add a little relaxation to their overall experience. ",
+                    "effects": [
+                        "Comfort"
+                    ],
+                    "id": "c98feb28-1cd3-4905-8a4e-7290ffb5bf20",
+                    "name": "Myrcene",
+                    "potentialHealthBenefits": [
+                        "Anti-anxiety",
+                        "Cancer Fighting",
+                        "Anti-inflammatory",
+                        "Sedative"
+                    ],
+                    "unitSymbol": null
+                },
+                "name": "Myrcene",
+                "terpeneId": "c98feb28-1cd3-4905-8a4e-7290ffb5bf20",
+                "unit": "PERCENTAGE",
+                "unitSymbol": "%",
+                "value": 0
+            }
+        ],
+        "cannabinoids": [
+            {
+                "cannabinoidId": "0b72e56a-b6fb-4873-8e8a-b28c5769ac41",
+                "cannabinoid": {
+                    "description": "CBN is a cannabinoid that is created during the breakdown of THC by UV light and exposure to oxygen. This breakdown usually begins during the drying and curing process. CBN is most commonly found in older or improperly stored cannabis samples. This compound is mildly psychoactive and is best known for its sedative effects. Strains and products with high concentrations of CBN can be a great choice for users looking to utilize cannabis products to ease restlessness and promote healthy sleep.",
+                    "id": "0b72e56a-b6fb-4873-8e8a-b28c5769ac41",
+                    "name": "CBN (Cannabinol)"
+                },
+                "unit": "MILLIGRAMS",
+                "value": 50
+            },
+            {
+                "cannabinoidId": "226a487e-1eaf-4f7f-b09d-4d4b52b4cfba",
+                "cannabinoid": {
+                    "description": "Cannabinoids are synthesized by Cannabigerolic Acid. CBG is the decarboxylated form of this acid that appears at low levels in most cannabis plants. Because its properties are beneficial to multiple parts of the endocannabinoid system, CBG has a wide range of therapeutic uses. It is non-psychotropic and can provide analgesic and antidepressant qualities.",
+                    "id": "226a487e-1eaf-4f7f-b09d-4d4b52b4cfba",
+                    "name": "CBG (Cannabigerol)"
+                },
+                "unit": "MILLIGRAMS",
+                "value": 50
+            }
+        ]
+    },
+    {
+        "brand": {
+            "description": "Higher standards since day one\nIn 2010, a young cannabis-loving couple set out on a mission to create a better edible experience for legal consumers. Scott Palmer and Kristi Knoblich Palmer were inspired by a visit to a local chocolatier, and soon started crafting the first Kiva bars in their home kitchen. They didn’t realize it at the time, but they weren’t just creating a premium edible product, they were setting the gold standard for the entire legal cannabis industry.\nIn the last decade, customer support has turned this family-owned business into the #1 edibles brand in the country. Today, they are proud to employ 200+ passionate people, and have added Terra, Petra and Camino to their happy family of premium cannabis products.",
+            "id": "677de0df-da8a-4253-9a02-ff71a42ae0dc",
+            "imageUrl": "https://s3-us-west-2.amazonaws.com/dutchie-images/ed17f90758095fef56ab816d90038a14",
+            "name": "Kiva"
+        },
+        "category": "EDIBLES",
+        "description": "10mg 'Bliss' Pineapple Paradise Fruit Chews\n\nChill Effect\n\nPicture yourself on a tranquil seaside trail, the gentle breeze carrying the scent of fresh pineapples and the rhythmic sound of waves lapping at the shore. This is the feeling Pineapple Paradise ‘Bliss’ Camino Chews bring- a state of pure euphoria and contentment.\nEach sweet, tropical fruit chew is infused with 10MG THC and 10MG CBC plus hybrid-like terpenes carefully crafted to elevate your mood into a realm of blissful relaxation.\nTHC provides a gentle uplift, while CBC supports natural mood enhancement.\nHybrid-like terpenes promote harmony from within for those times your body needs some extra TLC.\nThe tangy sweetness of pineapple pairs perfectly with this uplifting formula, making each bite a moment of pure paradise. Like a mini vacation for your mind, Pineapple Paradise ‘Bliss’ Camino Chews are your go-to treat when you want to escape to an inner oasis, leaving your worries behind and embracing an experience of tropical tranquility.\n\n\nLooking for a perfectly portable edible for concerts, hikes, and other on-the-go activities? Meet Camino Chews. Crafted with real fruit, these individually-wrapped taffy-like chews can keep up with all your plans. Each tailored effect has intentional ratios plus natural terpenes, so you can \"chews\" your experience like never before. Step into a realm of pure bliss as you wander the serene path of a breathtaking seaside trail. Pineapple Paradise 'Bliss' Camino Chews lead the way with a euphoric blend of THC, CBC, and these plant-based terpenes: Beta-Caryophyllene, Humulene, Limonene, Myrcene, Nerolidol.\n",
+        "descriptionHtml": "<p>10mg 'Bliss' Pineapple Paradise Fruit Chews</p><p><br></p><p>Chill Effect</p><p><br></p><p>Picture yourself on a tranquil seaside trail, the gentle breeze carrying the scent of fresh pineapples and the rhythmic sound of waves lapping at the shore. This is the feeling Pineapple Paradise ‘Bliss’ Camino Chews bring- a state of pure euphoria and contentment.</p><p>Each sweet, tropical fruit chew is infused with 10MG THC and 10MG CBC plus hybrid-like terpenes carefully crafted to elevate your mood into a realm of blissful relaxation.</p><p><strong>THC</strong>&nbsp;provides a gentle uplift, while<strong>&nbsp;CBC&nbsp;</strong>supports natural mood enhancement.</p><p><strong>Hybrid-like</strong>&nbsp;terpenes promote harmony from within for those times your body needs some extra TLC.</p><p>The tangy sweetness of pineapple pairs perfectly with this uplifting formula, making each bite a moment of pure paradise. Like a mini vacation for your mind, Pineapple Paradise ‘Bliss’ Camino Chews are your go-to treat when you want to escape to an inner oasis, leaving your worries behind and embracing an experience of tropical&nbsp;tranquility.</p><p><br></p><p><br></p><p>Looking for a perfectly portable edible for concerts, hikes, and other on-the-go activities? Meet Camino Chews. Crafted with real fruit, these individually-wrapped taffy-like chews can keep up with all your plans. Each tailored effect has intentional ratios plus natural terpenes, so you can \"chews\" your experience like never before. Step into a realm of pure bliss as you wander the serene path of a breathtaking seaside trail. Pineapple Paradise 'Bliss' Camino Chews lead the way with a euphoric blend of THC, CBC, and these plant-based terpenes: Beta-Caryophyllene, Humulene, Limonene, Myrcene, Nerolidol.</p>",
+        "effects": [
+            "CALM",
+            "ENERGETIC",
+            "HAPPY",
+            "RELAXED"
+        ],
+        "enterpriseProductId": "6917f5eaf526bf000734e690",
+        "id": "695580813cdabcaa1454f52d",
+        "productBatchId": "0d506b14-9f97-4aaf-8d74-f7a2a4eab70b",
+        "image": "https://images.dutchie.com/be0e81d206f941e5b4504cfb7d8915cf",
+        "images": [
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/be0e81d206f941e5b4504cfb7d8915cf",
+                "label": null,
+                "description": null
+            }
+        ],
+        "menuTypes": [
+            "MEDICAL",
+            "RECREATIONAL"
+        ],
+        "name": "Pineapple Paradise 'Bliss' Camino Chews 10mg THC: 10mg CBC [10pk]",
+        "slug": "pineapple-paradise-bliss-camino-chews-10mg-thc-10mg-cbc-10pk",
+        "posId": "3577282",
+        "potencyCbd": {
+            "formatted": "",
+            "range": [],
+            "unit": "%"
+        },
+        "potencyThc": {
+            "formatted": "100mg",
+            "range": [
+                100
+            ],
+            "unit": "mg"
+        },
+        "posMetaData": {
+            "id": "3577282",
+            "category": "Edibles",
+            "sku": "43314024"
+        },
+        "staffPick": false,
+        "strainType": "HYBRID",
+        "subcategory": "CHEWS",
+        "tags": [
+            "Hybrid"
+        ],
+        "variants": [
+            {
+                "id": "695580813cdabcaa1454f52d~.1g",
+                "option": ".1g",
+                "priceMed": 30,
+                "priceRec": 30,
+                "specialPriceMed": null,
+                "specialPriceRec": null,
+                "quantity": 15,
+                "flowerEquivalent": null
+            }
+        ],
+        "terpenes": [
+            {
+                "id": "c21fc79d-f182-440e-8294-aadf6a9466b2",
+                "terpene": {
+                    "aliasList": [
+                        "β-Caryophyllene",
+                        "B Carophyllene"
+                    ],
+                    "aromas": [
+                        "Sharp",
+                        "Spice",
+                        "Sweet",
+                        "Wood"
+                    ],
+                    "description": "Beta-caryophyllene is known for it's wide variety of potential health benefits both physically & mentally. This terpene has a unique ability to bind to the CB2 receptors; CB2 receptors are targeted when treating pain & inflammation with cannabis. Beta-caryophyllene is also approved for use in food by the FDA & is commonly found in black pepper, cinnamon, & basil. ",
+                    "effects": [],
+                    "id": "7c0dfdd7-3dae-46e6-b9ee-c90bea8e342a",
+                    "name": "Beta Caryophyllene",
+                    "potentialHealthBenefits": [
+                        "Anti-inflammatory",
+                        "Gastrointestinal",
+                        "Cancer Fighting",
+                        "Anti-depression",
+                        "Anti-anxiety",
+                        "Pain Relief",
+                        "Brain Function",
+                        "Anti-diabetic"
+                    ],
+                    "unitSymbol": null
+                },
+                "name": "Beta Caryophyllene",
+                "terpeneId": "7c0dfdd7-3dae-46e6-b9ee-c90bea8e342a",
+                "unit": "PERCENTAGE",
+                "unitSymbol": "%",
+                "value": 0
+            },
+            {
+                "id": "03ee4ea9-9eac-48e8-b821-064fdb589bab",
+                "terpene": {
+                    "aliasList": [
+                        "α-Humulene"
+                    ],
+                    "aromas": [
+                        "Herbal",
+                        "Spice",
+                        "Woody",
+                        "Earthy"
+                    ],
+                    "description": "Commonly found in ginseng, ginger, & hops, Humulene is known to lend its robust characteristics to the different scents of cannabis. This terpene has been used in holistic practices for hundreds of years due to its strong anti-inflammatory properties. Humulene has also been reported to act as an appetite suppressant. ",
+                    "effects": [],
+                    "id": "108eefed-dc5b-436f-b929-46e1c17773de",
+                    "name": "Humulene",
+                    "potentialHealthBenefits": [
+                        "Anti-inflammatory",
+                        "Cancer Fighting",
+                        "Appetite Suppressant"
+                    ],
+                    "unitSymbol": null
+                },
+                "name": "Humulene",
+                "terpeneId": "108eefed-dc5b-436f-b929-46e1c17773de",
+                "unit": "PERCENTAGE",
+                "unitSymbol": "%",
+                "value": 0
+            },
+            {
+                "id": "729daab5-8817-457d-8d0f-6a76a7114e20",
+                "terpene": {
+                    "aliasList": [
+                        "δ-Limonene"
+                    ],
+                    "aromas": [
+                        "Citrus",
+                        "Lemon",
+                        "Herbal"
+                    ],
+                    "description": "Limonene is found in citrus rinds and is the second most commonly occurring terpene in nature. This terpene has been used in high dosages as a catalyst in topical products to allow other chemical compounds to pass through the skin for absorption in the blood. ",
+                    "effects": [],
+                    "id": "0b06cb0c-507e-4319-b1a7-591bfa1d2eec",
+                    "name": "Limonene",
+                    "potentialHealthBenefits": [
+                        "Cancer Fighting",
+                        "Anti-anxiety",
+                        "Anti-depression",
+                        "Stress Relief",
+                        "Brain Function",
+                        "Gastrointestinal",
+                        "Anti-inflammatory"
+                    ],
+                    "unitSymbol": null
+                },
+                "name": "Limonene",
+                "terpeneId": "0b06cb0c-507e-4319-b1a7-591bfa1d2eec",
+                "unit": "PERCENTAGE",
+                "unitSymbol": "%",
+                "value": 0
+            },
+            {
+                "id": "26f19637-6ec7-475a-8265-bc54377d14b1",
+                "terpene": {
+                    "aliasList": [
+                        ""
+                    ],
+                    "aromas": [
+                        "Cloves",
+                        "Earthy",
+                        "Musk"
+                    ],
+                    "description": "One of the most common terpenes found in cannabis. Myrcene is known to increase the effects of the psychoactive properties of THC in addition to some of the health benefits found in CBD. Commonly found in parsley, mangoes & hops, Myrcene is a good option for those looking to add a little relaxation to their overall experience. ",
+                    "effects": [
+                        "Comfort"
+                    ],
+                    "id": "c98feb28-1cd3-4905-8a4e-7290ffb5bf20",
+                    "name": "Myrcene",
+                    "potentialHealthBenefits": [
+                        "Anti-anxiety",
+                        "Cancer Fighting",
+                        "Anti-inflammatory",
+                        "Sedative"
+                    ],
+                    "unitSymbol": null
+                },
+                "name": "Myrcene",
+                "terpeneId": "c98feb28-1cd3-4905-8a4e-7290ffb5bf20",
+                "unit": "PERCENTAGE",
+                "unitSymbol": "%",
+                "value": 0
+            },
+            {
+                "id": "3527b7c6-e834-4b6f-b964-8da3b2622937",
+                "terpene": {
+                    "aliasList": [
+                        ""
+                    ],
+                    "aromas": [
+                        "Floral",
+                        "Sweet",
+                        "Woody"
+                    ],
+                    "description": "Nerolidol also known as trans-nerolidol is a secondary terpene that gives depth of field to scents of plants like ginger, lavender, oranges, lemongrass and tea tree. Nerolidol has a sweet and flowery smell with hints of apple, rose and citrus. It has been found to have anti-insomnia and sedative properties in addition to acting as an anti-microbial and anti-fungal agent.",
+                    "effects": [],
+                    "id": "39bfe316-39eb-4f9a-836f-d145f964c376",
+                    "name": "Nerolidol",
+                    "potentialHealthBenefits": [
+                        "Sedative",
+                        "Stress Relief"
+                    ],
+                    "unitSymbol": null
+                },
+                "name": "Nerolidol",
+                "terpeneId": "39bfe316-39eb-4f9a-836f-d145f964c376",
+                "unit": "PERCENTAGE",
+                "unitSymbol": "%",
+                "value": 0
+            }
+        ],
+        "cannabinoids": [
+            {
+                "cannabinoidId": "50e2395f-c63e-44b8-92e5-0b2258ece9b3",
+                "cannabinoid": {
+                    "description": "CBC is a unique cannabinoid and is best known for its ability to bind to the TRPV1 and TRPA1 receptors in the brain which are responsible for pain perception. Topical applications of products high in CBC have also shown promise for the treatment of osteoarthritis symptoms and in the treatment of skin conditions such as acne.",
+                    "id": "50e2395f-c63e-44b8-92e5-0b2258ece9b3",
+                    "name": "CBC (Cannabichromene)"
+                },
+                "unit": "MILLIGRAMS",
+                "value": 100
+            }
+        ]
+    },
+    {
+        "brand": {
+            "description": "",
+            "id": "d5a04b99-5ebf-4f65-b243-2d36ac5de7db",
+            "imageUrl": "https://s3-us-west-2.amazonaws.com/dutchie-images/4644d038476c24bc7834f7b63b12b8df",
+            "name": "Camino"
+        },
+        "category": "EDIBLES",
+        "description": "Recover' Golden Peach -Fruit Chews\n\nRelief is closer than you think. Whether you’re dealing with the morning after a big night out, or looking for support with recurring aches and pains, Camino Chews Golden Peach \"Recover\" are a delicious, effective option.\nThese plant-based fruit chews are formulated with THC and CBG for a soothing mind-body experience enhanced with hybrid-like terpenes for those times your body needs some extra TLC.\n\nCBG helps support healthy recovery from exercise-induced muscle soreness and physical discomfort.\n\n10MG of CBG is paired with 10MG THC in each delicious, taffy-like treat to help you feel at the top of your game. So the next time life throws some challenges your way, reach for Golden Peach 'Recover' Camino Chews.\n\nLooking for a perfectly portable edible for concerts, hikes, and other on-the-go activities? Meet Camino Chews. Crafted with real fruit, these individually-wrapped taffy-like chews can keep up with all your plans. Each tailored effect has intentional ratios plus natural terpenes, so you can \"chews\" your experience like never before. Kick back and let the renewing glow of twilight hour wash over you with Golden Peach 'Recover' Chews. Relish a soothing mind-body experience with a hybrid-like blend of THC, CBG, and these plant-based terpenes: Eucalyptol - Beta-Caryophyllene - Nerolidol - Valencene\n",
+        "descriptionHtml": "<p>Recover' Golden Peach -Fruit Chews</p><p><br></p><p>Relief is closer than you think. Whether you’re dealing with the morning after a big night out, or looking for support with recurring aches and pains, Camino Chews Golden Peach \"Recover\" are a delicious, effective option.</p><p>These plant-based fruit chews are formulated with&nbsp;<strong>THC</strong>&nbsp;and&nbsp;<strong>CBG</strong>&nbsp;for a soothing mind-body experience enhanced with hybrid-like terpenes for those times your body needs some extra TLC.</p><p><br></p><p><strong>CBG&nbsp;</strong>helps support healthy recovery from exercise-induced muscle soreness and physical discomfort.</p><p><br></p><p>10MG of CBG is paired with 10MG THC in each delicious, taffy-like treat to help you feel at the top of your game. So the next time life throws some challenges your way, reach for Golden Peach 'Recover' Camino Chews.</p><p><br></p><p>Looking for a perfectly portable edible for concerts, hikes, and other on-the-go activities? Meet Camino Chews. Crafted with real fruit, these individually-wrapped taffy-like chews can keep up with all your plans. Each tailored effect has intentional ratios plus natural terpenes, so you can \"chews\" your experience like never before. Kick back and let the renewing glow of twilight hour wash over you with Golden Peach 'Recover' Chews. Relish a soothing mind-body experience with a hybrid-like blend of THC, CBG, and these plant-based terpenes: Eucalyptol - Beta-Caryophyllene - Nerolidol - Valencene</p>",
+        "effects": [
+            "CALM",
+            "ENERGETIC",
+            "HAPPY",
+            "RELAXED"
+        ],
+        "enterpriseProductId": "6917f5eaf526bf000734e693",
+        "id": "6972882ab380abde4856ff00",
+        "productBatchId": "fc05898e-cf40-419a-adb3-66d31861f6b3",
+        "image": "https://images.dutchie.com/76711e1fd5066fefae34058be81437bd",
+        "images": [
+            {
+                "id": null,
+                "url": "https://images.dutchie.com/76711e1fd5066fefae34058be81437bd",
+                "label": "",
+                "description": ""
+            }
+        ],
+        "menuTypes": [
+            "MEDICAL",
+            "RECREATIONAL"
+        ],
+        "name": "Golden Peach 'Recover' Camino Chews 10mg THC: 10mg CBG [10pk]",
+        "slug": "golden-peach-recover-camino-chews-10mg-thc-10mg-cbg-10pk",
+        "posId": "3577285",
+        "potencyCbd": {
+            "formatted": "",
+            "range": [],
+            "unit": "%"
+        },
+        "potencyThc": {
+            "formatted": "100mg",
+            "range": [
+                100
+            ],
+            "unit": "mg"
+        },
+        "posMetaData": {
+            "id": "3577285",
+            "category": "Edibles",
+            "sku": "94860235"
+        },
+        "staffPick": false,
+        "strainType": "HYBRID",
+        "subcategory": "CHEWS",
+        "tags": [
+            "Hybrid"
+        ],
+        "variants": [
+            {
+                "id": "6972882ab380abde4856ff00~.1g",
+                "option": ".1g",
+                "priceMed": 30,
+                "priceRec": 30,
+                "specialPriceMed": null,
+                "specialPriceRec": null,
+                "quantity": 13,
+                "flowerEquivalent": null
+            }
+        ],
+        "terpenes": [
+            {
+                "id": "8edb66c5-60bf-485a-8d30-fa380d32f25d",
+                "terpene": {
+                    "aliasList": [
+                        "β-Caryophyllene",
+                        "B Carophyllene"
+                    ],
+                    "aromas": [
+                        "Sharp",
+                        "Spice",
+                        "Sweet",
+                        "Wood"
+                    ],
+                    "description": "Beta-caryophyllene is known for it's wide variety of potential health benefits both physically & mentally. This terpene has a unique ability to bind to the CB2 receptors; CB2 receptors are targeted when treating pain & inflammation with cannabis. Beta-caryophyllene is also approved for use in food by the FDA & is commonly found in black pepper, cinnamon, & basil. ",
+                    "effects": [],
+                    "id": "7c0dfdd7-3dae-46e6-b9ee-c90bea8e342a",
+                    "name": "Beta Caryophyllene",
+                    "potentialHealthBenefits": [
+                        "Anti-inflammatory",
+                        "Gastrointestinal",
+                        "Cancer Fighting",
+                        "Anti-depression",
+                        "Anti-anxiety",
+                        "Pain Relief",
+                        "Brain Function",
+                        "Anti-diabetic"
+                    ],
+                    "unitSymbol": null
+                },
+                "name": "Beta Caryophyllene",
+                "terpeneId": "7c0dfdd7-3dae-46e6-b9ee-c90bea8e342a",
+                "unit": "PERCENTAGE",
+                "unitSymbol": "%",
+                "value": null
+            },
+            {
+                "id": "ce9d2365-6b41-46fb-ac2b-0130e3d3c883",
+                "terpene": {
+                    "aliasList": [
+                        ""
+                    ],
+                    "aromas": [
+                        "Floral",
+                        "Sweet",
+                        "Woody"
+                    ],
+                    "description": "Nerolidol also known as trans-nerolidol is a secondary terpene that gives depth of field to scents of plants like ginger, lavender, oranges, lemongrass and tea tree. Nerolidol has a sweet and flowery smell with hints of apple, rose and citrus. It has been found to have anti-insomnia and sedative properties in addition to acting as an anti-microbial and anti-fungal agent.",
+                    "effects": [],
+                    "id": "39bfe316-39eb-4f9a-836f-d145f964c376",
+                    "name": "Nerolidol",
+                    "potentialHealthBenefits": [
+                        "Sedative",
+                        "Stress Relief"
+                    ],
+                    "unitSymbol": null
+                },
+                "name": "Nerolidol",
+                "terpeneId": "39bfe316-39eb-4f9a-836f-d145f964c376",
+                "unit": "PERCENTAGE",
+                "unitSymbol": "%",
+                "value": null
+            },
+            {
+                "id": "924faf68-a815-4b94-8e87-dcf6fae1b516",
+                "terpene": {
+                    "aliasList": [
+                        ""
+                    ],
+                    "aromas": [
+                        "Spice"
+                    ],
+                    "description": "Considered to be one of the more studied terpenes, Eucalyptol (Cineole) has shown the potential to improve memory and learning through several randomized placebo-controlled studies conducted by the Natural Health Research Institute. The possible increase in cognitive abilities coupled with a variety of potential health benefits make Eucalyptol a terpene worth having in your next strain. ",
+                    "effects": [],
+                    "id": "7968cc06-e4a7-4df5-87ce-f0c177b7de24",
+                    "name": "Eucalyptol",
+                    "potentialHealthBenefits": [
+                        "Anti-inflammatory",
+                        "Brain Function",
+                        "Pain Relief",
+                        "Respiratory Function",
+                        "Gastrointestinal",
+                        "Cancer Fighting"
+                    ],
+                    "unitSymbol": null
+                },
+                "name": "Eucalyptol",
+                "terpeneId": "7968cc06-e4a7-4df5-87ce-f0c177b7de24",
+                "unit": "PERCENTAGE",
+                "unitSymbol": "%",
+                "value": null
+            },
+            {
+                "id": "189c6194-a24a-4e80-9a99-1a1061ce5252",
+                "terpene": {
+                    "aliasList": [
+                        ""
+                    ],
+                    "aromas": [
+                        "Sweet",
+                        "Orange"
+                    ],
+                    "description": "Valencene is a terpene commonly associated with citrus fruits like its namesake the Valencia orange. Other citrus fruits that contain Valencene are grapefruits and tangerines. More recently Valencene has been shown to work effectively as an insect repellant more specifically a tick repellant. It has also been shown to have potential anti-inflammatory benefits as well. ",
+                    "effects": [],
+                    "id": "afa2071c-6171-4367-81e4-2b063ee3dec3",
+                    "name": "Valencene",
+                    "potentialHealthBenefits": [
+                        "Anti-inflammatory",
+                        "Respiratory Function",
+                        "Brain Function"
+                    ],
+                    "unitSymbol": null
+                },
+                "name": "Valencene",
+                "terpeneId": "afa2071c-6171-4367-81e4-2b063ee3dec3",
+                "unit": "PERCENTAGE",
+                "unitSymbol": "%",
+                "value": null
+            }
+        ],
+        "cannabinoids": [
+            {
+                "cannabinoidId": "226a487e-1eaf-4f7f-b09d-4d4b52b4cfba",
+                "cannabinoid": {
+                    "description": "Cannabinoids are synthesized by Cannabigerolic Acid. CBG is the decarboxylated form of this acid that appears at low levels in most cannabis plants. Because its properties are beneficial to multiple parts of the endocannabinoid system, CBG has a wide range of therapeutic uses. It is non-psychotropic and can provide analgesic and antidepressant qualities.",
+                    "id": "226a487e-1eaf-4f7f-b09d-4d4b52b4cfba",
+                    "name": "CBG (Cannabigerol)"
+                },
+                "unit": "MILLIGRAMS",
+                "value": 100
+            }
+        ]
+    }
+]

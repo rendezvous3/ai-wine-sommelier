@@ -1,0 +1,17 @@
+[
+  {
+    "description": "CBC is a unique cannabinoid and is best known for its ability to bind to the TRPV1 and TRPA1 receptors in the brain which are responsible for pain perception. Topical applications of products high in CBC have also shown promise for the treatment of osteoarthritis symptoms and in the treatment of skin conditions such as acne.",
+    "id": "50e2395f-c63e-44b8-92e5-0b2258ece9b3",
+    "name": "CBC (Cannabichromene)"
+  },
+  {
+    "description": "CBN is a cannabinoid that is created during the breakdown of THC by UV light and exposure to oxygen. This breakdown usually begins during the drying and curing process. CBN is most commonly found in older or improperly stored cannabis samples. This compound is mildly psychoactive and is best known for its sedative effects. Strains and products with high concentrations of CBN can be a great choice for users looking to utilize cannabis products to ease restlessness and promote healthy sleep.",
+    "id": "0b72e56a-b6fb-4873-8e8a-b28c5769ac41",
+    "name": "CBN (Cannabinol)"
+  },
+  {
+    "description": "Cannabinoids are synthesized by Cannabigerolic Acid. CBG is the decarboxylated form of this acid that appears at low levels in most cannabis plants. Because its properties are beneficial to multiple parts of the endocannabinoid system, CBG has a wide range of therapeutic uses. It is non-psychotropic and can provide analgesic and antidepressant qualities.",
+    "id": "226a487e-1eaf-4f7f-b09d-4d4b52b4cfba",
+    "name": "CBG (Cannabigerol)"
+  }
+]

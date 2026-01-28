@@ -1,0 +1,181 @@
+[
+  {
+    "aliasList": [
+      ""
+    ],
+    "aromas": [
+      "Cloves",
+      "Earthy",
+      "Musk"
+    ],
+    "description": "One of the most common terpenes found in cannabis. Myrcene is known to increase the effects of the psychoactive properties of THC in addition to some of the health benefits found in CBD. Commonly found in parsley, mangoes & hops, Myrcene is a good option for those looking to add a little relaxation to their overall experience. ",
+    "effects": [
+      "Comfort"
+    ],
+    "id": "c98feb28-1cd3-4905-8a4e-7290ffb5bf20",
+    "name": "Myrcene",
+    "potentialHealthBenefits": [
+      "Anti-anxiety",
+      "Cancer Fighting",
+      "Anti-inflammatory",
+      "Sedative"
+    ],
+    "unitSymbol": null
+  },
+  {
+    "aliasList": [
+      ""
+    ],
+    "aromas": [
+      "Sharp",
+      "Spice",
+      "Sweet",
+      "Pepper"
+    ],
+    "description": "Caryophyllene, or more specifically Beta-caryophyllene is known for it's wide variety of potential health benefits both physically & mentally. This terpene has a unique ability to bind to the CB2 receptors; CB2 receptors are targeted when treating pain & inflammation with cannabis. Beta-caryophyllene is also approved for use in food by the FDA & is commonly found in black pepper, cinnamon, & basil. ",
+    "effects": [],
+    "id": "c0a406e2-4b16-4c11-9aad-580cce9497ed",
+    "name": "Caryophyllene",
+    "potentialHealthBenefits": [
+      "Anti-depression",
+      "Anti-inflammatory",
+      "Cancer Fighting",
+      "Pain Relief",
+      "Gastrointestinal",
+      "Anti-anxiety",
+      "Anti-diabetic"
+    ],
+    "unitSymbol": null
+  },
+  {
+    "aliasList": [
+      "δ-Limonene"
+    ],
+    "aromas": [
+      "Citrus",
+      "Lemon",
+      "Herbal"
+    ],
+    "description": "Limonene is found in citrus rinds and is the second most commonly occurring terpene in nature. This terpene has been used in high dosages as a catalyst in topical products to allow other chemical compounds to pass through the skin for absorption in the blood. ",
+    "effects": [],
+    "id": "0b06cb0c-507e-4319-b1a7-591bfa1d2eec",
+    "name": "Limonene",
+    "potentialHealthBenefits": [
+      "Cancer Fighting",
+      "Anti-anxiety",
+      "Anti-depression",
+      "Stress Relief",
+      "Brain Function",
+      "Gastrointestinal",
+      "Anti-inflammatory"
+    ],
+    "unitSymbol": null
+  },
+  {
+    "aliasList": [
+      ""
+    ],
+    "aromas": [
+      "Floral",
+      "Sweet",
+      "Woody"
+    ],
+    "description": "Nerolidol also known as trans-nerolidol is a secondary terpene that gives depth of field to scents of plants like ginger, lavender, oranges, lemongrass and tea tree. Nerolidol has a sweet and flowery smell with hints of apple, rose and citrus. It has been found to have anti-insomnia and sedative properties in addition to acting as an anti-microbial and anti-fungal agent.",
+    "effects": [],
+    "id": "39bfe316-39eb-4f9a-836f-d145f964c376",
+    "name": "Nerolidol",
+    "potentialHealthBenefits": [
+      "Sedative",
+      "Stress Relief"
+    ],
+    "unitSymbol": null
+  },
+  {
+    "aliasList": [
+      "β-Caryophyllene",
+      "B Carophyllene"
+    ],
+    "aromas": [
+      "Sharp",
+      "Spice",
+      "Sweet",
+      "Wood"
+    ],
+    "description": "Beta-caryophyllene is known for it's wide variety of potential health benefits both physically & mentally. This terpene has a unique ability to bind to the CB2 receptors; CB2 receptors are targeted when treating pain & inflammation with cannabis. Beta-caryophyllene is also approved for use in food by the FDA & is commonly found in black pepper, cinnamon, & basil. ",
+    "effects": [],
+    "id": "7c0dfdd7-3dae-46e6-b9ee-c90bea8e342a",
+    "name": "Beta Caryophyllene",
+    "potentialHealthBenefits": [
+      "Anti-inflammatory",
+      "Gastrointestinal",
+      "Cancer Fighting",
+      "Anti-depression",
+      "Anti-anxiety",
+      "Pain Relief",
+      "Brain Function",
+      "Anti-diabetic"
+    ],
+    "unitSymbol": null
+  },
+  {
+    "aliasList": [
+      "α-Humulene"
+    ],
+    "aromas": [
+      "Herbal",
+      "Spice",
+      "Woody",
+      "Earthy"
+    ],
+    "description": "Commonly found in ginseng, ginger, & hops, Humulene is known to lend its robust characteristics to the different scents of cannabis. This terpene has been used in holistic practices for hundreds of years due to its strong anti-inflammatory properties. Humulene has also been reported to act as an appetite suppressant. ",
+    "effects": [],
+    "id": "108eefed-dc5b-436f-b929-46e1c17773de",
+    "name": "Humulene",
+    "potentialHealthBenefits": [
+      "Anti-inflammatory",
+      "Cancer Fighting",
+      "Appetite Suppressant"
+    ],
+    "unitSymbol": null
+  },
+  {
+    "aliasList": [
+      ""
+    ],
+    "aromas": [
+      "Spice"
+    ],
+    "description": "Considered to be one of the more studied terpenes, Eucalyptol (Cineole) has shown the potential to improve memory and learning through several randomized placebo-controlled studies conducted by the Natural Health Research Institute. The possible increase in cognitive abilities coupled with a variety of potential health benefits make Eucalyptol a terpene worth having in your next strain. ",
+    "effects": [],
+    "id": "7968cc06-e4a7-4df5-87ce-f0c177b7de24",
+    "name": "Eucalyptol",
+    "potentialHealthBenefits": [
+      "Anti-inflammatory",
+      "Brain Function",
+      "Pain Relief",
+      "Respiratory Function",
+      "Gastrointestinal",
+      "Cancer Fighting"
+    ],
+    "unitSymbol": null
+  },
+  {
+    "aliasList": [
+      ""
+    ],
+    "aromas": [
+      "Sweet",
+      "Orange"
+    ],
+    "description": "Valencene is a terpene commonly associated with citrus fruits like its namesake the Valencia orange. Other citrus fruits that contain Valencene are grapefruits and tangerines. More recently Valencene has been shown to work effectively as an insect repellant more specifically a tick repellant. It has also been shown to have potential anti-inflammatory benefits as well. ",
+    "effects": [],
+    "id": "afa2071c-6171-4367-81e4-2b063ee3dec3",
+    "name": "Valencene",
+    "potentialHealthBenefits": [
+      "Anti-inflammatory",
+      "Respiratory Function",
+      "Brain Function"
+    ],
+    "unitSymbol": null
+  }
+]
