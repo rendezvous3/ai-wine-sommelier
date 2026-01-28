@@ -7,6 +7,11 @@ from langchain_cloudflare.vectorstores import CloudflareVectorize
 from langchain_core.documents import Document
 from tqdm import tqdm
 import requests
+from normalize_products import (
+    normalize_product,
+    transform_edible_data,
+    is_real_data_format
+)
 
 load_dotenv("../.env")
 
@@ -17,10 +22,46 @@ with open("schema.json", "r") as f:
 ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID")
 API_TOKEN = os.getenv("CF_VECTORIZE_API_TOKEN")
 
-# MAKE A API Request, for now using dummy JSON to embedd and vectorize
-# TODO - check other e-commerce repos for how they embedd products
-with open("demo_products_1.json", "r") as f:
-    products = json.load(f)
+# Load raw products and normalize them
+# TODO: Update this to load from your actual data source (API, file, etc.)
+# For now, try to load real edible data first, fallback to demo data
+raw_products = []
+try:
+    # Try loading real edible data
+    with open("schema/edibles.json", "r") as f:
+        raw_products = json.load(f)
+except FileNotFoundError:
+    # Fallback to demo products
+    try:
+        with open("demo_products.json", "r") as f:
+            raw_products = json.load(f)
+    except FileNotFoundError:
+        # Fallback to already-normalized products (backward compatibility)
+        with open("demo_products_1.json", "r") as f:
+            products = json.load(f)
+            raw_products = None
+
+# Normalize products if we loaded raw data
+if raw_products:
+    # Load brands for demo data normalization
+    brand_lookup = {}
+    try:
+        with open("demo_brands.json", "r") as f:
+            brands = json.load(f)
+            brand_lookup = {brand["id"]: brand for brand in brands}
+    except FileNotFoundError:
+        pass
+    
+    # Normalize products
+    products = []
+    for product in raw_products:
+        if is_real_data_format(product):
+            # Real data format - use transform_edible_data
+            normalized = transform_edible_data(product, schema)
+        else:
+            # Demo format - use normalize_product
+            normalized = normalize_product(product, brand_lookup, schema)
+        products.append(normalized)
 
 MODEL_WORKERSAI = "@cf/baai/bge-large-en-v1.5"
 embedder = CloudflareWorkersAIEmbeddings(model_name=MODEL_WORKERSAI)
@@ -177,6 +218,31 @@ def build_page_content(p: dict) -> str:
     if p.get("subcategory"):
         parts.append(f"Subcategory: {p['subcategory']}")
     
+    # Terpene aromas (important for search)
+    terpenes = p.get("terpenes", [])
+    if terpenes and isinstance(terpenes, list):
+        aromas_list = []
+        for terpene in terpenes:
+            if isinstance(terpene, dict):
+                aromas = terpene.get("aromas", [])
+                if aromas:
+                    aromas_list.extend(aromas)
+        if aromas_list:
+            unique_aromas = list(set(aromas_list))
+            parts.append(f"Aromas: {', '.join(unique_aromas)}")
+    
+    # Terpene potential health benefits (important for search)
+    if terpenes and isinstance(terpenes, list):
+        benefits_list = []
+        for terpene in terpenes:
+            if isinstance(terpene, dict):
+                benefits = terpene.get("potentialHealthBenefits", [])
+                if benefits:
+                    benefits_list.extend(benefits)
+        if benefits_list:
+            unique_benefits = list(set(benefits_list))
+            parts.append(f"Health Benefits: {', '.join(unique_benefits)}")
+    
     # Add potency label
     potency = get_potency_label(p)
     if potency:
@@ -260,6 +326,8 @@ def build_metadata(p: dict) -> dict:
         metadata["cbd_percentage"] = p["cbd_percentage"]
     if p.get("cbd_total_mg") is not None:
         metadata["cbd_total_mg"] = p["cbd_total_mg"]
+    if p.get("cbd_per_unit_mg") is not None:
+        metadata["cbd_per_unit_mg"] = p["cbd_per_unit_mg"]
     
     # CBG fields (for tinctures)
     if p.get("cbg_total_mg") is not None:
@@ -294,6 +362,24 @@ def build_metadata(p: dict) -> dict:
         metadata["shopLink"] = p["shopLink"]
     if p.get("imageLink"):
         metadata["imageLink"] = p["imageLink"]
+    
+    # Slug
+    if p.get("slug"):
+        metadata["slug"] = p["slug"]
+    
+    # Quantity (inventory)
+    if p.get("quantity") is not None:
+        metadata["quantity"] = p["quantity"]
+    
+    # Terpenes (keep aromas and potentialHealthBenefits for search)
+    terpenes = p.get("terpenes")
+    if terpenes and isinstance(terpenes, list) and len(terpenes) > 0:
+        metadata["terpenes"] = terpenes
+    
+    # Cannabinoids
+    cannabinoids = p.get("cannabinoids")
+    if cannabinoids and isinstance(cannabinoids, list) and len(cannabinoids) > 0:
+        metadata["cannabinoids"] = cannabinoids
     
     # Add page_content to metadata for examination
     metadata["page_content"] = build_page_content(p)
@@ -333,9 +419,16 @@ for i, (p, doc) in enumerate(zip(products, documents)):
 
 # for doc in documents:
 #     print("---------------------------------")
-#     print("doc", doc.type)
-#     print("doc", doc.metadata.get("effects"))
+#     # print("doc", doc.page_content)
+#     # print("doc", doc.type)
+#     # Print all metadata except page_content
+#     metadata_without_content = {k: v for k, v in doc.metadata.items() if k != "page_content"}
+#     print("doc", metadata_without_content)
+#     # print("doc", doc.metadata.get("thc_per_unit_mg"))
 #     print("---------------------------------")
+
+
+print("documents", json.dumps([{"page_content": doc.page_content, "metadata": {k: v for k, v in doc.metadata.items() if k != "page_content"}} for doc in documents], indent=2, default=str))
 
 
 
@@ -353,7 +446,7 @@ vectorize_index_name = "products-demo-3"
 # STEP 3 - run matadata indexing commands in backend
 
 # STEP 5 - Add the documents to the Vector DB Table
-r = cfVect.add_documents(index_name=vectorize_index_name, documents=documents, ids=ids)
+# r = cfVect.add_documents(index_name=vectorize_index_name, documents=documents, ids=ids)
 
 # Delete the specific index
 # requests.delete(

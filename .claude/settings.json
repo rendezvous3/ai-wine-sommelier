@@ -65,7 +65,7 @@
       "Read(**/*.sublime-*)",
 
       "Read(**/.history)",
-      "Read(**/.git.backup/**)",
+      "Read(**/.git.backup/**)"
     ]
   }
 }

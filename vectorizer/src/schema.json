@@ -12,18 +12,23 @@
   "categoryFieldMappings": {
     "thc_percentage_fields": {
       "categories": ["flower", "prerolls", "vaporizers", "concentrates"],
-      "fields": ["thc_percentage_min", "thc_percentage_max"],
-      "description": "Use thc_percentage_min and thc_percentage_max for these categories"
+      "fields": ["thc_percentage"],
+      "description": "Use thc_percentage for vector DB queries on these categories"
     },
     "thc_per_unit_mg_fields": {
       "categories": ["edibles"],
-      "fields": ["thc_per_unit_mg_min", "thc_per_unit_mg_max"],
-      "description": "Use thc_per_unit_mg_min and thc_per_unit_mg_max for edibles"
+      "fields": ["thc_per_unit_mg"],
+      "description": "Use thc_per_unit_mg for vector DB queries on edibles"
     },
     "individual_weight_grams_fields": {
       "categories": ["prerolls"],
       "fields": ["individual_weight_grams"],
       "description": "Use individual_weight_grams for prerolls (weight per individual preroll unit)"
+    },
+    "quantity_fields": {
+      "categories": ["flower", "prerolls", "edibles", "concentrates", "vaporizers"],
+      "fields": ["quantity"],
+      "description": "Use quantity for inventory tracking"
     }
   }
 }
