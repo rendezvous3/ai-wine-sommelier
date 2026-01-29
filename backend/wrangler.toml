@@ -8,7 +8,7 @@ CEREBRAS_API_KEY = "replace-me-in-dashboard"
 
 [[vectorize]]
 binding = "VECTORIZE_INDEX"
-index_name = "products-demo-3"
+index_name = "products-demo-1"
 
 [ai]
 binding = "AI"
