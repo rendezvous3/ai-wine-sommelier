@@ -57,35 +57,41 @@ MODEL_WORKERSAI = "@cf/baai/bge-large-en-v1.5"
 
 async def load_products_from_api(
     category: Optional[str] = None,
+    subcategory: Optional[str] = None,
+    strain_type: Optional[str] = None,
     offset: int = 0,
-    total_limit: Optional[int] = None,
-    use_local_fallback: bool = True
+    total_limit: Optional[int] = None
 ) -> List[Dict[str, Any]]:
     """
-    Load products from Dutchie API with optional local fallback.
+    Load products from Dutchie API.
 
     Args:
         category: Optional category filter (e.g., "EDIBLES", "FLOWER").
+        subcategory: Optional subcategory filter (e.g., "GUMMIES", "CHOCOLATES").
+        strain_type: Optional strain type filter (e.g., "INDICA", "SATIVA", "HYBRID").
         offset: Starting offset for pagination (default 0).
         total_limit: Optional total limit of products to fetch. If None, fetches all.
-        use_local_fallback: If True, falls back to local JSON files on API failure.
 
     Returns:
         List of raw product dictionaries.
 
     Raises:
-        DutchieAPIError: If API fails and use_local_fallback is False.
+        DutchieAPIError: If API fetch fails.
     """
     client = None
     try:
         limit_str = f", limit: {total_limit}" if total_limit else ""
         offset_str = f", offset: {offset}" if offset > 0 else ""
-        print(f"Fetching products from Dutchie API (category: {category}{offset_str}{limit_str})...")
+        subcategory_str = f", subcategory: {subcategory}" if subcategory else ""
+        strain_str = f", strain: {strain_type}" if strain_type else ""
+        print(f"Fetching products from Dutchie API (category: {category}{subcategory_str}{strain_str}{offset_str}{limit_str})...")
         client = DutchieClient()
         products = []
 
         async for batch in client.fetch_all_products_paginated(
             category=category,
+            subcategory=subcategory,
+            strain_type=strain_type,
             offset=offset,
             total_limit=total_limit
         ):
@@ -96,10 +102,8 @@ async def load_products_from_api(
         return products
 
     except DutchieAPIError as e:
-        print(f"API fetch failed: {e}")
-        if use_local_fallback:
-            print("Falling back to local files...")
-            return load_products_from_file(category)
+        print(f"\n✗ API fetch failed: {e}")
+        print("  Use --local flag to load from local files instead.")
         raise
 
     finally:
@@ -226,6 +230,22 @@ def build_page_content(p: Dict[str, Any]) -> str:
         if benefits_list:
             unique_benefits = list(set(benefits_list))
             parts.append(f"Health Benefits: {', '.join(unique_benefits)}")
+
+    # Cannabinoid descriptions (important for semantic search on cannabinoid properties)
+    cannabinoids = p.get("cannabinoids", [])
+    if cannabinoids and isinstance(cannabinoids, list):
+        cannabinoid_descs = []
+        for cannabinoid in cannabinoids:
+            if isinstance(cannabinoid, dict):
+                name = cannabinoid.get("name", "")
+                desc = cannabinoid.get("description", "")
+                if name and desc:
+                    # Truncate long descriptions to keep page_content reasonable
+                    truncated_desc = desc[:150] + "..." if len(desc) > 150 else desc
+                    cannabinoid_descs.append(f"{name}: {truncated_desc}")
+        if cannabinoid_descs:
+            # Limit to top 3 cannabinoids to avoid overly long page_content
+            parts.append(f"Cannabinoids: {'; '.join(cannabinoid_descs[:3])}")
 
     # Add potency label (uses centralized function from normalize_products)
     category = p.get("category", "")
@@ -358,6 +378,8 @@ def build_metadata(p: Dict[str, Any]) -> Dict[str, Any]:
 async def vectorize_products(
     index_name: str,
     category: Optional[str] = None,
+    subcategory: Optional[str] = None,
+    strain_type: Optional[str] = None,
     offset: int = 0,
     limit: int = 50,
     dry_run: bool = True,
@@ -368,6 +390,8 @@ async def vectorize_products(
 
     Args:
         category: Optional category filter (e.g., "EDIBLES", "FLOWER").
+        subcategory: Optional subcategory filter (e.g., "GUMMIES", "CHOCOLATES").
+        strain_type: Optional strain type filter (e.g., "INDICA", "SATIVA", "HYBRID").
         offset: Starting offset for pagination (default 0).
         limit: Total limit of products to fetch (default 50). This is NOT batch size.
         index_name: Cloudflare Vectorize index name.
@@ -378,19 +402,13 @@ async def vectorize_products(
         List of Document objects ready for vectorization.
     """
 
-    # if index_name is None:
-    #     raise ValueError("Index name is required")
-
-    # if index_name is None:
-    #     print("Error: Index name is required")
-    #     sys.exit(1)
-
-
     # Step 1: Load products
     print(f"\n{'='*60}")
     print(f"VECTORIZATION PIPELINE")
     print(f"{'='*60}")
     print(f"Category: {category or 'ALL'}")
+    print(f"Subcategory: {subcategory or 'ALL'}")
+    print(f"Strain Type: {strain_type or 'ALL'}")
     print(f"Offset: {offset}")
     print(f"Limit: {limit}")
     print(f"Index: {index_name}")
@@ -400,6 +418,8 @@ async def vectorize_products(
     if use_api:
         raw_products = await load_products_from_api(
             category=category,
+            subcategory=subcategory,
+            strain_type=strain_type,
             offset=offset,
             total_limit=limit
         )
@@ -548,22 +568,28 @@ def main():
         epilog="""
 Examples:
   # Dry run with EDIBLES from API (fetches first 50 products)
-  python vectorize.py --category EDIBLES
+  python vectorize.py -x products-test --category EDIBLES
 
-  # Fetch first 20 EDIBLES products
-  python vectorize.py --category EDIBLES --limit 20
+  # Fetch 20 INDICA gummies
+  python vectorize.py -x products-test --category EDIBLES --subcategory GUMMIES --strain INDICA --limit 20
+
+  # Fetch SATIVA chocolates and upload
+  python vectorize.py -x products-prod --category EDIBLES --subcategory CHOCOLATES --strain SATIVA --limit 15 --upload
+
+  # Fetch FLOWER by strain type
+  python vectorize.py -x products-test --category FLOWER --strain INDICA --limit 25
 
   # Fetch EDIBLES products starting from offset 100, limit 50
-  python vectorize.py --category EDIBLES --offset 100 --limit 50
+  python vectorize.py -x products-test --category EDIBLES --offset 100 --limit 50
 
   # Upload EDIBLES to a test index
-  python vectorize.py --category EDIBLES --index products-test --upload
+  python vectorize.py -x products-test --category EDIBLES --upload
 
   # Use local files instead of API
-  python vectorize.py --category EDIBLES --local
+  python vectorize.py -x products-test --category EDIBLES --local
 
   # List available categories
-  python vectorize.py --list-categories
+  python vectorize.py -x dummy --list-categories
         """
     )
 
@@ -573,7 +599,18 @@ Examples:
         help="Category to vectorize (EDIBLES, FLOWER, PRE_ROLLS, VAPORIZERS, CONCENTRATES, etc.)"
     )
     parser.add_argument(
-        "--index",
+        "--subcategory",
+        type=str,
+        help="Subcategory to filter (GUMMIES, CHOCOLATES, COOKING_BAKING, DRINKS, etc.)"
+    )
+    parser.add_argument(
+        "--strain",
+        type=str,
+        choices=["INDICA", "SATIVA", "HYBRID"],
+        help="Strain type to filter (INDICA, SATIVA, HYBRID)"
+    )
+    parser.add_argument(
+        "--index", "-x",
         type=str,
         required=True,
         help="Vectorize index name (required)"
@@ -622,6 +659,8 @@ Examples:
 
     asyncio.run(vectorize_products(
         category=args.category,
+        subcategory=args.subcategory,
+        strain_type=args.strain,
         offset=args.offset,
         limit=args.limit,
         index_name=args.index,

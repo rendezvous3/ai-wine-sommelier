@@ -120,12 +120,14 @@ Sync product data from Dutchie API to Cloudflare Vectorize.
 Test the vectorization pipeline without uploading to Vectorize. Useful for debugging and verification.
 
 ```bash
-python vectorize.py --category EDIBLES --limit 20
+python vectorize.py -x products-demo-3 --category EDIBLES --limit 20
 ```
 
 **Options:**
-- `--index INDEX_NAME` - Vectorize index name (required)
-- `--category CATEGORY` - Category to vectorize (EDIBLES, FLOWER, PRE_ROLLS, etc.)
+- `-x, --index INDEX_NAME` - Vectorize index name (required)
+- `--category CATEGORY` - Category to vectorize (EDIBLES, FLOWER, PRE_ROLLS, VAPORIZERS, CONCENTRATES, CBD, TOPICALS, ACCESSORIES)
+- `--subcategory SUBCATEGORY` - Subcategory to filter (GUMMIES, CHOCOLATES, COOKING_BAKING, DRINKS, etc.)
+- `--strain STRAIN` - Strain type to filter (INDICA, SATIVA, HYBRID)
 - `--limit N` - Total number of products to fetch (default: 50)
 - `--offset N` - Starting offset for pagination (default: 0)
 - `--local` - Use local JSON files instead of API
@@ -133,10 +135,16 @@ python vectorize.py --category EDIBLES --limit 20
 **Example:**
 ```bash
 # Test with 20 EDIBLES products
-python vectorize.py --index products-demo-3 --category EDIBLES --limit 20
+python vectorize.py -x products-demo-X --category EDIBLES --limit 20
+
+# Test INDICA gummies
+python vectorize.py -x products-demo-X --category EDIBLES --subcategory GUMMIES --strain INDICA --limit 15
+
+# Test SATIVA chocolates
+python vectorize.py -x products-demo-X --category EDIBLES --subcategory CHOCOLATES --strain SATIVA --limit 15
 
 # Test with offset
-python vectorize.py --index products-demo-3 --category EDIBLES --offset 100 --limit 50
+python vectorize.py -x products-demo-X --category EDIBLES --offset 100 --limit 50
 ```
 
 **Output:**
@@ -171,24 +179,27 @@ DRY RUN - Skipping upload
 Upload products to Vectorize index. **Note:** Index must exist before uploading.
 
 ```bash
-python vectorize.py --index INDEX_NAME --category EDIBLES --limit 100 --upload
+python vectorize.py -x INDEX_NAME --category EDIBLES --limit 100 --upload
 ```
 
 **Options:**
-- `--index INDEX_NAME` - Vectorize index name (required)
+- `-x, --index INDEX_NAME` - Vectorize index name (required)
 - `--upload` - Actually upload to Vectorize (default is dry run)
 - All other options from dry run apply
 
 **Example:**
 ```bash
 # Upload 100 EDIBLES products
-python vectorize.py --index products-demo-3 --category EDIBLES --limit 100 --upload
+python vectorize.py -x products-demo-3 --category EDIBLES --limit 100 --upload
 
-# Upload with custom index
-python vectorize.py --index products-prod --category EDIBLES --limit 100 --upload
+# Upload INDICA gummies to production
+python vectorize.py -x products-prod --category EDIBLES --subcategory GUMMIES --strain INDICA --limit 50 --upload
+
+# Upload SATIVA chocolates
+python vectorize.py -x products-prod --category EDIBLES --subcategory CHOCOLATES --strain SATIVA --limit 30 --upload
 
 # Upload with offset (for pagination)
-python vectorize.py --index products-demo-3 --category EDIBLES --offset 100 --limit 50 --upload
+python vectorize.py -x products-demo-3 --category EDIBLES --offset 100 --limit 50 --upload
 ```
 
 **Output:**
@@ -354,6 +365,62 @@ python vectorize.py --index products-demo-3 --category EDIBLES --limit 5 --uploa
 # 5. Proceed with full sync
 python vectorize.py --index products-demo-3 --category EDIBLES --upload
 ```
+
+---
+
+## Batch Operations (Preset Scripts)
+
+### Quick Batch Sync
+
+Use preset scripts to sync multiple subcategories at once.
+
+**Sync all edibles subcategories (15 products each, no strain filter):**
+```bash
+./preset_sync.sh all-subcategories products-demo-1 15
+```
+
+This will sync:
+- GUMMIES (15 products)
+- LIVE_RESIN_GUMMIES (15 products)
+- LIVE_ROSIN_GUMMIES (15 products)
+- CHOCOLATES (15 products)
+- CHEWS (15 products)
+- COOKING_BAKING (15 products)
+- DRINKS (15 products)
+
+**Available Presets:**
+
+| Preset | Description | Example |
+|--------|-------------|---------|
+| `all-subcategories` | All edibles, no strain filter | `./preset_sync.sh all-subcategories products-demo-1 15` |
+| `gummies-all` | All gummy types × all strains | `./preset_sync.sh gummies-all products-demo-1 15` |
+| `gummies-indica` | All gummy types × INDICA | `./preset_sync.sh gummies-indica products-demo-1 20` |
+| `chocolates` | Chocolates × all strains | `./preset_sync.sh chocolates products-prod 10` |
+| `edibles-quick` | Gummies + chocolates only | `./preset_sync.sh edibles-quick products-prod 30` |
+
+**Output:**
+```bash
+=============================================
+Preset Sync: all-subcategories
+Index: products-demo-1 | Limit: 15
+=============================================
+Syncing all edibles subcategories (no strain filter)...
+  → GUMMIES
+  ✓ Success
+  → LIVE_RESIN_GUMMIES
+  ✓ Success
+  → CHOCOLATES
+  ✓ Success
+...
+=============================================
+Preset sync complete!
+=============================================
+```
+
+**Notes:**
+- Scripts automatically handle rate limiting (2s delay between requests)
+- Failed/empty categories are skipped
+- Run from `vectorizer/src/` directory
 
 ---
 

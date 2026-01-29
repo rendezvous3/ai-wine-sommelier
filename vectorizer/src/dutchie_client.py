@@ -12,6 +12,7 @@ from typing import Optional, Dict, Any, List, AsyncGenerator
 import ssl
 
 import aiohttp
+import certifi
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -86,14 +87,27 @@ class DutchieClient:
             "Content-Type": "application/json"
         }
 
-    async def _get_session(self) -> aiohttp.ClientSession:
-        """Get or create an aiohttp session with SSL workaround."""
-        if self._session is None or self._session.closed:
-            # TODO: fix ssl certificate verification error properly
+    def _get_ssl_context(self) -> ssl.SSLContext:
+        """
+        Get SSL context with proper certificate handling.
+
+        Uses certifi certificates by default for secure connections.
+        Set VECTORIZER_SSL_VERIFY=false to disable SSL verification (dev only).
+        """
+        if os.getenv("VECTORIZER_SSL_VERIFY", "true").lower() == "false":
+            print("WARNING: SSL verification disabled. Do not use in production.")
             ssl_context = ssl.create_default_context()
             ssl_context.check_hostname = False
             ssl_context.verify_mode = ssl.CERT_NONE
+            return ssl_context
 
+        # Use certifi certificates for proper SSL verification
+        return ssl.create_default_context(cafile=certifi.where())
+
+    async def _get_session(self) -> aiohttp.ClientSession:
+        """Get or create an aiohttp session with proper SSL handling."""
+        if self._session is None or self._session.closed:
+            ssl_context = self._get_ssl_context()
             self._session = aiohttp.ClientSession(
                 headers=self.headers,
                 connector=aiohttp.TCPConnector(ssl=ssl_context)
@@ -177,15 +191,19 @@ class DutchieClient:
     async def fetch_products_by_category(
         self,
         category: Optional[str] = None,
+        subcategory: Optional[str] = None,
+        strain_type: Optional[str] = None,
         limit: int = DEFAULT_LIMIT,
         offset: int = 0
     ) -> List[Dict[str, Any]]:
         """
-        Fetch products, optionally filtered by category.
+        Fetch products, optionally filtered by category, subcategory, and/or strain type.
 
         Args:
             category: Optional category filter (e.g., "EDIBLES", "FLOWER").
                       Can be a string or an Enum with a .value attribute.
+            subcategory: Optional subcategory filter (e.g., "GUMMIES", "CHOCOLATES").
+            strain_type: Optional strain type filter (e.g., "INDICA", "SATIVA", "HYBRID").
             limit: Maximum number of products to fetch per request.
             offset: Starting offset for pagination.
 
@@ -201,9 +219,16 @@ class DutchieClient:
             else:
                 category_str = str(category).upper()  # It's a string
 
-        # Build query with category embedded directly (not as variable)
+        subcategory_str = str(subcategory).upper() if subcategory else None
+        strain_type_str = str(strain_type).upper() if strain_type else None
+
+        # Build query with filters embedded directly (not as variables)
         # This is because Dutchie API uses enum values directly, not typed variables
-        query = self._build_menu_query(category=category_str)
+        query = self._build_menu_query(
+            category=category_str,
+            subcategory=subcategory_str,
+            strain_type=strain_type_str
+        )
         variables = {
             "retailerId": self.retailer_id,
             "limit": limit,
@@ -222,6 +247,8 @@ class DutchieClient:
     async def fetch_all_products_paginated(
         self,
         category: Optional[str] = None,
+        subcategory: Optional[str] = None,
+        strain_type: Optional[str] = None,
         offset: int = 0,
         total_limit: Optional[int] = None,
         batch_size: int = DEFAULT_LIMIT
@@ -231,6 +258,8 @@ class DutchieClient:
 
         Args:
             category: Optional category filter.
+            subcategory: Optional subcategory filter (e.g., "GUMMIES", "CHOCOLATES").
+            strain_type: Optional strain type filter (e.g., "INDICA", "SATIVA", "HYBRID").
             offset: Starting offset for pagination (default 0).
             total_limit: Optional total limit of products to fetch. If None, fetches all.
             batch_size: Batch size for each API request (default 50).
@@ -253,6 +282,8 @@ class DutchieClient:
 
             products = await self.fetch_products_by_category(
                 category=category,
+                subcategory=subcategory,
+                strain_type=strain_type,
                 limit=batch_limit,
                 offset=current_offset
             )
@@ -277,6 +308,8 @@ class DutchieClient:
     async def fetch_all_products(
         self,
         category: Optional[str] = None,
+        subcategory: Optional[str] = None,
+        strain_type: Optional[str] = None,
         offset: int = 0,
         total_limit: Optional[int] = None,
         batch_size: int = DEFAULT_LIMIT
@@ -286,6 +319,8 @@ class DutchieClient:
 
         Args:
             category: Optional category filter.
+            subcategory: Optional subcategory filter (e.g., "GUMMIES", "CHOCOLATES").
+            strain_type: Optional strain type filter (e.g., "INDICA", "SATIVA", "HYBRID").
             offset: Starting offset for pagination (default 0).
             total_limit: Optional total limit of products to fetch. If None, fetches all.
             batch_size: Batch size for each API request (default 50).
@@ -296,6 +331,8 @@ class DutchieClient:
         all_products = []
         async for batch in self.fetch_all_products_paginated(
             category=category,
+            subcategory=subcategory,
+            strain_type=strain_type,
             offset=offset,
             total_limit=total_limit,
             batch_size=batch_size
@@ -303,21 +340,36 @@ class DutchieClient:
             all_products.extend(batch)
         return all_products
 
-    def _build_menu_query(self, category: Optional[str] = None) -> str:
+    def _build_menu_query(
+        self,
+        category: Optional[str] = None,
+        subcategory: Optional[str] = None,
+        strain_type: Optional[str] = None
+    ) -> str:
         """
         Build the menu query with all fragments.
 
         Args:
             category: Optional category to filter by (e.g., "EDIBLES", "FLOWER").
                       Will be embedded directly as enum value in query.
+            subcategory: Optional subcategory to filter by (e.g., "GUMMIES", "CHOCOLATES").
+            strain_type: Optional strain type to filter by (e.g., "INDICA", "SATIVA", "HYBRID").
 
         Returns:
             Complete GraphQL query string.
         """
-        # Filter and pagination arguments for the query
-        # NOTE: Category is embedded directly as enum value (no quotes, no variable)
+        # Build filter parts dynamically
+        # NOTE: Values are embedded directly as enum values (no quotes, no variable)
         # This is because Dutchie API expects enum values like EDIBLES, not "EDIBLES"
-        filter_arg = f"\n    filter: {{ category: {category} }}" if category else ""
+        filter_parts = []
+        if category:
+            filter_parts.append(f"category: {category}")
+        if subcategory:
+            filter_parts.append(f"subcategory: {subcategory}")
+        if strain_type:
+            filter_parts.append(f"strainType: {strain_type}")
+
+        filter_arg = f"\n    filter: {{ {', '.join(filter_parts)} }}" if filter_parts else ""
         pagination_arg = "\n    pagination: { offset: $offset, limit: $limit }"
 
         return f'''
@@ -439,6 +491,8 @@ query MenuQuery($retailerId: ID!, $limit: Int!, $offset: Int!) {{
 # Convenience function for simple usage
 async def fetch_products(
     category: Optional[str] = None,
+    subcategory: Optional[str] = None,
+    strain_type: Optional[str] = None,
     api_key: Optional[str] = None,
     retailer_id: str = DEFAULT_RETAILER_ID
 ) -> List[Dict[str, Any]]:
@@ -447,6 +501,8 @@ async def fetch_products(
 
     Args:
         category: Optional category filter.
+        subcategory: Optional subcategory filter (e.g., "GUMMIES", "CHOCOLATES").
+        strain_type: Optional strain type filter (e.g., "INDICA", "SATIVA", "HYBRID").
         api_key: Optional API key (uses env var if not provided).
         retailer_id: Retailer ID.
 
@@ -454,7 +510,13 @@ async def fetch_products(
         List of all product dictionaries.
     """
     async with DutchieClient(api_key=api_key, retailer_id=retailer_id) as client:
-        return await client.fetch_all_products(category=category, offset=0, total_limit=None)
+        return await client.fetch_all_products(
+            category=category,
+            subcategory=subcategory,
+            strain_type=strain_type,
+            offset=0,
+            total_limit=None
+        )
 
 
 # Test function

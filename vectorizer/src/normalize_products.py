@@ -653,10 +653,49 @@ def map_real_subcategory(subcategory: str, schema_data: Optional[Dict] = None) -
     
     return None
 
+def extract_pack_and_mg_from_name(name: str) -> Dict[str, Any]:
+    """
+    Extract both pack count and total mg from product name.
+
+    Handles formats like:
+    - "Kiva | Camino | Midnight Blueberry | Sleep | 5:1 THC:CBN | 20pk Gummies | 100mg"
+    - "Brand | 10pk | 50mg"
+    - "Product Name [20pk] 100mg"
+
+    Returns: {"pack_count": int, "thc_total_mg": float, "thc_per_unit_mg": float} or empty dict
+    """
+    result = {}
+
+    # Pattern for "Xpk ... | Ymg" or "Xpk Gummies | Ymg" format
+    # More flexible to handle various separators and words between pk and mg
+    combined_patterns = [
+        # "20pk Gummies | 100mg" or "20pk | 100mg"
+        r'(\d+)\s*pk\s*(?:\w+\s*)*\|\s*(\d+(?:\.\d+)?)\s*mg',
+        # "[20pk] ... 100mg" or "[20 pk] 100mg"
+        r'\[(\d+)\s*pk\]\s*.*?(\d+(?:\.\d+)?)\s*mg',
+        # "20pk 100mg" (no pipe)
+        r'(\d+)\s*pk\s+(?:\w+\s+)*(\d+(?:\.\d+)?)\s*mg',
+    ]
+
+    for pattern in combined_patterns:
+        match = re.search(pattern, name, re.IGNORECASE)
+        if match:
+            pack_count = int(match.group(1))
+            total_mg = float(match.group(2))
+            # Validate reasonable ranges
+            if 1 <= pack_count <= 100 and 1 <= total_mg <= 1000:
+                result["pack_count"] = pack_count
+                result["thc_total_mg"] = total_mg
+                result["thc_per_unit_mg"] = round(total_mg / pack_count, 2)
+                return result
+
+    return result
+
+
 def extract_pack_count_edibles(name: str, description: str, slug: str, subcategory: str) -> Optional[int]:
     """
     Extract pack count from name/description/slug with subcategory-specific logic.
-    
+
     Subcategory-specific patterns:
     - gummies/live-resin-gummies/live-rosin-gummies: "10 pk", "10pk", "[10pk]", "10 pack"
     - chews: Same patterns + "10 pieces", "10 count"
@@ -780,20 +819,62 @@ def normalize_thc_for_edibles(
     if pack_count and pack_count > 0:
         result["thc_per_unit_mg"] = round(thc_total_mg / pack_count, 2)
     else:
-        # Try to extract from description: "10mg per piece"
-        per_piece_match = re.search(
-            r'(\d+(?:\.\d+)?)\s*mg\s*per\s*piece', 
-            description, 
-            re.IGNORECASE
-        )
-        if per_piece_match:
-            result["thc_per_unit_mg"] = round(float(per_piece_match.group(1)), 2)
-            # Back-calculate pack_count if we found per_unit
-            if thc_total_mg and result.get("thc_per_unit_mg"):
-                calculated_pack_count = int(thc_total_mg / result["thc_per_unit_mg"])
-                if 1 <= calculated_pack_count <= 100:
-                    result["pack_count"] = calculated_pack_count
-    
+        # Try multiple per-piece patterns
+        # Pattern list for extracting mg per unit from description
+        per_piece_patterns = [
+            r'(\d+(?:\.\d+)?)\s*mg\s*per\s*(?:piece|gummy|serving|dose)',  # "10mg per piece"
+            r'(\d+(?:\.\d+)?)\s*mg\s*(?:of\s+)?(?:thc\s+)?(?:per|each)\s+(?:piece|gummy|serving)',  # "10 mg of THC per piece"
+            r'(\d+(?:\.\d+)?)\s*mg\s*(?:thc\s+)?(?:per|each)',  # "5mg THC each" or "5 mg per"
+            r'(?:contains|each\s+(?:piece|gummy)\s+(?:has|contains)?)\s*(\d+(?:\.\d+)?)\s*mg',  # "contains 5mg" or "each gummy has 5mg"
+        ]
+
+        per_unit_found = False
+        for pattern in per_piece_patterns:
+            per_piece_match = re.search(pattern, description, re.IGNORECASE)
+            if per_piece_match:
+                result["thc_per_unit_mg"] = round(float(per_piece_match.group(1)), 2)
+                per_unit_found = True
+                # Back-calculate pack_count if we found per_unit
+                if thc_total_mg and result.get("thc_per_unit_mg"):
+                    calculated_pack_count = int(thc_total_mg / result["thc_per_unit_mg"])
+                    if 1 <= calculated_pack_count <= 100:
+                        result["pack_count"] = calculated_pack_count
+                break
+
+        # Also try the name if not found in description
+        if not per_unit_found:
+            for pattern in per_piece_patterns:
+                per_piece_match = re.search(pattern, name, re.IGNORECASE)
+                if per_piece_match:
+                    result["thc_per_unit_mg"] = round(float(per_piece_match.group(1)), 2)
+                    if thc_total_mg and result.get("thc_per_unit_mg"):
+                        calculated_pack_count = int(thc_total_mg / result["thc_per_unit_mg"])
+                        if 1 <= calculated_pack_count <= 100:
+                            result["pack_count"] = calculated_pack_count
+                    break
+
+        # Chocolate-specific: try to infer pack count from chocolate patterns
+        # This handles cases where thc_per_unit_mg would be same as thc_total_mg
+        if not per_unit_found and subcategory == "chocolates":
+            chocolate_pack_patterns = [
+                r'(\d+)\s*(?:piece|pieces)\b',      # "10 pieces" or "10 piece"
+                r'(\d+)\s*(?:square|squares)\b',    # "4 squares"
+                r'(\d+)\s*(?:bar|bars)\b',          # "2 bars" (multi-bar packs)
+                r'(\d+)\s*(?:section|sections)\b',  # "6 sections"
+                r'(\d+)\s*(?:serving|servings)\b',  # "10 servings"
+            ]
+            for pattern in chocolate_pack_patterns:
+                for text in [name, description]:
+                    match = re.search(pattern, text, re.IGNORECASE)
+                    if match:
+                        inferred_pack = int(match.group(1))
+                        if 1 <= inferred_pack <= 100:
+                            result["pack_count"] = inferred_pack
+                            result["thc_per_unit_mg"] = round(thc_total_mg / inferred_pack, 2)
+                            break
+                if result.get("thc_per_unit_mg"):
+                    break
+
     return result
 
 def normalize_cbd_for_edibles(
@@ -962,27 +1043,45 @@ def transform_edible_data(product: Dict[str, Any], schema_data: Optional[Dict] =
     subcategory = map_real_subcategory(product.get("subcategory", ""), schema_to_use)
     if subcategory:
         normalized["subcategory"] = subcategory
-    
-    # Extract pack count (subcategory-specific)
-    pack_count = extract_pack_count_edibles(
-        product.get("name", ""),
-        product.get("description", ""),
-        product.get("slug", ""),
-        subcategory or ""
-    )
-    if pack_count:
-        normalized["pack_count"] = pack_count
-    
-    # Normalize THC (subcategory-specific)
-    thc_data = normalize_thc_for_edibles(
-        product.get("potencyThc", {}),
-        subcategory or "",
-        pack_count,
-        product.get("name", ""),
-        product.get("description", ""),
-        product.get("slug", "")
-    )
-    normalized.update(thc_data)
+
+    # Try combined pack+mg extraction first (handles "20pk Gummies | 100mg" format)
+    combined_data = extract_pack_and_mg_from_name(product.get("name", ""))
+    pack_count = combined_data.get("pack_count")
+
+    # If combined extraction found values, use them
+    if combined_data:
+        if pack_count:
+            normalized["pack_count"] = pack_count
+        if combined_data.get("thc_total_mg"):
+            normalized["thc_total_mg"] = combined_data["thc_total_mg"]
+        if combined_data.get("thc_per_unit_mg"):
+            normalized["thc_per_unit_mg"] = combined_data["thc_per_unit_mg"]
+
+    # Fallback: Extract pack count using standard patterns if not found
+    if not pack_count:
+        pack_count = extract_pack_count_edibles(
+            product.get("name", ""),
+            product.get("description", ""),
+            product.get("slug", ""),
+            subcategory or ""
+        )
+        if pack_count:
+            normalized["pack_count"] = pack_count
+
+    # Normalize THC (subcategory-specific) - only if not already set by combined extraction
+    if "thc_total_mg" not in normalized:
+        thc_data = normalize_thc_for_edibles(
+            product.get("potencyThc", {}),
+            subcategory or "",
+            pack_count,
+            product.get("name", ""),
+            product.get("description", ""),
+            product.get("slug", "")
+        )
+        normalized.update(thc_data)
+    elif pack_count and "thc_per_unit_mg" not in normalized:
+        # We have thc_total_mg but not per_unit, calculate it
+        normalized["thc_per_unit_mg"] = round(normalized["thc_total_mg"] / pack_count, 2)
     
     # Normalize CBD (similar pattern)
     cbd_data = normalize_cbd_for_edibles(

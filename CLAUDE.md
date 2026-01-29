@@ -20,11 +20,21 @@ The system is built as **four loosely coupled components** for maximum flexibili
 - **Technology**: Python + LangChain + Cloudflare Vectorize
 - **Purpose**: Script to embed and upload the product catalog into the vector database
 - **Key Features**:
-  - Loads product data (JSON or future e-commerce sync)
+  - Fetches product data from Dutchie GraphQL API with category/subcategory/strain filters
+  - Supports filtering by `--category`, `--subcategory`, and `--strain` CLI flags
+  - Smart THC/CBD extraction with "20pk | 100mg" combined format handling
   - Generates embeddings using Cloudflare Workers AI (`@cf/baai/bge-large-en-v1.5`)
+  - Includes terpene aromas, health benefits, and cannabinoid descriptions in semantic search
   - Upserts into Cloudflare Vectorize index
-  - Designed for one-time or periodic runs (local or CI/CD)
-- **Status**: Ready for real product data
+  - Designed for one-time or periodic runs (local or CI/CD, cron-ready)
+- **CLI Examples**:
+  ```bash
+  # INDICA gummies
+  python vectorize.py -x products-prod --category EDIBLES --subcategory GUMMIES --strain INDICA --limit 15 --upload
+  # SATIVA chocolates
+  python vectorize.py -x products-prod --category EDIBLES --subcategory CHOCOLATES --strain SATIVA --limit 15 --upload
+  ```
+- **Status**: Production-ready with full Dutchie API integration
 
 ### 2. **Backend API (`backend/src/index.ts`)**
 - **Technology**: TypeScript + Hono + Cloudflare Workers
