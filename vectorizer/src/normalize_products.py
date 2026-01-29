@@ -9,8 +9,9 @@ try:
 except FileNotFoundError:
     schema = {}
 
-# Mapping from display names to schema subcategory values (lowercase kebab-case)
+# Mapping from display names AND Dutchie API formats to schema subcategory values (lowercase kebab-case)
 SUBCATEGORY_MAPPING = {
+    # Demo format (display names)
     "Premium": "premium-flower",
     "Whole Flower": "whole-flower",
     "Pre-Roll Packs": "pre-roll-packs",
@@ -26,8 +27,225 @@ SUBCATEGORY_MAPPING = {
     "Live Resin": "live-resin",
     "Tinctures": "tinctures",
     "Badder": "badder",
-    "Hash": "hash"
+    "Hash": "hash",
+    # Dutchie API uppercase formats
+    "PREMIUM": "premium-flower",
+    "WHOLE_FLOWER": "whole-flower",
+    "BULK_FLOWER": "bulk-flower",
+    "SMALL_BUDS": "small-buds",
+    "PRE_GROUND": "pre-ground",
+    "DEFAULT": "default",
+    "SINGLES": "singles",
+    "PACKS": "pre-roll-packs",
+    "INFUSED": "infused-prerolls",
+    "INFUSED_PRE_ROLL_PACKS": "infused-preroll-packs",
+    "BLUNTS": "blunts",
+    "GUMMIES": "gummies",
+    "COOKING_BAKING": "cooking-baking",
+    "LIVE_RESIN_GUMMIES": "live-resin-gummies",
+    "LIVE_ROSIN_GUMMIES": "live-rosin-gummies",
+    "CHOCOLATES": "chocolates",
+    "DRINKS": "drinks",
+    "CHEWS": "chews",
+    "LIVE_RESIN": "live-resin",
+    "ALL_IN_ONE": "all-in-one",
+    "CARTRIDGES": "cartridges",
+    "DISPOSABLES": "disposables",
+    "UNFLAVORED": "unflavored",
+    "TINCTURES": "tinctures",
+    "BADDER": "badder",
+    "HASH": "hash",
+    "BALMS": "balms",
+    "PAPERS_ROLLING_SUPPLIES": "papers-rolling-supplies",
+    "GRINDERS": "grinders",
+    "LIGHTERS": "lighters",
+    "BATTERIES": "batteries",
+    "GLASSWARE": "glassware",
 }
+
+# Potency scales by category (centralized from vectorize.py)
+# Each category has thresholds for: mild, balanced, moderate, strong, very_strong
+# Values are (min, max) tuples where min is inclusive, max is exclusive
+POTENCY_SCALES = {
+    "flower": {
+        "mild": (0, 13),
+        "balanced": (13, 18),
+        "moderate": (18, 22),
+        "strong": (22, 28),
+        "very_strong": (28, 100)
+    },
+    "prerolls": {
+        "mild": (0, 13),
+        "balanced": (13, 18),
+        "moderate": (18, 22),
+        "strong": (22, 28),
+        "very_strong": (28, 100)
+    },
+    "vaporizers": {
+        "mild": (0, 66),
+        "balanced": (66, 75),
+        "moderate": (75, 85),
+        "strong": (85, 90),
+        "very_strong": (90, 100)
+    },
+    "concentrates": {
+        "mild": (0, 66),
+        "balanced": (66, 75),
+        "moderate": (75, 85),
+        "strong": (85, 90),
+        "very_strong": (90, 100)
+    },
+    "edibles": {
+        # mg per unit scale (thc_per_unit_mg)
+        "mild": (0, 2.5),
+        "balanced": (2.5, 5),
+        "moderate": (5, 10),
+        "strong": (10, 25),
+        "very_strong": (25, 100)
+    }
+}
+
+# Effect groups for cleaning logic (moved from vectorize.py)
+EFFECT_GROUPS = {
+    "sedating": {"sleepy", "sedated", "relaxed", "calm", "chill"},
+    "energizing": {"energetic", "uplifting", "energized"},
+    "creative": {"creative", "inspired"},
+    "joyful": {"happy", "euphoric"},
+    "clear_mind": {"clear-mind", "focused"}
+}
+
+
+# ============================================================================
+# CENTRALIZED UTILITY FUNCTIONS (moved from vectorize.py)
+# ============================================================================
+
+def get_potency_label(category: str, value: float) -> str:
+    """
+    Get potency label for a category and THC value.
+
+    Centralized potency label generator that works for all categories.
+    Uses POTENCY_SCALES to determine the appropriate label.
+
+    Args:
+        category: Product category (flower, prerolls, edibles, etc.)
+        value: THC value (percentage for flower/prerolls/vaporizers,
+               mg per unit for edibles)
+
+    Returns:
+        Potency label string (e.g., "Moderate potency") or empty string if not applicable.
+    """
+    if value is None:
+        return ""
+
+    scale = POTENCY_SCALES.get(category.lower())
+    if not scale:
+        return ""
+
+    for label, (min_val, max_val) in scale.items():
+        if min_val <= value < max_val:
+            return label.replace("_", " ").title() + " potency"
+
+    return ""
+
+
+def clean_effects(effects: list, product_type: str) -> list:
+    """
+    Clean effects array to remove contradictory effects.
+
+    Moved from vectorize.py for centralization.
+
+    Strategies:
+    1. Sedating effects are isolated - if present, remove all energizing/creative/joyful effects
+    2. Type-based filtering for extremes (energizing only in sativa/hybrid, sedating extremes only in indica/hybrid)
+    3. Creative and joyful effects can blend with energizing, but NOT with sedating
+
+    Args:
+        effects: List of effect strings
+        product_type: Product strain type (indica, sativa, hybrid, etc.)
+
+    Returns:
+        Cleaned list of effects
+    """
+    if not effects or not isinstance(effects, list):
+        return []
+
+    # Normalize to lowercase
+    normalized = [str(e).lower().strip() for e in effects if e]
+    if not normalized:
+        return []
+
+    # Normalize variations
+    # "clear mind" -> "clear-mind"
+    normalized = ["clear-mind" if e == "clear mind" else e for e in normalized]
+    # "euphoria", "euphoric" -> "euphoric"
+    normalized = ["euphoric" if e in ["euphoria"] else e for e in normalized]
+
+    # Get effect groups
+    sedating_effects = EFFECT_GROUPS["sedating"]
+    energizing_effects = EFFECT_GROUPS["energizing"]
+    creative_effects = EFFECT_GROUPS["creative"]
+    joyful_effects = EFFECT_GROUPS["joyful"]
+
+    # Strategy 2: Type-based filtering for extremes
+    product_type_lower = product_type.lower() if product_type else ""
+
+    # If indica, remove energizing effects
+    if product_type_lower in ["indica", "indica-hybrid", "indica-dominant"]:
+        normalized = [e for e in normalized if e not in energizing_effects]
+
+    # If sativa, remove extreme sedating effects (sleepy, sedated) but keep relaxed/calm/chill
+    if product_type_lower in ["sativa", "sativa-hybrid", "sativa-dominant"]:
+        normalized = [e for e in normalized if e not in {"sleepy", "sedated"}]
+
+    # Strategy 1: Sedating effects are isolated - if ANY sedating effect is present,
+    # remove ALL energizing, creative, and joyful effects
+    has_sedating = any(e in sedating_effects for e in normalized)
+    if has_sedating:
+        normalized = [e for e in normalized if e not in energizing_effects]
+        normalized = [e for e in normalized if e not in creative_effects]
+        normalized = [e for e in normalized if e not in joyful_effects]
+
+    # Strategy 3: Creative and joyful effects can blend with energizing,
+    # but if sedating is present (from above check), they're already removed
+
+    # Remove "clear mind" if "sleepy" is present (contradictory)
+    if "sleepy" in normalized and "clear-mind" in normalized:
+        normalized = [e for e in normalized if e != "clear-mind"]
+
+    return normalized
+
+
+def normalize_subcategory(subcategory: str, category: str, schema_data: Optional[Dict] = None) -> Optional[str]:
+    """
+    Unified subcategory normalization for any data format.
+
+    Handles both demo format (display names) and Dutchie API format (UPPERCASE_UNDERSCORE).
+
+    Args:
+        subcategory: Raw subcategory string
+        category: Product category
+        schema_data: Optional schema dict for validation
+
+    Returns:
+        Normalized subcategory string (lowercase kebab-case) or None if invalid.
+    """
+    if not subcategory:
+        return None
+
+    schema_to_use = schema_data or schema
+
+    # Try direct mapping first (handles both demo and API formats)
+    mapped = SUBCATEGORY_MAPPING.get(subcategory)
+    if mapped:
+        # Validate against schema
+        valid = schema_to_use.get("subcategories", {}).get(category.lower(), [])
+        return mapped if mapped in valid else None
+
+    # Try lowercase kebab-case conversion (for already-normalized values)
+    normalized = subcategory.lower().replace("_", "-")
+    valid = schema_to_use.get("subcategories", {}).get(category.lower(), [])
+    return normalized if normalized in valid else None
+
 
 def estimate_tokens(text: str) -> int:
     """Rough token estimation: ~1 token per 4 characters"""
@@ -888,6 +1106,441 @@ def is_real_data_format(product: Dict[str, Any]) -> bool:
     ) or (
         "subcategory" in product and "_" in str(product["subcategory"])
     )
+
+# ============================================================================
+# PRODUCT TRANSFORMER CLASSES
+# ============================================================================
+
+class ProductTransformer:
+    """
+    Base class for category-specific product transformations.
+
+    Subclasses implement category-specific transformation logic while
+    sharing common functionality.
+    """
+
+    def __init__(self, schema_data: Optional[Dict] = None):
+        """
+        Initialize transformer with schema data.
+
+        Args:
+            schema_data: Optional schema dict for validation. Uses module-level schema if not provided.
+        """
+        self.schema = schema_data or schema
+
+    def transform(self, product: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Transform a product from raw API format to normalized format.
+
+        To be overridden by subclasses.
+
+        Args:
+            product: Raw product dictionary from API.
+
+        Returns:
+            Normalized product dictionary.
+        """
+        raise NotImplementedError("Subclasses must implement transform()")
+
+    def _basic_transform(self, product: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Basic transformation shared by all categories.
+
+        Handles common fields: id, name, category, type, description,
+        subcategory, brand, effects, images, price, quantity, inStock.
+
+        Args:
+            product: Raw product dictionary.
+
+        Returns:
+            Partially normalized product dictionary.
+        """
+        normalized = {}
+
+        # Basic fields
+        normalized["id"] = product.get("id", "")
+        normalized["name"] = product.get("name", "")
+        normalized["category"] = product.get("category", "").lower()
+
+        # Type (strainType from API)
+        strain_type = product.get("strainType", "")
+        if strain_type:
+            normalized["type"] = strain_type.lower()
+
+        normalized["description"] = product.get("description", "")
+
+        # Subcategory mapping
+        raw_subcategory = product.get("subcategory", "")
+        subcategory = normalize_subcategory(raw_subcategory, normalized["category"], self.schema)
+        if subcategory:
+            normalized["subcategory"] = subcategory
+
+        # Slug and shopLink
+        normalized["slug"] = product.get("slug", "")
+        normalized["shopLink"] = construct_shop_link(product)
+
+        # Brand enrichment
+        if product.get("brand"):
+            brand = product["brand"]
+            normalized["brand"] = brand.get("name", "")
+            brand_description = brand.get("description", "")
+            if brand_description:
+                normalized["brand_tagline"] = brand_description[:150] + "..." if len(brand_description) > 150 else brand_description
+
+        # Effects (normalize to lowercase, then clean)
+        effects = product.get("effects", [])
+        if isinstance(effects, list):
+            lowercased = [e.lower() for e in effects if e]
+            product_type = normalized.get("type", "")
+            normalized["effects"] = clean_effects(lowercased, product_type)
+        else:
+            normalized["effects"] = []
+
+        # Ensure effects is never empty
+        if not normalized["effects"]:
+            normalized["effects"] = ["relaxed"]
+
+        # Images
+        image = product.get("image")
+        images = product.get("images", [])
+        if image:
+            normalized["imageLink"] = image
+        elif images and isinstance(images, list) and len(images) > 0:
+            first_image = images[0]
+            if isinstance(first_image, dict) and first_image.get("url"):
+                normalized["imageLink"] = first_image["url"]
+
+        # Price (from variants)
+        variants = product.get("variants", [])
+        if variants and isinstance(variants, list) and len(variants) > 0:
+            first_variant = variants[0]
+            if isinstance(first_variant, dict):
+                price = first_variant.get("priceRec") or first_variant.get("priceMed")
+                if price is not None:
+                    normalized["price"] = float(price)
+
+                quantity = first_variant.get("quantity")
+                if quantity is not None:
+                    normalized["quantity"] = int(quantity)
+
+        # Staff pick
+        if product.get("staffPick"):
+            normalized["staffPick"] = True
+
+        # In stock (all products in response are in stock)
+        normalized["inStock"] = True
+
+        # Extract terpenes and cannabinoids (common to many categories)
+        normalized["terpenes"] = extract_terpenes(product.get("terpenes", []))
+        normalized["cannabinoids"] = extract_cannabinoids(product.get("cannabinoids", []))
+
+        return normalized
+
+
+class EdibleTransformer(ProductTransformer):
+    """Transformer for edible products (gummies, chocolates, drinks, etc.)."""
+
+    def transform(self, product: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Transform edible product with mg-based potency normalization.
+
+        Handles pack count extraction, THC/CBD normalization for mg units,
+        and subcategory-specific logic.
+        """
+        # Use existing transform_edible_data function
+        return transform_edible_data(product, self.schema)
+
+
+class FlowerTransformer(ProductTransformer):
+    """Transformer for flower products."""
+
+    def transform(self, product: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Transform flower product with percentage-based potency.
+        """
+        normalized = self._basic_transform(product)
+
+        # THC/CBD as percentage
+        potency_thc = product.get("potencyThc", {})
+        if potency_thc.get("range") and len(potency_thc["range"]) > 0:
+            normalized["thc_percentage"] = potency_thc["range"][0]
+
+        potency_cbd = product.get("potencyCbd", {})
+        if potency_cbd.get("range") and len(potency_cbd["range"]) > 0:
+            normalized["cbd_percentage"] = potency_cbd["range"][0]
+
+        # Weight from variants
+        variants = product.get("variants", [])
+        if variants and isinstance(variants, list) and len(variants) > 0:
+            first_variant = variants[0]
+            if isinstance(first_variant, dict):
+                option = first_variant.get("option", "")
+                # Parse weight from option (e.g., "3.5g", "1oz")
+                weight = self._parse_weight(option)
+                if weight:
+                    normalized["total_weight_grams"] = weight
+
+        return normalized
+
+    def _parse_weight(self, option: str) -> Optional[float]:
+        """Parse weight from variant option string."""
+        if not option:
+            return None
+
+        import re
+        # Try grams first
+        match = re.search(r'(\d+(?:\.\d+)?)\s*g(?:rams?)?', option, re.IGNORECASE)
+        if match:
+            return float(match.group(1))
+
+        # Try ounces
+        match = re.search(r'(\d+(?:\.\d+)?)\s*oz', option, re.IGNORECASE)
+        if match:
+            return float(match.group(1)) * 28.35  # Convert to grams
+
+        return None
+
+
+class PrerollTransformer(ProductTransformer):
+    """Transformer for preroll products."""
+
+    def transform(self, product: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Transform preroll product with pack count and individual weight.
+        """
+        normalized = self._basic_transform(product)
+
+        # THC/CBD as percentage
+        potency_thc = product.get("potencyThc", {})
+        if potency_thc.get("range") and len(potency_thc["range"]) > 0:
+            normalized["thc_percentage"] = potency_thc["range"][0]
+
+        potency_cbd = product.get("potencyCbd", {})
+        if potency_cbd.get("range") and len(potency_cbd["range"]) > 0:
+            normalized["cbd_percentage"] = potency_cbd["range"][0]
+
+        # Pack count from name
+        pack_count = self._extract_pack_count(product.get("name", ""), product.get("slug", ""))
+        if pack_count:
+            normalized["pack_count"] = pack_count
+
+        # Individual weight from variants
+        variants = product.get("variants", [])
+        if variants and isinstance(variants, list) and len(variants) > 0:
+            first_variant = variants[0]
+            if isinstance(first_variant, dict):
+                option = first_variant.get("option", "")
+                weight = self._parse_weight(option)
+                if weight:
+                    normalized["individual_weight_grams"] = weight
+
+        return normalized
+
+    def _extract_pack_count(self, name: str, slug: str) -> Optional[int]:
+        """Extract pack count from name or slug."""
+        import re
+        patterns = [
+            r'(\d+)\s*(?:pk|pack)\b',
+            r'\[(\d+)\s*pk\]',
+        ]
+        for text in [name, slug]:
+            for pattern in patterns:
+                match = re.search(pattern, text, re.IGNORECASE)
+                if match:
+                    count = int(match.group(1))
+                    if 1 <= count <= 20:
+                        return count
+        return None
+
+    def _parse_weight(self, option: str) -> Optional[float]:
+        """Parse weight from variant option string."""
+        if not option:
+            return None
+
+        import re
+        match = re.search(r'(\d+(?:\.\d+)?)\s*g', option, re.IGNORECASE)
+        if match:
+            return float(match.group(1))
+        return None
+
+
+class VaporizerTransformer(ProductTransformer):
+    """Transformer for vaporizer products (cartridges, disposables, etc.)."""
+
+    def transform(self, product: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Transform vaporizer product with high-percentage THC scale.
+        """
+        normalized = self._basic_transform(product)
+
+        # THC/CBD as percentage (vaporizers have higher THC)
+        potency_thc = product.get("potencyThc", {})
+        if potency_thc.get("range") and len(potency_thc["range"]) > 0:
+            normalized["thc_percentage"] = potency_thc["range"][0]
+
+        potency_cbd = product.get("potencyCbd", {})
+        if potency_cbd.get("range") and len(potency_cbd["range"]) > 0:
+            normalized["cbd_percentage"] = potency_cbd["range"][0]
+
+        return normalized
+
+
+class ConcentrateTransformer(ProductTransformer):
+    """Transformer for concentrate products (wax, shatter, etc.)."""
+
+    def transform(self, product: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Transform concentrate product with high-percentage THC scale.
+        """
+        normalized = self._basic_transform(product)
+
+        # THC/CBD as percentage
+        potency_thc = product.get("potencyThc", {})
+        if potency_thc.get("range") and len(potency_thc["range"]) > 0:
+            normalized["thc_percentage"] = potency_thc["range"][0]
+
+        potency_cbd = product.get("potencyCbd", {})
+        if potency_cbd.get("range") and len(potency_cbd["range"]) > 0:
+            normalized["cbd_percentage"] = potency_cbd["range"][0]
+
+        # Weight from variants
+        variants = product.get("variants", [])
+        if variants and isinstance(variants, list) and len(variants) > 0:
+            first_variant = variants[0]
+            if isinstance(first_variant, dict):
+                option = first_variant.get("option", "")
+                weight = self._parse_weight(option)
+                if weight:
+                    normalized["total_weight_grams"] = weight
+
+        return normalized
+
+    def _parse_weight(self, option: str) -> Optional[float]:
+        """Parse weight from variant option string."""
+        if not option:
+            return None
+
+        import re
+        match = re.search(r'(\d+(?:\.\d+)?)\s*g', option, re.IGNORECASE)
+        if match:
+            return float(match.group(1))
+        return None
+
+
+class AccessoryTransformer(ProductTransformer):
+    """Transformer for accessory products (minimal transformation)."""
+
+    def transform(self, product: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Transform accessory product with minimal processing.
+
+        Accessories don't have potency, effects, or terpenes.
+        """
+        normalized = {}
+
+        # Basic fields only
+        normalized["id"] = product.get("id", "")
+        normalized["name"] = product.get("name", "")
+        normalized["category"] = product.get("category", "").lower()
+        normalized["description"] = product.get("description", "")
+
+        # Subcategory
+        raw_subcategory = product.get("subcategory", "")
+        subcategory = normalize_subcategory(raw_subcategory, normalized["category"], self.schema)
+        if subcategory:
+            normalized["subcategory"] = subcategory
+
+        # Slug and shopLink
+        normalized["slug"] = product.get("slug", "")
+        normalized["shopLink"] = construct_shop_link(product)
+
+        # Brand
+        if product.get("brand"):
+            brand = product["brand"]
+            normalized["brand"] = brand.get("name", "")
+
+        # Images
+        image = product.get("image")
+        images = product.get("images", [])
+        if image:
+            normalized["imageLink"] = image
+        elif images and isinstance(images, list) and len(images) > 0:
+            first_image = images[0]
+            if isinstance(first_image, dict) and first_image.get("url"):
+                normalized["imageLink"] = first_image["url"]
+
+        # Price
+        variants = product.get("variants", [])
+        if variants and isinstance(variants, list) and len(variants) > 0:
+            first_variant = variants[0]
+            if isinstance(first_variant, dict):
+                price = first_variant.get("priceRec") or first_variant.get("priceMed")
+                if price is not None:
+                    normalized["price"] = float(price)
+
+                quantity = first_variant.get("quantity")
+                if quantity is not None:
+                    normalized["quantity"] = int(quantity)
+
+        normalized["inStock"] = True
+
+        return normalized
+
+
+# ============================================================================
+# TRANSFORMER DISPATCHER
+# ============================================================================
+
+def get_transformer(category: str, schema_data: Optional[Dict] = None) -> ProductTransformer:
+    """
+    Get the appropriate transformer for a category.
+
+    Args:
+        category: Product category string (e.g., "EDIBLES", "FLOWER").
+        schema_data: Optional schema dict for validation.
+
+    Returns:
+        Appropriate ProductTransformer subclass instance.
+    """
+    transformers = {
+        "edibles": EdibleTransformer,
+        "flower": FlowerTransformer,
+        "prerolls": PrerollTransformer,
+        "pre_rolls": PrerollTransformer,  # Handle both formats
+        "vaporizers": VaporizerTransformer,
+        "concentrates": ConcentrateTransformer,
+        "cbd": FlowerTransformer,  # CBD products similar to flower
+        "topicals": ProductTransformer,  # Basic transformation
+        "accessories": AccessoryTransformer,
+    }
+
+    transformer_class = transformers.get(category.lower(), ProductTransformer)
+    return transformer_class(schema_data)
+
+
+def transform_product(product: Dict[str, Any], schema_data: Optional[Dict] = None) -> Dict[str, Any]:
+    """
+    Main entry point for product transformation.
+
+    Automatically detects data format and dispatches to appropriate transformer.
+
+    Args:
+        product: Raw product dictionary (from API or demo data).
+        schema_data: Optional schema dict for validation.
+
+    Returns:
+        Normalized product dictionary.
+    """
+    # Detect format and get category
+    if is_real_data_format(product):
+        # Real data from API
+        category = product.get("category", "").lower()
+        transformer = get_transformer(category, schema_data)
+        return transformer.transform(product)
+    else:
+        # Demo/legacy format - use existing normalize_product
+        return normalize_product(product, None, schema_data)
+
 
 # ============================================================================
 # SCRIPT EXECUTION (for backward compatibility)

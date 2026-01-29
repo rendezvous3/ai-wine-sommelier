@@ -1113,7 +1113,7 @@
   menuMode="sidebar"
   onMenuItemClick={handleMenuItemClick}
   title="Cannavita Budtender"
-  themeBackgroundColor="#1ba4298f"
+  themeBackgroundColor="#F4C37D"
   showBadge={false}
   onClearChat={handleClearChat}
   hasMessages={messages.length > 0}

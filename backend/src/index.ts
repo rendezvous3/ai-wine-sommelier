@@ -39,7 +39,7 @@ interface Bindings {
 // MODEL PROVIDER CONFIGURATION
 // Change this to switch between Groq and Cerebras
 // ============================================
-const ACTIVE_PROVIDER = LLM_PROVIDER.CEREBRAS; // or LLM_PROVIDER.GROQ
+const ACTIVE_PROVIDER = LLM_PROVIDER.CEREBRAS; // or LLM_PROVIDER.GROQ // CEREBRAS
 
 // Default tier - can be made configurable via environment variable later
 const TIER: Tier = "FREE";

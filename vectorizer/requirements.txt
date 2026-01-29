@@ -4,3 +4,4 @@ langchain-cloudflare
 python-dotenv
 tqdm
 requests
+aiohttp>=3.8.0

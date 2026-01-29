@@ -4,10 +4,14 @@
       "Read(./Svelte-Component-Library/**)",
       "Edit(./Svelte-Component-Library/**)",
 
+      "Read(./vectorizer/src/schema/**.json)",
+      "Edit(./vectorizer/src/schema/**.json)",
+
       "Read(./client/**)",
 
       "Read(**/node_modules/**)",
       "Edit(**/node_modules/**)",
+      "Write(**/node_modules/**)",
 
       "Read(**/.svelte-kit/**)",
       "Read(**/dist/**)",

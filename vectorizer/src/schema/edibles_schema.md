@@ -325,54 +325,33 @@ This section documents the normalized structure after transformation (output of 
 
 ### Terpenes
 
-- **`terpenes`** (array of objects): Flattened terpene structure (deduplicated by `id`)
+- **`terpenes`** (array of strings): Terpene names extracted from flattened terpene structure
   - Structure:
     ```json
-    [
-      {
-        "id": "c98feb28-1cd3-4905-8a4e-7290ffb5bf20",
-        "name": "Myrcene",
-        "aromas": ["Cloves", "Earthy", "Musk"],
-        "potentialHealthBenefits": [
-          "Anti-anxiety",
-          "Cancer Fighting",
-          "Anti-inflammatory",
-          "Sedative"
-        ],
-        "description": "One of the most common terpenes found in cannabis...",
-        "effects": ["Comfort"]
-      }
-    ]
+    ["Myrcene", "Caryophyllene", "Limonene"]
     ```
-  - Fields:
-    - `id` (string): Terpene UUID
-    - `name` (string): Terpene name
-    - `aromas` (array of strings): Aroma descriptors
-    - `potentialHealthBenefits` (array of strings): Health benefits
-    - `description` (string): Terpene description
-    - `effects` (array of strings): Effects (can be empty)
-  - **Transformation**: Flattened from nested `terpenes[].terpene` structure, deduplicated by `id`
-  - Transformed via: `extract_terpenes()` function
+  - **Transformation**: 
+    1. Flattened from nested `terpenes[].terpene` structure, deduplicated by `id` (via `extract_terpenes()`)
+    2. Converted to array of strings (terpene names only) for Cloudflare Vectorize metadata compatibility
+    3. Cloudflare Vectorize metadata arrays can only contain strings, not objects
+  - Example: `["Myrcene", "Caryophyllene"]`
+  - Can be empty array `[]` if no terpenes present
+  - Transformed via: `extract_terpenes()` function → `build_metadata()` converts to string array
 
 ### Cannabinoids
 
-- **`cannabinoids`** (array of objects): Flattened cannabinoid structure (deduplicated by `id`)
+- **`cannabinoids`** (array of strings): Cannabinoid names extracted from flattened cannabinoid structure
   - Structure:
     ```json
-    [
-      {
-        "id": "cannabinoid-object-id",
-        "name": "CBD",
-        "description": "Cannabidiol (CBD) is a non-psychoactive cannabinoid..."
-      }
-    ]
+    ["CBD", "CBG", "THC"]
     ```
-  - Fields:
-    - `id` (string): Cannabinoid UUID
-    - `name` (string): Cannabinoid name
-    - `description` (string): Cannabinoid description
-  - **Transformation**: Flattened from nested `cannabinoids[].cannabinoid` structure, deduplicated by `id`
-  - Transformed via: `extract_cannabinoids()` function
+  - **Transformation**: 
+    1. Flattened from nested `cannabinoids[].cannabinoid` structure, deduplicated by `id` (via `extract_cannabinoids()`)
+    2. Converted to array of strings (cannabinoid names only) for Cloudflare Vectorize metadata compatibility
+    3. Cloudflare Vectorize metadata arrays can only contain strings, not objects
+  - Example: `["CBD", "CBG"]`
+  - Can be empty array `[]` if no cannabinoids present
+  - Transformed via: `extract_cannabinoids()` function → `build_metadata()` converts to string array
 
 ### URLs
 
@@ -590,19 +569,8 @@ This is the complete structure of a transformed edible product as returned by th
   "quantity": number | null,  // Inventory stock from variants[0].quantity, NOT pack count
   "inStock": boolean,  // Always true for products in API response
   "staffPick": boolean | undefined,  // Only present if true
-  "terpenes": Array<{
-    "id": string,
-    "name": string,
-    "aromas": string[] | [],
-    "potentialHealthBenefits": string[] | [],
-    "description": string,
-    "effects": string[] | []
-  }> | [],
-  "cannabinoids": Array<{
-    "id": string,
-    "name": string,
-    "description": string
-  }> | [],
+  "terpenes": string[] | [],  // Array of terpene names (e.g., ["Myrcene", "Caryophyllene"]) - converted from objects to strings for Vectorize metadata compatibility
+  "cannabinoids": string[] | [],  // Array of cannabinoid names (e.g., ["CBD", "CBG"]) - converted from objects to strings for Vectorize metadata compatibility
   "page_content": string  // Generated for vector search, includes name, description, effects, flavor, brand_tagline, subcategory, aromas, health benefits, potency
 }
 ```
@@ -616,5 +584,7 @@ This is the complete structure of a transformed edible product as returned by th
 - `thc_per_unit_mg`: Calculated `100.0 / 10 = 10.0`
 - `effects`: `["ENERGETIC", "FOCUSED"]` → `["energetic", "focused"]` (lowercase)
 - `flavor`: Extracted from name/description and normalized to lowercase array
+- `terpenes`: Array of objects → Array of strings (terpene names only) for Vectorize metadata compatibility
+- `cannabinoids`: Array of objects → Array of strings (cannabinoid names only) for Vectorize metadata compatibility
 - `shopLink`: Constructed with Dutchie query parameter format
 - `page_content`: Generated string combining name, description, effects, flavor, brand_tagline, subcategory, aromas, health benefits, and potency
