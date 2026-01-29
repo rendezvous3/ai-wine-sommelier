@@ -12,8 +12,8 @@
 #   edibles-quick     - Popular subcategories only (gummies, chocolates)
 #
 # Examples:
-#   ./preset_sync.sh all-subcategories products-demo-1 15
-#   ./preset_sync.sh gummies-all products-demo-1 15
+#   ./preset_sync.sh all-subcategories products-demo-x 15
+#   ./preset_sync.sh gummies-all products-demo-x 15
 #   ./preset_sync.sh chocolates products-prod 20
 
 set -e
@@ -32,8 +32,8 @@ if [ $# -lt 3 ]; then
     echo "  edibles-quick     - Gummies + chocolates only"
     echo ""
     echo "Examples:"
-    echo "  $0 all-subcategories products-demo-1 15"
-    echo "  $0 gummies-all products-demo-1 15"
+    echo "  $0 all-subcategories products-demo-x 15"
+    echo "  $0 gummies-all products-demo-x 15"
     echo "  $0 chocolates products-prod 20"
     exit 1
 fi

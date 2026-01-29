@@ -140,22 +140,6 @@ def load_products_from_file(category: Optional[str] = None) -> List[Dict[str, An
             except FileNotFoundError:
                 print(f"Category file {file_path} not found")
 
-    # Fallback to demo products
-    fallback_files = [
-        "schema/edibles.json",
-        "demo_products.json",
-        "demo_products_1.json",
-    ]
-
-    for file_path in fallback_files:
-        try:
-            with open(file_path, "r") as f:
-                products = json.load(f)
-                print(f"Loaded {len(products)} products from {file_path}")
-                return products
-        except FileNotFoundError:
-            continue
-
     print("No product files found")
     return []
 

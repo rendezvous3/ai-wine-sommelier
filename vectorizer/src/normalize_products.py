@@ -119,6 +119,50 @@ EFFECT_GROUPS = {
 # CENTRALIZED UTILITY FUNCTIONS (moved from vectorize.py)
 # ============================================================================
 
+def normalize_category(category: str) -> str:
+    """
+    Normalize category from Dutchie API format to schema format.
+
+    Converts:
+    - "PRE_ROLLS" -> "prerolls"
+    - "FLOWER" -> "flower"
+    - "EDIBLES" -> "edibles"
+
+    Args:
+        category: Raw category string from API (e.g., "PRE_ROLLS", "FLOWER")
+
+    Returns:
+        Normalized category string (lowercase, no underscores)
+    """
+    if not category:
+        return ""
+    # Convert to lowercase and remove underscores
+    return category.lower().replace("_", "")
+
+
+def normalize_strain_type(strain_type: str) -> str:
+    """
+    Normalize strain type from Dutchie API format to schema format.
+
+    Converts:
+    - "INDICA_HYBRID" -> "indica-hybrid"
+    - "SATIVA_HYBRID" -> "sativa-hybrid"
+    - "INDICA" -> "indica"
+    - "SATIVA" -> "sativa"
+    - "HYBRID" -> "hybrid"
+
+    Args:
+        strain_type: Raw strain type string from API (e.g., "INDICA_HYBRID", "SATIVA")
+
+    Returns:
+        Normalized strain type string (lowercase, underscores replaced with hyphens)
+    """
+    if not strain_type:
+        return ""
+    # Convert to lowercase and replace underscores with hyphens
+    return strain_type.lower().replace("_", "-")
+
+
 def get_potency_label(category: str, value: float) -> str:
     """
     Get potency label for a category and THC value.
@@ -280,7 +324,7 @@ def assign_subcategory(product: Dict[str, Any], schema_data: Optional[Dict] = No
     """Assign subcategory based on category and product details.
     Returns lowercase kebab-case subcategory matching schema."""
     schema_to_use = schema_data or schema
-    category = product.get("category", "").lower()
+    category = normalize_category(product.get("category", ""))
     name = product.get("name", "").lower()
     description = product.get("description", "").lower()
     
@@ -366,7 +410,7 @@ def normalize_inventory(product: Dict[str, Any]) -> Dict[str, Any]:
 
 def normalize_weights_and_thc(product: Dict[str, Any]) -> Dict[str, Any]:
     """Normalize weights and THC values with proper units"""
-    category = product.get("category", "").lower()
+    category = normalize_category(product.get("category", ""))
     normalized = product.copy()
     
     # Common fields
@@ -378,7 +422,7 @@ def normalize_weights_and_thc(product: Dict[str, Any]) -> Dict[str, Any]:
         del normalized["unit"]  # Remove unit field as it's now in property names
     
     # THC/CBD percentage fields (skip for tinctures - they'll be handled separately)
-    category = normalized.get("category", "").lower()
+    category = normalize_category(normalized.get("category", ""))
     is_tincture = category == "concentrates" and "tincture" in normalized.get("name", "").lower()
     
     if not is_tincture:
@@ -1030,13 +1074,13 @@ def transform_edible_data(product: Dict[str, Any], schema_data: Optional[Dict] =
     # Basic fields
     normalized["id"] = product.get("id", "")
     normalized["name"] = product.get("name", "")
-    normalized["category"] = product.get("category", "").lower()
-    
+    normalized["category"] = normalize_category(product.get("category", ""))
+
     # Type
     strain_type = product.get("strainType", "")
     if strain_type:
-        normalized["type"] = strain_type.lower()
-    
+        normalized["type"] = normalize_strain_type(strain_type)
+
     normalized["description"] = product.get("description", "")
     
     # Subcategory mapping (real data uses uppercase with underscores)
@@ -1166,12 +1210,12 @@ def normalize_product(product: Dict[str, Any], brands_lookup: Optional[Dict[str,
     # Step 1: Normalize inventory
     product = normalize_inventory(product)
     
-    # Step 1.5: Normalize category and type to lowercase
+    # Step 1.5: Normalize category and type
     if "category" in product and product["category"]:
-        product["category"] = product["category"].lower()
+        product["category"] = normalize_category(product["category"])
     if "type" in product and product["type"]:
-        product["type"] = product["type"].lower()
-    
+        product["type"] = normalize_strain_type(product["type"])
+
     # Step 2: Assign subcategory (already returns lowercase kebab-case)
     subcategory = assign_subcategory(product, schema_to_use)
     if subcategory:
@@ -1259,12 +1303,12 @@ class ProductTransformer:
         # Basic fields
         normalized["id"] = product.get("id", "")
         normalized["name"] = product.get("name", "")
-        normalized["category"] = product.get("category", "").lower()
+        normalized["category"] = normalize_category(product.get("category", ""))
 
         # Type (strainType from API)
         strain_type = product.get("strainType", "")
         if strain_type:
-            normalized["type"] = strain_type.lower()
+            normalized["type"] = normalize_strain_type(strain_type)
 
         normalized["description"] = product.get("description", "")
 
@@ -1374,25 +1418,44 @@ class FlowerTransformer(ProductTransformer):
             first_variant = variants[0]
             if isinstance(first_variant, dict):
                 option = first_variant.get("option", "")
-                # Parse weight from option (e.g., "3.5g", "1oz")
-                weight = self._parse_weight(option)
-                if weight:
-                    normalized["total_weight_grams"] = weight
+                # Parse weight from option (e.g., "1/8oz", "1/4oz", "1oz", "3.5g")
+                weight_grams = self._parse_weight(option)
+                if weight_grams:
+                    normalized["total_weight_grams"] = round(weight_grams, 2)
+                    normalized["total_weight_ounce"] = round(weight_grams / 28.35, 3)
 
         return normalized
 
     def _parse_weight(self, option: str) -> Optional[float]:
-        """Parse weight from variant option string."""
+        """
+        Parse weight from variant option string.
+
+        Handles:
+        - Fractional ounces: "1/8oz", "1/4oz", "1/2oz"
+        - Whole ounces: "1oz", "2oz"
+        - Grams: "3.5g", "7g"
+
+        Returns weight in grams.
+        """
         if not option:
             return None
 
         import re
+
         # Try grams first
         match = re.search(r'(\d+(?:\.\d+)?)\s*g(?:rams?)?', option, re.IGNORECASE)
         if match:
             return float(match.group(1))
 
-        # Try ounces
+        # Try fractional ounces (1/8oz, 1/4oz, 1/2oz)
+        match = re.search(r'(\d+)/(\d+)\s*oz', option, re.IGNORECASE)
+        if match:
+            numerator = float(match.group(1))
+            denominator = float(match.group(2))
+            ounces = numerator / denominator
+            return ounces * 28.35  # Convert to grams
+
+        # Try whole ounces
         match = re.search(r'(\d+(?:\.\d+)?)\s*oz', option, re.IGNORECASE)
         if match:
             return float(match.group(1)) * 28.35  # Convert to grams
@@ -1418,20 +1481,25 @@ class PrerollTransformer(ProductTransformer):
         if potency_cbd.get("range") and len(potency_cbd["range"]) > 0:
             normalized["cbd_percentage"] = potency_cbd["range"][0]
 
-        # Pack count from name
+        # Pack count from name/slug (NOT from variants.quantity!)
         pack_count = self._extract_pack_count(product.get("name", ""), product.get("slug", ""))
         if pack_count:
             normalized["pack_count"] = pack_count
 
         # Individual weight from variants
         variants = product.get("variants", [])
+        individual_weight = None
         if variants and isinstance(variants, list) and len(variants) > 0:
             first_variant = variants[0]
             if isinstance(first_variant, dict):
                 option = first_variant.get("option", "")
-                weight = self._parse_weight(option)
-                if weight:
-                    normalized["individual_weight_grams"] = weight
+                individual_weight = self._parse_weight(option)
+                if individual_weight:
+                    normalized["individual_weight_grams"] = round(individual_weight, 2)
+
+        # Calculate total weight if we have both pack_count and individual_weight
+        if pack_count and individual_weight:
+            normalized["total_weight_grams"] = round(individual_weight * pack_count, 2)
 
         return normalized
 
@@ -1452,12 +1520,18 @@ class PrerollTransformer(ProductTransformer):
         return None
 
     def _parse_weight(self, option: str) -> Optional[float]:
-        """Parse weight from variant option string."""
+        """
+        Parse weight from variant option string.
+
+        Handles:
+        - Decimal grams: "1g", "0.5g", ".5g", "0.75g"
+        """
         if not option:
             return None
 
         import re
-        match = re.search(r'(\d+(?:\.\d+)?)\s*g', option, re.IGNORECASE)
+        # Match patterns like "1g", "0.5g", ".5g", "0.75g"
+        match = re.search(r'(\d*\.?\d+)\s*g', option, re.IGNORECASE)
         if match:
             return float(match.group(1))
         return None
@@ -1540,7 +1614,7 @@ class AccessoryTransformer(ProductTransformer):
         # Basic fields only
         normalized["id"] = product.get("id", "")
         normalized["name"] = product.get("name", "")
-        normalized["category"] = product.get("category", "").lower()
+        normalized["category"] = normalize_category(product.get("category", ""))
         normalized["description"] = product.get("description", "")
 
         # Subcategory
@@ -1633,7 +1707,7 @@ def transform_product(product: Dict[str, Any], schema_data: Optional[Dict] = Non
     # Detect format and get category
     if is_real_data_format(product):
         # Real data from API
-        category = product.get("category", "").lower()
+        category = normalize_category(product.get("category", ""))
         transformer = get_transformer(category, schema_data)
         return transformer.transform(product)
     else:
@@ -1642,35 +1716,9 @@ def transform_product(product: Dict[str, Any], schema_data: Optional[Dict] = Non
 
 
 # ============================================================================
-# SCRIPT EXECUTION (for backward compatibility)
+# SCRIPT EXECUTION
 # ============================================================================
 
 if __name__ == "__main__":
-    # Load data
-    with open("demo_products.json", "r") as f:
-        products = json.load(f)
-    
-    with open("demo_brands.json", "r") as f:
-        brands = json.load(f)
-    
-    # Create brand lookup dictionary
-    brand_lookup = {brand["id"]: brand for brand in brands}
-    
-    # Transform all products
-    normalized_products = []
-    
-    for product in products:
-        normalized = normalize_product(product, brand_lookup)
-        normalized_products.append(normalized)
-    
-    # Write output
-    with open("demo_products_1.json", "w") as f:
-        json.dump(normalized_products, f, indent=2, ensure_ascii=False)
-    
-    print(f"✓ Normalized {len(normalized_products)} products")
-    print(f"✓ Written to demo_products_1.json")
-    
-    # Validate JSON
-    with open("demo_products_1.json", "r") as f:
-        validation_data = json.load(f)
-        print(f"✓ JSON validation passed ({len(validation_data)} products)")
+    print("This module is intended to be imported, not run directly.")
+    print("Use vectorize.py to process products.")

@@ -434,7 +434,7 @@ print("documents", json.dumps([{"page_content": doc.page_content, "metadata": {k
 
 
 # STEP 1 - Create the Vector DB Table - chose index name
-# vectorize_index_name = "products-demo-1"
+# vectorize_index_name = "products-demo-x"
 # vectorize_index_name = "test-langchain-cloudflare"
 # vectorize_index_name = "products-demo-2"
 vectorize_index_name = "products-demo-3"

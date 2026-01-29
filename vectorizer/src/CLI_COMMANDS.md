@@ -78,9 +78,9 @@ python manage_indexes.py --list
 ============================================================
 VECTORIZE INDEXES
 ============================================================
-  - products-demo-1: 0 vectors (status: ready)
-  - products-demo-2: 0 vectors (status: ready)
-  - products-demo-3: 139 vectors (status: ready)
+  - products-demo-example-1: 0 vectors (status: ready)
+  - products-demo-example-2: 0 vectors (status: ready)
+  - products-demo-example-3: 139 vectors (status: ready)
 ============================================================
 ```
 
@@ -246,6 +246,59 @@ python vectorize.py --index products-demo-3 --category EDIBLES --offset 100 --li
 python vectorize.py --index products-demo-3 --category EDIBLES --offset 200 --limit 100 --upload
 ```
 
+### FLOWER Category
+
+Upload flower products to Vectorize.
+
+```bash
+# Test 20 FLOWER products
+python vectorize.py -x products-test --category FLOWER --limit 20
+
+# Upload INDICA flower
+python vectorize.py -x products-prod --category FLOWER --strain INDICA --limit 25 --upload
+
+# Upload SATIVA premium flower
+python vectorize.py -x products-prod --category FLOWER --subcategory PREMIUM --strain SATIVA --limit 15 --upload
+
+# Upload small buds
+python vectorize.py -x products-prod --category FLOWER --subcategory SMALL_BUDS --limit 20 --upload
+```
+
+**FLOWER Subcategories:**
+- `DEFAULT` - Standard flower
+- `PREMIUM` - Premium quality flower
+- `WHOLE_FLOWER` - Whole flower buds
+- `BULK_FLOWER` - Bulk/large quantity flower
+- `SMALL_BUDS` - Small buds (popcorn nugs)
+- `PRE_GROUND` - Pre-ground flower
+
+### PRE_ROLLS Category
+
+Upload preroll products to Vectorize.
+
+```bash
+# Test 20 PRE_ROLLS products
+python vectorize.py -x products-test --category PRE_ROLLS --limit 20
+
+# Upload INDICA prerolls
+python vectorize.py -x products-prod --category PRE_ROLLS --strain INDICA --limit 25 --upload
+
+# Upload singles only
+python vectorize.py -x products-prod --category PRE_ROLLS --subcategory SINGLES --limit 20 --upload
+
+# Upload infused prerolls
+python vectorize.py -x products-prod --category PRE_ROLLS --subcategory INFUSED --strain HYBRID --limit 15 --upload
+```
+
+**PRE_ROLLS Subcategories:**
+- `SINGLES` - Single prerolls
+- `PACKS` - Preroll packs
+- `INFUSED` - Infused prerolls (singles)
+- `INFUSED_PRE_ROLL_PACKS` - Infused preroll packs
+- `BLUNTS` - Blunts
+
+**Note:** Pack count is extracted from product name/slug, NOT from inventory quantity.
+
 ### Use Local Files
 
 Use local JSON files instead of fetching from Dutchie API. Useful for testing or when API is unavailable.
@@ -376,7 +429,7 @@ Use preset scripts to sync multiple subcategories at once.
 
 **Sync all edibles subcategories (15 products each, no strain filter):**
 ```bash
-./preset_sync.sh all-subcategories products-demo-1 15
+./preset_sync.sh all-subcategories products-demo-x 15
 ```
 
 This will sync:
@@ -392,9 +445,9 @@ This will sync:
 
 | Preset | Description | Example |
 |--------|-------------|---------|
-| `all-subcategories` | All edibles, no strain filter | `./preset_sync.sh all-subcategories products-demo-1 15` |
-| `gummies-all` | All gummy types × all strains | `./preset_sync.sh gummies-all products-demo-1 15` |
-| `gummies-indica` | All gummy types × INDICA | `./preset_sync.sh gummies-indica products-demo-1 20` |
+| `all-subcategories` | All edibles, no strain filter | `./preset_sync.sh all-subcategories products-demo-x 15` |
+| `gummies-all` | All gummy types × all strains | `./preset_sync.sh gummies-all products-demo-x 15` |
+| `gummies-indica` | All gummy types × INDICA | `./preset_sync.sh gummies-indica products-demo-x 20` |
 | `chocolates` | Chocolates × all strains | `./preset_sync.sh chocolates products-prod 10` |
 | `edibles-quick` | Gummies + chocolates only | `./preset_sync.sh edibles-quick products-prod 30` |
 
@@ -402,7 +455,7 @@ This will sync:
 ```bash
 =============================================
 Preset Sync: all-subcategories
-Index: products-demo-1 | Limit: 15
+Index: products-demo-x | Limit: 15
 =============================================
 Syncing all edibles subcategories (no strain filter)...
   → GUMMIES
