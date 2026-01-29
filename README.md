@@ -79,21 +79,21 @@ We must Create metadata indexes in order to be able to filter metadata
 
 ```bash
 
-npx wrangler vectorize create-metadata-index products-demo-3 --property-name=category --type=string
-npx wrangler vectorize create-metadata-index products-demo-3 --property-name=type --type=string
-npx wrangler vectorize create-metadata-index products-demo-3 --property-name=brand --type=string
-npx wrangler vectorize create-metadata-index products-demo-3 --property-name=subcategory --type=string
-npx wrangler vectorize create-metadata-index products-demo-3 --property-name=effects --type=string
-npx wrangler vectorize create-metadata-index products-demo-3 --property-name=flavor --type=string
-npx wrangler vectorize create-metadata-index products-demo-3 --property-name=price --type=number
-npx wrangler vectorize create-metadata-index products-demo-3 --property-name=thc_percentage --type=number
-npx wrangler vectorize create-metadata-index products-demo-3 --property-name=cbd_percentage --type=number
-npx wrangler vectorize create-metadata-index products-demo-3 --property-name=thc_per_unit_mg --type=number
-npx wrangler vectorize create-metadata-index products-demo-3 --property-name=thc_per_serving_mg --type=number
-npx wrangler vectorize create-metadata-index products-demo-3 --property-name=cbg_per_serving_mg --type=number
-npx wrangler vectorize create-metadata-index products-demo-3 --property-name=total_weight_grams --type=number
-npx wrangler vectorize create-metadata-index products-demo-3 --property-name=pack_count --type=number
-npx wrangler vectorize create-metadata-index products-demo-3 --property-name=inStock --type=boolean
+npx wrangler vectorize create-metadata-index products-demo-X --property-name=category --type=string
+npx wrangler vectorize create-metadata-index products-demo-X --property-name=type --type=string
+npx wrangler vectorize create-metadata-index products-demo-X --property-name=brand --type=string
+npx wrangler vectorize create-metadata-index products-demo-X --property-name=subcategory --type=string
+npx wrangler vectorize create-metadata-index products-demo-X --property-name=effects --type=string
+npx wrangler vectorize create-metadata-index products-demo-X --property-name=flavor --type=string
+npx wrangler vectorize create-metadata-index products-demo-X --property-name=price --type=number
+npx wrangler vectorize create-metadata-index products-demo-X --property-name=thc_percentage --type=number
+npx wrangler vectorize create-metadata-index products-demo-X --property-name=cbd_percentage --type=number
+npx wrangler vectorize create-metadata-index products-demo-X --property-name=thc_per_unit_mg --type=number
+npx wrangler vectorize create-metadata-index products-demo-X --property-name=thc_per_serving_mg --type=number
+npx wrangler vectorize create-metadata-index products-demo-X --property-name=cbg_per_serving_mg --type=number
+npx wrangler vectorize create-metadata-index products-demo-X --property-name=total_weight_grams --type=number
+npx wrangler vectorize create-metadata-index products-demo-X --property-name=pack_count --type=number
+npx wrangler vectorize create-metadata-index products-demo-X --property-name=inStock --type=boolean
 
 ```
 

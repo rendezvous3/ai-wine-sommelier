@@ -200,16 +200,16 @@ def main():
         epilog="""
 Examples:
   # Create index
-  python manage_indexes.py --create products-demo-3
+  python manage_indexes.py --create products-demo-X
 
   # Delete index
-  python manage_indexes.py --delete products-demo-3
+  python manage_indexes.py --delete products-demo-X
 
   # List all indexes
   python manage_indexes.py --list
 
   # Check if index exists
-  python manage_indexes.py --exists products-demo-3
+  python manage_indexes.py --exists products-demo-X
         """
     )
 
