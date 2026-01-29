@@ -1555,7 +1555,34 @@ class VaporizerTransformer(ProductTransformer):
         if potency_cbd.get("range") and len(potency_cbd["range"]) > 0:
             normalized["cbd_percentage"] = potency_cbd["range"][0]
 
+        # Weight from variants
+        variants = product.get("variants", [])
+        if variants and isinstance(variants, list) and len(variants) > 0:
+            first_variant = variants[0]
+            if isinstance(first_variant, dict):
+                option = first_variant.get("option", "")
+                weight = self._parse_weight(option)
+                if weight:
+                    normalized["total_weight_grams"] = weight
+
         return normalized
+
+    def _parse_weight(self, option: str) -> Optional[float]:
+        """
+        Parse weight from variant option string.
+
+        Handles:
+        - Decimal grams: "1g", "0.5g", ".5g"
+        """
+        if not option:
+            return None
+
+        import re
+        # Match patterns like "1g", "0.5g", ".5g"
+        match = re.search(r'(\d*\.?\d+)\s*g', option, re.IGNORECASE)
+        if match:
+            return float(match.group(1))
+        return None
 
 
 class ConcentrateTransformer(ProductTransformer):

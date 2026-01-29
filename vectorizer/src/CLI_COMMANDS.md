@@ -299,6 +299,33 @@ python vectorize.py -x products-prod --category PRE_ROLLS --subcategory INFUSED 
 
 **Note:** Pack count is extracted from product name/slug, NOT from inventory quantity.
 
+### VAPORIZERS Category
+
+Upload vaporizer products (cartridges, disposables, live resin, all-in-one devices) to Vectorize.
+
+```bash
+# Test 20 VAPORIZERS products
+python vectorize.py -x products-test --category VAPORIZERS --limit 20
+
+# Upload INDICA vaporizers
+python vectorize.py -x products-prod --category VAPORIZERS --strain INDICA --limit 25 --upload
+
+# Upload live resin cartridges
+python vectorize.py -x products-prod --category VAPORIZERS --subcategory LIVE_RESIN --limit 20 --upload
+
+# Upload disposables only
+python vectorize.py -x products-prod --category VAPORIZERS --subcategory DISPOSABLES --strain SATIVA --limit 15 --upload
+```
+
+**VAPORIZERS Subcategories:**
+- `DEFAULT` - Standard vaporizer products
+- `LIVE_RESIN` - Live resin vaporizers
+- `ALL_IN_ONE` - All-in-one devices (integrated battery)
+- `CARTRIDGES` - Standard 510-thread cartridges
+- `DISPOSABLES` - Disposable vape pens
+
+**Note:** Vaporizers have higher THC percentages (66-90%+) compared to flower/prerolls (13-28%).
+
 ### Use Local Files
 
 Use local JSON files instead of fetching from Dutchie API. Useful for testing or when API is unavailable.
@@ -427,29 +454,45 @@ python vectorize.py --index products-demo-3 --category EDIBLES --upload
 
 Use preset scripts to sync multiple subcategories at once.
 
-**Sync all edibles subcategories (15 products each, no strain filter):**
+**Sync all subcategories for a specific category (15 products each, no strain filter):**
 ```bash
-./preset_sync.sh all-subcategories products-demo-x 15
+# All EDIBLES subcategories
+./preset_sync.sh all-subcategories EDIBLES products-demo-x 15
+
+# All FLOWER subcategories
+./preset_sync.sh all-subcategories FLOWER products-demo-x 15
+
+# All PRE_ROLLS subcategories
+./preset_sync.sh all-subcategories PRE_ROLLS products-demo-x 15
+
+# All VAPORIZERS subcategories
+./preset_sync.sh all-subcategories VAPORIZERS products-demo-x 15
+
+# All 4 categories
+./preset_sync.sh all-subcategories ALL products-demo-x 15
 ```
 
-This will sync:
-- GUMMIES (15 products)
-- LIVE_RESIN_GUMMIES (15 products)
-- LIVE_ROSIN_GUMMIES (15 products)
-- CHOCOLATES (15 products)
-- CHEWS (15 products)
-- COOKING_BAKING (15 products)
-- DRINKS (15 products)
+**EDIBLES subcategories (7 total):**
+- GUMMIES, LIVE_RESIN_GUMMIES, LIVE_ROSIN_GUMMIES, CHOCOLATES, CHEWS, COOKING_BAKING, DRINKS
+
+**FLOWER subcategories (6 total):**
+- DEFAULT, PREMIUM, WHOLE_FLOWER, BULK_FLOWER, SMALL_BUDS, PRE_GROUND
+
+**PRE_ROLLS subcategories (5 total):**
+- SINGLES, PACKS, INFUSED, INFUSED_PRE_ROLL_PACKS, BLUNTS
+
+**VAPORIZERS subcategories (5 total):**
+- DEFAULT, LIVE_RESIN, ALL_IN_ONE, CARTRIDGES, DISPOSABLES
 
 **Available Presets:**
 
 | Preset | Description | Example |
 |--------|-------------|---------|
-| `all-subcategories` | All edibles, no strain filter | `./preset_sync.sh all-subcategories products-demo-x 15` |
-| `gummies-all` | All gummy types × all strains | `./preset_sync.sh gummies-all products-demo-x 15` |
-| `gummies-indica` | All gummy types × INDICA | `./preset_sync.sh gummies-indica products-demo-x 20` |
-| `chocolates` | Chocolates × all strains | `./preset_sync.sh chocolates products-prod 10` |
-| `edibles-quick` | Gummies + chocolates only | `./preset_sync.sh edibles-quick products-prod 30` |
+| `all-subcategories` | All subcategories for a category | `./preset_sync.sh all-subcategories VAPORIZERS products-demo-x 15` |
+| `gummies-all` | All gummy types × all strains | `./preset_sync.sh gummies-all EDIBLES products-demo-x 15` |
+| `gummies-indica` | All gummy types × INDICA | `./preset_sync.sh gummies-indica EDIBLES products-demo-x 20` |
+| `chocolates` | Chocolates × all strains | `./preset_sync.sh chocolates EDIBLES products-prod 10` |
+| `edibles-quick` | Gummies + chocolates only | `./preset_sync.sh edibles-quick EDIBLES products-prod 30` |
 
 **Output:**
 ```bash
@@ -516,6 +559,9 @@ Sync different categories at different times:
 
 # PRE_ROLLS at 4 AM
 0 4 * * * cd /path/to/vectorizer/src && python vectorize.py --index products-demo-3 --category PRE_ROLLS --upload
+
+# VAPORIZERS at 5 AM
+0 5 * * * cd /path/to/vectorizer/src && python vectorize.py --index products-demo-3 --category VAPORIZERS --upload
 ```
 
 ### With Logging

@@ -12,12 +12,13 @@
 #   edibles-quick     - Popular subcategories only (gummies, chocolates) [EDIBLES only]
 #
 # Categories:
-#   EDIBLES, FLOWER, PRE_ROLLS, ALL (for all-subcategories only)
+#   EDIBLES, FLOWER, PRE_ROLLS, VAPORIZERS, ALL (for all-subcategories only)
 #
 # Examples:
 #   ./preset_sync.sh all-subcategories EDIBLES products-demo-x 15
 #   ./preset_sync.sh all-subcategories FLOWER products-demo-x 15
 #   ./preset_sync.sh all-subcategories PRE_ROLLS products-demo-x 15
+#   ./preset_sync.sh all-subcategories VAPORIZERS products-demo-x 15
 #   ./preset_sync.sh all-subcategories ALL products-demo-x 15
 #   ./preset_sync.sh gummies-all EDIBLES products-demo-x 15
 #   ./preset_sync.sh chocolates EDIBLES products-prod 20
@@ -37,11 +38,12 @@ if [ $# -lt 4 ]; then
     echo "  edibles-full      - All edibles x all strains [EDIBLES only]"
     echo "  edibles-quick     - Gummies + chocolates [EDIBLES only]"
     echo ""
-    echo "Categories: EDIBLES, FLOWER, PRE_ROLLS, ALL"
+    echo "Categories: EDIBLES, FLOWER, PRE_ROLLS, VAPORIZERS, ALL"
     echo ""
     echo "Examples:"
     echo "  $0 all-subcategories EDIBLES products-demo-x 15"
     echo "  $0 all-subcategories FLOWER products-demo-x 15"
+    echo "  $0 all-subcategories VAPORIZERS products-demo-x 15"
     echo "  $0 all-subcategories ALL products-demo-x 15"
     echo "  $0 gummies-all EDIBLES products-demo-x 15"
     echo "  $0 chocolates EDIBLES products-prod 20"
@@ -88,6 +90,14 @@ case "$PRESET" in
                     sleep $SLEEP
                 done
                 ;;
+            VAPORIZERS)
+                echo "Syncing all VAPORIZERS subcategories (no strain filter)..."
+                for SUBCAT in DEFAULT LIVE_RESIN ALL_IN_ONE CARTRIDGES DISPOSABLES; do
+                    echo "  → VAPORIZERS/$SUBCAT"
+                    python vectorize.py -x "$INDEX" --category VAPORIZERS --subcategory "$SUBCAT" --limit "$LIMIT" --upload || echo "    (skipped or failed)"
+                    sleep $SLEEP
+                done
+                ;;
             ALL)
                 echo "Syncing ALL categories and subcategories..."
                 echo ""
@@ -111,10 +121,17 @@ case "$PRESET" in
                     python vectorize.py -x "$INDEX" --category PRE_ROLLS --subcategory "$SUBCAT" --limit "$LIMIT" --upload || echo "    (skipped or failed)"
                     sleep $SLEEP
                 done
+                echo ""
+                echo "--- VAPORIZERS ---"
+                for SUBCAT in DEFAULT LIVE_RESIN ALL_IN_ONE CARTRIDGES DISPOSABLES; do
+                    echo "  → VAPORIZERS/$SUBCAT"
+                    python vectorize.py -x "$INDEX" --category VAPORIZERS --subcategory "$SUBCAT" --limit "$LIMIT" --upload || echo "    (skipped or failed)"
+                    sleep $SLEEP
+                done
                 ;;
             *)
                 echo "Error: Invalid category '$CATEGORY' for preset '$PRESET'"
-                echo "Valid categories: EDIBLES, FLOWER, PRE_ROLLS, ALL"
+                echo "Valid categories: EDIBLES, FLOWER, PRE_ROLLS, VAPORIZERS, ALL"
                 exit 1
                 ;;
         esac
