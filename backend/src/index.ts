@@ -215,7 +215,7 @@ Category Notes:
 - If category is not explicitly mentioned, omit it entirely (null)
 
 Subcategory → Category Mapping:
-- edibles subcategories (chews, chocolates, gummies, cooking-baking, drinks, etc.) → category: "edibles"
+- edibles subcategories (chews, chocolates, gummies, live-resin-gummies, live-rosin-gummies, cooking-baking, drinks) → category: "edibles"
 - vaporizers subcategories (cartridges, disposables, all-in-one, etc.) → category: "vaporizers"
 - prerolls subcategories (blunts, singles, infused-prerolls, etc.) → category: "prerolls"
 - important for infused, if infused prerolls are mentioned add both ["infused-prerolls", "infused-preroll-packs"]
@@ -294,6 +294,10 @@ Subcategory Notes:
 - For other categories, subcategory is less critical unless explicitly mentioned
 - Only use subcategory if you are 100% certain it matches one of the valid options listed above
 - If uncertain about subcategory, omit it entirely
+- CRITICAL DISTINCTION: "live-resin-gummies" vs "live-rosin-gummies" are DIFFERENT subcategories
+  - "live resin" (with 'e') → "live-resin-gummies"
+  - "live rosin" (with 'o') → "live-rosin-gummies"
+  - These differ by only ONE character but are completely different products - pay close attention to spelling
 - If user mentions multiple subcategories (e.g., "Chews and Gummies"), return as an array: ["chews", "gummies"]
 - Subcategory can be a single string or an array of strings
 - IMPORTANT: Subcategory must be a VALID subcategory value (premium-flower, gummies, cartridges, etc.)
@@ -469,6 +473,41 @@ Examples:
     "semantic_search": "berry flavored gummies"
   }
   Note: Extract subcategory, flavor, and THC dosage when explicitly mentioned
+
+- "Tell me about live resin edibles"
+  Result: {
+    "intent": "recommendation",
+    "filters": {
+      "category": "edibles",
+      "subcategory": ["live-resin-gummies"]
+    },
+    "semantic_search": "live resin edibles"
+  }
+  Note: "live resin" in edibles context → subcategory: "live-resin-gummies"
+
+- "Tell me about live rosin gummies"
+  Result: {
+    "intent": "recommendation",
+    "filters": {
+      "category": "edibles",
+      "subcategory": ["live-rosin-gummies"]
+    },
+    "semantic_search": "live rosin gummies"
+  }
+  Note: CRITICAL - "live rosin" (with 'o') is DIFFERENT from "live resin" (with 'e')
+  Note: Pay close attention to spelling: "rosin" vs "resin" are different extraction methods
+
+- "Tell me about live resin gummies"
+  Result: {
+    "intent": "recommendation",
+    "filters": {
+      "category": "edibles",
+      "subcategory": ["live-resin-gummies"]
+    },
+    "semantic_search": "live resin gummies"
+  }
+  Note: "live resin gummies" → subcategory: "live-resin-gummies" (with hyphen)
+  Note: NO thc_per_unit_mg fields because user didn't mention dosage - do NOT hallucinate THC values!
 
 - "Show me all-in-one vaporizers"
   Result: {
