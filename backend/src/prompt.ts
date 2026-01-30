@@ -131,6 +131,9 @@ const generatePromptforLlama3 = (
   - Description
   Answer naturally and conversationally, highlighting what makes this product special.
   Be informative but concise - don't overwhelm with every detail unless asked.
+
+  IMPORTANT: Do NOT suggest follow-up questions or ask "Would you like to know more?"
+  Just provide the information the user asked for in a complete, confident manner.
   ` : '';
 
   // Build clarification section for follow-up questions

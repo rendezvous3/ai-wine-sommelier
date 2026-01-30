@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import ChatWidget from "../../Svelte-Component-Library/src/lib/custom/ChatWidget/ChatWidget.svelte";
   import ChatMessage from "../../Svelte-Component-Library/src/lib/custom/ChatMessage/ChatMessage.svelte";
+  import ShimmerText from "../../Svelte-Component-Library/src/lib/custom/ShimmerText/ShimmerText.svelte";
   import type { GuidedFlowConfig } from "../../Svelte-Component-Library/src/lib/custom/GuidedFlow/types.js";
   import { getTHCScaleForCategory } from "../../Svelte-Component-Library/src/lib/custom/GuidedFlow/thcScales.js";
   import { theme } from "./theme.svelte.js";
@@ -19,6 +20,7 @@
     role: "user" | "assistant";
     content: string;
     recommendations?: Recommendation[];
+    shimmer?: boolean;  // Add shimmer flag for loading messages
   }
 
   interface Recommendation {
@@ -374,43 +376,43 @@
         {
           id: 'chews',
           label: 'Chews',
-          value: 'Chews',
+          value: 'chews',
           icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="16" width="16" height="8" rx="2" stroke="currentColor" stroke-width="2"/><path d="M16 20H24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
         },
         {
           id: 'chocolates',
           label: 'Chocolates',
-          value: 'Chocolates',
+          value: 'chocolates',
           icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="14" width="20" height="12" rx="2" stroke="currentColor" stroke-width="2"/><path d="M14 18H26M14 22H26" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
         },
         {
           id: 'cooking-baking',
           label: 'Cooking/Baking',
-          value: 'CookingBaking',
+          value: 'cooking-baking',
           icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="12" width="16" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M16 16H24M16 20H24M16 24H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
         },
         {
           id: 'drinks',
           label: 'Drinks',
-          value: 'Drinks',
+          value: 'drinks',
           icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 10C16 10 18 8 20 8C22 8 24 10 24 10V28C24 30 22 32 20 32C18 32 16 30 16 28V10Z" stroke="currentColor" stroke-width="2"/><path d="M18 14H22M18 18H22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
         },
         {
           id: 'gummies',
           label: 'Gummies',
-          value: 'Gummies',
+          value: 'gummies',
           icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="4" fill="currentColor" opacity="0.3"/><circle cx="24" cy="16" r="4" fill="currentColor" opacity="0.3"/><circle cx="16" cy="24" r="4" fill="currentColor" opacity="0.3"/><circle cx="24" cy="24" r="4" fill="currentColor" opacity="0.3"/><circle cx="16" cy="16" r="4" stroke="currentColor" stroke-width="2"/><circle cx="24" cy="16" r="4" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="24" r="4" stroke="currentColor" stroke-width="2"/><circle cx="24" cy="24" r="4" stroke="currentColor" stroke-width="2"/></svg>'
         },
         {
           id: 'live-resin-gummies',
           label: 'Live Resin Gummies',
-          value: 'Live Resin Gummies',
+          value: 'live-resin-gummies',
           icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="4" fill="currentColor" opacity="0.3"/><circle cx="24" cy="16" r="4" fill="currentColor" opacity="0.3"/><circle cx="16" cy="24" r="4" fill="currentColor" opacity="0.3"/><circle cx="24" cy="24" r="4" fill="currentColor" opacity="0.3"/><circle cx="16" cy="16" r="4" stroke="currentColor" stroke-width="2"/><circle cx="24" cy="16" r="4" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="24" r="4" stroke="currentColor" stroke-width="2"/><circle cx="24" cy="24" r="4" stroke="currentColor" stroke-width="2"/><path d="M20 12V28" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
         },
         {
           id: 'live-rosin-gummies',
           label: 'Live Rosin Gummies',
-          value: 'Live Rosin Gummies',
+          value: 'live-rosin-gummies',
           icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="4" fill="currentColor" opacity="0.3"/><circle cx="24" cy="16" r="4" fill="currentColor" opacity="0.3"/><circle cx="16" cy="24" r="4" fill="currentColor" opacity="0.3"/><circle cx="24" cy="24" r="4" fill="currentColor" opacity="0.3"/><circle cx="16" cy="16" r="4" stroke="currentColor" stroke-width="2"/><circle cx="24" cy="16" r="4" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="24" r="4" stroke="currentColor" stroke-width="2"/><circle cx="24" cy="24" r="4" stroke="currentColor" stroke-width="2"/><path d="M12 20H28" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
         }
       ]
@@ -691,6 +693,38 @@
         }
 
         buffer = parts[parts.length - 1];
+      }
+
+      // After streaming completes, add the product card as a recommendation
+      if (product && streamingMessageIndex !== null) {
+        const productRecommendation: Recommendation = {
+          id: product.id || '',
+          name: product.name || '',
+          price: product.price || 0,
+          image: product.imageLink || product.image || '',
+          imageLink: product.imageLink || product.image || '',
+          shopLink: product.shopLink || '',
+          description: product.description || '',
+          category: product.category || '',
+          subcategory: product.subcategory || '',
+          type: product.type || '',
+          brand: product.brand || '',
+          thc_percentage: product.thc_percentage,
+          thc_per_unit_mg: product.thc_per_unit_mg,
+          thc_total_mg: product.thc_total_mg,
+          pack_count: product.pack_count
+        };
+
+        // Add product card message after the description
+        messages = [
+          ...messages.slice(0, streamingMessageIndex + 1),
+          {
+            role: "assistant",
+            content: "",
+            recommendations: [productRecommendation]
+          },
+          ...messages.slice(streamingMessageIndex + 1)
+        ];
       }
     } catch (err) {
       console.error("Stream failed:", err);
@@ -987,7 +1021,7 @@
         const searchingMessageIndex = finalStreamingIndex + 1;
         messages = [
           ...messages.slice(0, searchingMessageIndex),
-          { role: "assistant", content: "Looking for best matches..." },
+          { role: "assistant", content: "Looking for best matches...", shimmer: true },
           ...messages.slice(searchingMessageIndex)
         ];
         
@@ -1132,16 +1166,29 @@
     {/if}
 
     {#each messages as msg}
-      <ChatMessage
-        variant={msg.role}
-        messageText={msg.content}
-        products={msg.recommendations ? convertToProducts(msg.recommendations) : undefined}
-        recommendationTitle={msg.role === 'assistant' && msg.recommendations && msg.recommendations.length > 0 ? "Cannavita Budtender recommendations" : undefined}
-        recommendationLayout="compact-list"
-        productsInBubble={true}
-        showHoverActions={msg.role === 'assistant' && msg.recommendations && msg.recommendations.length > 0}
-        actionType="link"
-      />
+      {#if msg.shimmer === true}
+        <!-- Render shimmer text for loading messages -->
+        <div class="shimmer-message">
+          <ShimmerText
+            text={msg.content}
+            speed={2.5}
+            baseColor="#8b8b8b"
+            highlightColor="#e0e0e0"
+            fontSize="0.875rem"
+          />
+        </div>
+      {:else}
+        <ChatMessage
+          variant={msg.role}
+          messageText={msg.content}
+          products={msg.recommendations ? convertToProducts(msg.recommendations) : undefined}
+          recommendationTitle={msg.role === 'assistant' && msg.recommendations && msg.recommendations.length > 0 ? "Cannavita Budtender recommendations" : undefined}
+          recommendationLayout="compact-list"
+          productsInBubble={true}
+          showHoverActions={msg.role === 'assistant' && msg.recommendations && msg.recommendations.length > 0}
+          actionType="link"
+        />
+      {/if}
     {/each}
   {/snippet}
 </ChatWidget>
@@ -1149,5 +1196,11 @@
 <style>
   :global(*) {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  .shimmer-message {
+    padding: 0.75rem 1rem;
+    margin: 0.5rem 0;
+    opacity: 0.8;
   }
 </style>

@@ -702,13 +702,22 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
 
   // Parse and validate response
   try {
-    // Strip markdown code blocks if present
+    // Strip markdown code blocks, thinking tags, and other non-JSON content
     let cleanedText = text.trim();
+
+    // Remove markdown code blocks
     if (cleanedText.startsWith('```json')) {
       cleanedText = cleanedText.replace(/^```json\s*/i, '').replace(/\s*```$/g, '');
     } else if (cleanedText.startsWith('```')) {
       cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/g, '');
     }
+
+    // Remove <think> tags and their content
+    cleanedText = cleanedText.replace(/<think>[\s\S]*?<\/think>/gi, '');
+
+    // Remove any remaining XML-like tags (e.g., <thinking>, <output>, etc.)
+    cleanedText = cleanedText.replace(/<[^>]+>/g, '');
+
     cleanedText = cleanedText.trim();
 
     if (!cleanedText || cleanedText.length === 0) {
