@@ -132,8 +132,11 @@ const generatePromptforLlama3 = (
   Answer naturally and conversationally, highlighting what makes this product special.
   Be informative but concise - don't overwhelm with every detail unless asked.
 
-  IMPORTANT: Do NOT suggest follow-up questions or ask "Would you like to know more?"
-  Just provide the information the user asked for in a complete, confident manner.
+  🚫 CRITICAL: NEVER ask follow-up questions like:
+  - "Would you like to know more about..."
+  - "Anything else you'd like to know?"
+  - "What else can I help with?"
+  Simply answer the question completely and STOP. Do not offer additional help.
   ` : '';
 
   // Build clarification section for follow-up questions
@@ -194,6 +197,7 @@ const generatePromptforLlama3 = (
   4.  If the intent is very unclear you can ask if they would like a recommendation
   5.  If product context is provided, answer the customer's question using that information
   6.  If clarification context is provided, ask the follow-up question naturally
+  7.  🚫 NEVER end with follow-up questions like "Would you like to know more?" - just answer and stop
   ${current_query}
   `.trim();
   return PROMPT;

@@ -54,6 +54,14 @@
     score: number;
   }
 
+  // Track the most recently presented product to avoid unnecessary clarification
+  interface LastPresentedProduct {
+    product: Recommendation;
+    messageIndex: number;
+  }
+
+  let lastPresentedProduct = $state<LastPresentedProduct | null>(null);
+
   // Fuzzy find product in conversation history
   function fuzzyFindProduct(query: string, msgs: Message[]): FuzzyResult {
     const queryLower = query.toLowerCase();
@@ -575,13 +583,24 @@
     // Phase 1: Fuzzy match in conversation history (no API call)
     const fuzzyResult = fuzzyFindProduct(productQuery, messages);
 
+    // Check if this matches the recently presented product (within last 3 messages)
+    const currentMessageIndex = messages.length;
+    const isRecentFollowUp = lastPresentedProduct &&
+                             fuzzyResult.product?.id === lastPresentedProduct.product.id &&
+                             (currentMessageIndex - lastPresentedProduct.messageIndex) <= 3;
+
     if (fuzzyResult.confident && fuzzyResult.product) {
       // High confidence match in history - stream with full context
       await streamWithProductContext(fuzzyResult.product, payload);
       return;
-    } else if (fuzzyResult.product) {
-      // Low confidence match - ask follow-up: "Do you mean [product name]?"
+    } else if (fuzzyResult.product && !isRecentFollowUp) {
+      // Low confidence match - ask follow-up ONLY if it's not a recent follow-up
+      // (Don't ask "Did you mean X?" immediately after presenting X)
       await streamFollowUp(`Do you mean ${fuzzyResult.product.name}?`, payload);
+      return;
+    } else if (isRecentFollowUp && lastPresentedProduct) {
+      // This is a follow-up about the product we just presented - stream with context
+      await streamWithProductContext(lastPresentedProduct.product, payload);
       return;
     }
 
@@ -725,6 +744,12 @@
           },
           ...messages.slice(streamingMessageIndex + 1)
         ];
+
+        // Track this as the most recently presented product
+        lastPresentedProduct = {
+          product: productRecommendation,
+          messageIndex: streamingMessageIndex + 1  // The product card message index
+        };
       }
     } catch (err) {
       console.error("Stream failed:", err);
