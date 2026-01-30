@@ -14,7 +14,7 @@ Complete schema for **VAPORIZERS** category products in the vectorizer pipeline.
   "description": string | null,
   "descriptionHtml": string | null,
   "category": "VAPORIZERS",
-  "subcategory": "DEFAULT" | "LIVE_RESIN" | "ALL_IN_ONE" | "CARTRIDGES" | "DISPOSABLES",
+  "subcategory": "DEFAULT" | "LIVE_RESIN" | "LIVE_ROSIN" | "ALL_IN_ONE" | "CARTRIDGES" | "DISPOSABLES",
   "strainType": "INDICA" | "SATIVA" | "HYBRID" | "INDICA_HYBRID" | "SATIVA_HYBRID",
   "effects": string[] | [],
   "tags": string[] | [],
@@ -170,6 +170,7 @@ Complete schema for **VAPORIZERS** category products in the vectorizer pipeline.
 **Mapping**:
 - `DEFAULT` → `"default"`
 - `LIVE_RESIN` → `"live-resin"`
+- `LIVE_ROSIN` → `"live-rosin"`
 - `ALL_IN_ONE` → `"all-in-one"`
 - `CARTRIDGES` → `"cartridges"`
 - `DISPOSABLES` → `"disposables"`

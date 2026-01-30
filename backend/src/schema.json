@@ -1,13 +1,52 @@
 {
-  "categories": ["flower", "prerolls", "edibles", "concentrates", "vaporizers", "cbd"],
+  "categories": ["flower", "prerolls", "edibles", "concentrates", "vaporizers", "cbd", "topicals", "accessories"],
   "types": ["indica", "sativa", "hybrid", "indica-hybrid", "sativa-hybrid"],
   "subcategories": {
-    "edibles": ["chews", "chocolates", "cooking-baking", "drinks", "gummies", "live-resin-gummies", "live-rosin-gummies"],
-    "vaporizers": ["all-in-one", "cartridges", "disposables", "live-resin", "live-rosin"],
-    "prerolls": ["blunts", "infused-prerolls", "infused-preroll-packs", "pre-roll-packs", "singles"],
-    "flower": ["bulk-flower", "premium-flower", "small-buds", "whole-flower"],
-    "cbd": [],
-    "concentrates": ["badder", "hash", "live-resin", "tinctures"]
+    "edibles": ["default", "chews", "chocolates", "cooking-baking", "drinks", "gummies", "live-resin-gummies", "live-rosin-gummies"],
+    "vaporizers": ["default", "all-in-one", "cartridges", "disposables", "live-resin", "live-rosin"],
+    "prerolls": ["default", "blunts", "infused-prerolls", "infused-preroll-packs", "pre-roll-packs", "singles"],
+    "flower": ["default", "bulk-flower", "pre-ground", "premium-flower", "small-buds", "whole-flower"],
+    "cbd": ["default"],
+    "concentrates": ["default", "badder", "hash", "live-resin", "live-rosin", "rosin", "unflavored"],
+    "topicals": ["default", "balms"],
+    "accessories": ["default", "batteries", "glassware", "grinders", "lighters", "papers-rolling-supplies"]
+  },
+  "potencyScales": {
+    "flower": {
+      "mild": [0, 13],
+      "balanced": [13, 18],
+      "moderate": [18, 22],
+      "strong": [22, 28],
+      "very_strong": [28, 100]
+    },
+    "prerolls": {
+      "mild": [0, 13],
+      "balanced": [13, 18],
+      "moderate": [18, 22],
+      "strong": [22, 28],
+      "very_strong": [28, 100]
+    },
+    "vaporizers": {
+      "mild": [0, 66],
+      "balanced": [66, 75],
+      "moderate": [75, 85],
+      "strong": [85, 90],
+      "very_strong": [90, 100]
+    },
+    "concentrates": {
+      "mild": [0, 66],
+      "balanced": [66, 75],
+      "moderate": [75, 85],
+      "strong": [85, 90],
+      "very_strong": [90, 100]
+    },
+    "edibles": {
+      "mild": [0, 2.5],
+      "balanced": [2.5, 5],
+      "moderate": [5, 10],
+      "strong": [10, 25],
+      "very_strong": [25, 100]
+    }
   },
   "categoryFieldMappings": {
     "thc_percentage_fields": {
@@ -20,13 +59,18 @@
       "fields": ["thc_per_unit_mg"],
       "description": "Use thc_per_unit_mg for vector DB queries on edibles"
     },
+    "cbd_total_mg_fields": {
+      "categories": ["cbd", "topicals"],
+      "fields": ["cbd_total_mg"],
+      "description": "Use cbd_total_mg for vector DB queries on CBD and topicals"
+    },
     "individual_weight_grams_fields": {
       "categories": ["prerolls"],
       "fields": ["individual_weight_grams"],
       "description": "Use individual_weight_grams for prerolls (weight per individual preroll unit)"
     },
     "quantity_fields": {
-      "categories": ["flower", "prerolls", "edibles", "concentrates", "vaporizers"],
+      "categories": ["flower", "prerolls", "edibles", "concentrates", "vaporizers", "cbd", "topicals", "accessories"],
       "fields": ["quantity"],
       "description": "Use quantity for inventory tracking"
     }

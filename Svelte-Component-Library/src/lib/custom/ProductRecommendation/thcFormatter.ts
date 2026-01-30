@@ -28,7 +28,7 @@ export function formatTHCLabel(product: THCProduct): THCLabelResult | null {
   
   // Chocolate special case - check subcategory or title
   if (category === 'edibles' && (subcategory.includes('chocolate') || title.includes('chocolate'))) {
-    return { value: '1-10mg' };
+    return { value: '1-10mg', label: 'per piece' };
   }
   
   // Other edibles (gummies, etc.) - use thc_per_unit_mg

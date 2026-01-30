@@ -48,6 +48,7 @@ SUBCATEGORY_MAPPING = {
     "DRINKS": "drinks",
     "CHEWS": "chews",
     "LIVE_RESIN": "live-resin",
+    "LIVE_ROSIN": "live-rosin",
     "ALL_IN_ONE": "all-in-one",
     "CARTRIDGES": "cartridges",
     "DISPOSABLES": "disposables",
@@ -55,6 +56,7 @@ SUBCATEGORY_MAPPING = {
     "TINCTURES": "tinctures",
     "BADDER": "badder",
     "HASH": "hash",
+    "ROSIN": "rosin",
     "BALMS": "balms",
     "PAPERS_ROLLING_SUPPLIES": "papers-rolling-supplies",
     "GRINDERS": "grinders",
@@ -1586,22 +1588,206 @@ class VaporizerTransformer(ProductTransformer):
 
 
 class ConcentrateTransformer(ProductTransformer):
-    """Transformer for concentrate products (wax, shatter, etc.)."""
+    """Transformer for concentrate products (tinctures, wax, shatter, rosin, etc.)."""
 
     def transform(self, product: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Transform concentrate product with high-percentage THC scale.
+        Transform concentrate product.
+
+        Handles two types:
+        1. Tinctures: mg-based potency (like edibles)
+        2. Other concentrates: percentage-based potency (like vaporizers)
         """
         normalized = self._basic_transform(product)
 
-        # THC/CBD as percentage
+        # Detect if this is a tincture
+        is_tincture = self._is_tincture(product)
+
+        if is_tincture:
+            # Tinctures: mg-based potency
+            potency_thc = product.get("potencyThc", {})
+            potency_cbd = product.get("potencyCbd", {})
+
+            if potency_thc.get("range") and len(potency_thc["range"]) > 0:
+                normalized["thc_total_mg"] = potency_thc["range"][0]
+
+            if potency_cbd.get("range") and len(potency_cbd["range"]) > 0:
+                normalized["cbd_total_mg"] = potency_cbd["range"][0]
+
+            # Extract CBG from cannabinoids array (tinctures often have high CBG)
+            cannabinoids = product.get("cannabinoids", [])
+            for cannabinoid_data in cannabinoids:
+                if isinstance(cannabinoid_data, dict):
+                    cannabinoid = cannabinoid_data.get("cannabinoid", {})
+                    if isinstance(cannabinoid, dict):
+                        name = cannabinoid.get("name", "")
+                        if "CBG" in name.upper():
+                            unit = cannabinoid_data.get("unit", "")
+                            value = cannabinoid_data.get("value")
+                            if unit == "MILLIGRAMS" and value is not None:
+                                normalized["cbg_total_mg"] = value
+
+            # Extract volume from variants (tinctures use ml, stored as grams)
+            variants = product.get("variants", [])
+            if variants and isinstance(variants, list) and len(variants) > 0:
+                first_variant = variants[0]
+                if isinstance(first_variant, dict):
+                    option = first_variant.get("option", "")
+                    volume = self._parse_weight(option)
+                    if volume:
+                        normalized["total_volume_ml"] = volume
+
+                        # Calculate per-serving amounts (1ml = 1 serving)
+                        if normalized.get("thc_total_mg"):
+                            normalized["thc_per_serving_mg"] = round(normalized["thc_total_mg"] / volume, 2)
+                        if normalized.get("cbg_total_mg"):
+                            normalized["cbg_per_serving_mg"] = round(normalized["cbg_total_mg"] / volume, 2)
+
+        else:
+            # Other concentrates: percentage-based potency
+            potency_thc = product.get("potencyThc", {})
+            if potency_thc.get("range") and len(potency_thc["range"]) > 0:
+                normalized["thc_percentage"] = potency_thc["range"][0]
+
+            potency_cbd = product.get("potencyCbd", {})
+            if potency_cbd.get("range") and len(potency_cbd["range"]) > 0:
+                normalized["cbd_percentage"] = potency_cbd["range"][0]
+
+            # Weight from variants
+            variants = product.get("variants", [])
+            if variants and isinstance(variants, list) and len(variants) > 0:
+                first_variant = variants[0]
+                if isinstance(first_variant, dict):
+                    option = first_variant.get("option", "")
+                    weight = self._parse_weight(option)
+                    if weight:
+                        normalized["total_weight_grams"] = weight
+
+        return normalized
+
+    def _is_tincture(self, product: Dict[str, Any]) -> bool:
+        """
+        Detect if product is a tincture.
+
+        Criteria:
+        - Name contains "tincture" OR
+        - Description contains "tincture" OR
+        - Subcategory is DEFAULT/UNFLAVORED AND potencyThc unit is "mg"
+        """
+        name = product.get("name", "").lower()
+        description = product.get("description", "").lower()
+        subcategory = product.get("subcategory", "").upper()
+        potency_thc = product.get("potencyThc", {})
+        thc_unit = potency_thc.get("unit", "")
+
+        # Check name or description
+        if "tincture" in name or "tincture" in description:
+            return True
+
+        # Check subcategory + unit
+        if subcategory in ["DEFAULT", "UNFLAVORED"] and thc_unit == "mg":
+            return True
+
+        return False
+
+    def _parse_weight(self, option: str) -> Optional[float]:
+        """Parse weight/volume from variant option string."""
+        if not option:
+            return None
+
+        import re
+        # Match patterns like "1g", "0.5g", ".5g", ".15g", ".3g"
+        match = re.search(r'(\d*\.?\d+)\s*g', option, re.IGNORECASE)
+        if match:
+            return float(match.group(1))
+        return None
+
+
+class CBDTransformer(ProductTransformer):
+    """Transformer for CBD products (creams, roll-ons, pet treats, etc.)."""
+
+    def transform(self, product: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Transform CBD product with mg-based CBD potency.
+
+        CBD products have high CBD and minimal/no THC.
+        """
+        normalized = self._basic_transform(product)
+
+        # CBD/THC as mg (not percentage)
+        potency_cbd = product.get("potencyCbd", {})
+        if potency_cbd.get("range") and len(potency_cbd["range"]) > 0:
+            normalized["cbd_total_mg"] = potency_cbd["range"][0]
+
         potency_thc = product.get("potencyThc", {})
         if potency_thc.get("range") and len(potency_thc["range"]) > 0:
-            normalized["thc_percentage"] = potency_thc["range"][0]
+            normalized["thc_total_mg"] = potency_thc["range"][0]
+
+        # Weight from variants
+        variants = product.get("variants", [])
+        if variants and isinstance(variants, list) and len(variants) > 0:
+            first_variant = variants[0]
+            if isinstance(first_variant, dict):
+                option = first_variant.get("option", "")
+                weight = self._parse_weight(option)
+                if weight:
+                    normalized["total_weight_grams"] = weight
+
+        # Extract product form from name (for search)
+        name = product.get("name", "").lower()
+        product_form = None
+        if "roll-on" in name:
+            product_form = "roll-on"
+        elif "cream" in name:
+            product_form = "cream"
+        elif "chew" in name:
+            product_form = "chew"
+        elif "peanut butter" in name:
+            product_form = "peanut butter"
+
+        if product_form:
+            normalized["product_form"] = product_form
+
+        return normalized
+
+    def _parse_weight(self, option: str) -> Optional[float]:
+        """Parse weight from variant option string."""
+        if not option:
+            return None
+
+        import re
+        # Match patterns like ".3g", ".5g", "0.05g"
+        match = re.search(r'(\d*\.?\d+)\s*g', option, re.IGNORECASE)
+        if match:
+            return float(match.group(1))
+        return None
+
+
+class TopicalTransformer(ProductTransformer):
+    """Transformer for topical products (balms, creams, lotions, etc.)."""
+
+    def transform(self, product: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Transform topical product with mg-based THC/CBD potency.
+
+        Topicals have THC:CBD ratios and are applied externally.
+        """
+        normalized = self._basic_transform(product)
+
+        # THC/CBD as mg (not percentage)
+        potency_thc = product.get("potencyThc", {})
+        if potency_thc.get("range") and len(potency_thc["range"]) > 0:
+            normalized["thc_total_mg"] = potency_thc["range"][0]
 
         potency_cbd = product.get("potencyCbd", {})
         if potency_cbd.get("range") and len(potency_cbd["range"]) > 0:
-            normalized["cbd_percentage"] = potency_cbd["range"][0]
+            normalized["cbd_total_mg"] = potency_cbd["range"][0]
+
+        # Extract THC:CBD ratio from name (for search)
+        name = product.get("name", "")
+        ratio = self._extract_ratio(name)
+        if ratio:
+            normalized["thc_cbd_ratio"] = ratio
 
         # Weight from variants
         variants = product.get("variants", [])
@@ -1615,13 +1801,30 @@ class ConcentrateTransformer(ProductTransformer):
 
         return normalized
 
+    def _extract_ratio(self, name: str) -> Optional[str]:
+        """
+        Extract THC:CBD ratio from product name.
+
+        Examples: "1:1", "3:1", "1:3"
+        """
+        if not name:
+            return None
+
+        import re
+        # Match patterns like "1:1", "3:1", "1:3"
+        match = re.search(r'(\d+):(\d+)', name)
+        if match:
+            return f"{match.group(1)}:{match.group(2)}"
+        return None
+
     def _parse_weight(self, option: str) -> Optional[float]:
         """Parse weight from variant option string."""
         if not option:
             return None
 
         import re
-        match = re.search(r'(\d+(?:\.\d+)?)\s*g', option, re.IGNORECASE)
+        # Match patterns like "1g", "0.341g", "0.168g"
+        match = re.search(r'(\d*\.?\d+)\s*g', option, re.IGNORECASE)
         if match:
             return float(match.group(1))
         return None
@@ -1709,8 +1912,8 @@ def get_transformer(category: str, schema_data: Optional[Dict] = None) -> Produc
         "pre_rolls": PrerollTransformer,  # Handle both formats
         "vaporizers": VaporizerTransformer,
         "concentrates": ConcentrateTransformer,
-        "cbd": FlowerTransformer,  # CBD products similar to flower
-        "topicals": ProductTransformer,  # Basic transformation
+        "cbd": CBDTransformer,  # CBD products with mg-based potency
+        "topicals": TopicalTransformer,  # Topical products with mg-based potency
         "accessories": AccessoryTransformer,
     }
 

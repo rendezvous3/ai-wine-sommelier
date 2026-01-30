@@ -142,9 +142,12 @@ Analyze the conversation history and the latest user message.
 - Use "recommendation" intent when user:
   - Asks about products ("tell me about products", "what products", "show me products")
   - Wants products ("I want", "I need", "looking for", "any", "something for")
+  - Asks "do you have" or "which...do you have" ("do you have lighters?", "which accessories do you have?") do you have category or subcategory?
+  - Tell me about strain, type, category, subcategory is a recommendation intent.
   - Insinuates desired effect ("Something for sleep", "How about for social setting", "anything for partying", "stuff to cheer me up")
   - Requests recommendations ("recommend", "suggest", "best options", "what's good for")
   - Mentions effects, categories, types, or product preferences
+  - How about category, subcategory, strain, type is a recommendation intent.
 - Use "product-question" intent when user:
   - Asks about a SPECIFIC product by name ("tell me more about X", "what can you tell me about X", "what else about X")
   - Asks questions about a previously recommended product ("what are the effects of that one?", "how strong is that?")
@@ -203,13 +206,13 @@ DO NOT add fields that weren't explicitly mentioned
 
 ${schemaInfo}
 
-Valid Categories: flower, prerolls, edibles, concentrates, vaporizers, cbd
+Valid Categories: flower, prerolls, edibles, concentrates, vaporizers, cbd, topicals, accessories
 
 Category Notes:
 - Category can be a single value or an array of categories (e.g., ["prerolls", "flower"])
 - Use array format when user wants products from multiple categories
 - ONLY extract category if:
-  1. User explicitly mentions category name (flower, prerolls, edibles, concentrates, vaporizers, cbd), OR
+  1. User explicitly mentions category name (flower, prerolls, edibles, concentrates, vaporizers, cbd, topicals, accessories), OR
   2. User mentions a subcategory (which implies the parent category - see subcategory mapping below)
 - DO NOT infer category from effects, type, or other preferences
 - If category is not explicitly mentioned, omit it entirely (null)
@@ -221,6 +224,8 @@ Subcategory → Category Mapping:
 - important for infused, if infused prerolls are mentioned add both ["infused-prerolls", "infused-preroll-packs"]
 - flower subcategories (premium-flower, whole-flower, small-buds, etc.) → category: "flower"
 - concentrates subcategories (badder, hash, live-resin, tinctures) → category: "concentrates"
+- topicals subcategories (balms) → category: "topicals"
+- accessories subcategories (lighters, grinders, batteries, glassware, papers, papers-rolling-supplies) → category: "accessories"
 
 Category-Specific THC Fields:
 - For flower, prerolls, vaporizers, concentrates: Use thc_percentage_min and thc_percentage_max when THC preference is mentioned
@@ -318,6 +323,12 @@ Subcategory Notes:
   - "gummies" → MUST add subcategory: "gummies" AND category: "edibles"
   - "infused" or "infused prerolls" → MUST add subcategory: ["infused-prerolls", "infused-preroll-packs"] AND category: "prerolls"
   - "cartridges" or "carts" → MUST add subcategory: "cartridges" AND category: "vaporizers"
+  - "balms" → MUST add subcategory: "balms" AND category: "topicals"
+  - "lighters" → MUST add subcategory: "lighters" AND category: "accessories"
+  - "grinders" → MUST add subcategory: "grinders" AND category: "accessories"
+  - "batteries" → MUST add subcategory: "batteries" AND category: "accessories"
+  - "glassware" → MUST add subcategory: "glassware" AND category: "accessories"
+  - "papers" or "rolling papers" → MUST add subcategory: "papers-rolling-supplies" AND category: "accessories"
 - Example: "concentrates and drinks" → category: ["concentrates", "edibles"], subcategory: ["drinks"]
 - Example: "flower and gummies" → category: ["flower", "edibles"], subcategory: ["gummies"]
 
@@ -591,6 +602,8 @@ Additional recommendation intent examples:
   Note: Asking for products ("anything for") → recommendation intent. "deep sleep" maps to "sleepy" effect.
 - Followup on existing conversation: how about effect XYZ, or how about category XYZ?
 - We should refer to the most recent request and also be able to interpet short requests like that as "recommendation" intent.
+- Tell me about cateogry or subcategory is a recommendation intent.
+- Any category? or Any subcategory? is a recommendation intent.
 
 **Product-question intent examples:**
 - "What else can you tell me about Luci Gelato?"

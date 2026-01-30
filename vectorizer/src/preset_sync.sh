@@ -12,13 +12,17 @@
 #   edibles-quick     - Popular subcategories only (gummies, chocolates) [EDIBLES only]
 #
 # Categories:
-#   EDIBLES, FLOWER, PRE_ROLLS, VAPORIZERS, ALL (for all-subcategories only)
+#   EDIBLES, FLOWER, PRE_ROLLS, VAPORIZERS, CONCENTRATES, ALL (for all-subcategories only)
 #
 # Examples:
 #   ./preset_sync.sh all-subcategories EDIBLES products-demo-x 15
 #   ./preset_sync.sh all-subcategories FLOWER products-demo-x 15
 #   ./preset_sync.sh all-subcategories PRE_ROLLS products-demo-x 15
 #   ./preset_sync.sh all-subcategories VAPORIZERS products-demo-x 15
+#   ./preset_sync.sh all-subcategories CONCENTRATES products-demo-x 15
+#   ./preset_sync.sh all-subcategories CBD products-demo-x 15
+#   ./preset_sync.sh all-subcategories TOPICALS products-demo-x 15
+#   ./preset_sync.sh all-subcategories ACCESSORIES products-demo-x 15
 #   ./preset_sync.sh all-subcategories ALL products-demo-x 15
 #   ./preset_sync.sh gummies-all EDIBLES products-demo-x 15
 #   ./preset_sync.sh chocolates EDIBLES products-prod 20
@@ -38,12 +42,16 @@ if [ $# -lt 4 ]; then
     echo "  edibles-full      - All edibles x all strains [EDIBLES only]"
     echo "  edibles-quick     - Gummies + chocolates [EDIBLES only]"
     echo ""
-    echo "Categories: EDIBLES, FLOWER, PRE_ROLLS, VAPORIZERS, ALL"
+    echo "Categories: EDIBLES, FLOWER, PRE_ROLLS, VAPORIZERS, CONCENTRATES, CBD, TOPICALS, ACCESSORIES, ALL"
     echo ""
     echo "Examples:"
     echo "  $0 all-subcategories EDIBLES products-demo-x 15"
     echo "  $0 all-subcategories FLOWER products-demo-x 15"
     echo "  $0 all-subcategories VAPORIZERS products-demo-x 15"
+    echo "  $0 all-subcategories CONCENTRATES products-demo-x 15"
+    echo "  $0 all-subcategories CBD products-demo-x 15"
+    echo "  $0 all-subcategories TOPICALS products-demo-x 15"
+    echo "  $0 all-subcategories ACCESSORIES products-demo-x 15"
     echo "  $0 all-subcategories ALL products-demo-x 15"
     echo "  $0 gummies-all EDIBLES products-demo-x 15"
     echo "  $0 chocolates EDIBLES products-prod 20"
@@ -84,7 +92,7 @@ case "$PRESET" in
                 ;;
             PRE_ROLLS)
                 echo "Syncing all PRE_ROLLS subcategories (no strain filter)..."
-                for SUBCAT in SINGLES PACKS INFUSED INFUSED_PRE_ROLL_PACKS BLUNTS; do
+                for SUBCAT in DEFAULT SINGLES PACKS INFUSED INFUSED_PRE_ROLL_PACKS BLUNTS; do
                     echo "  → PRE_ROLLS/$SUBCAT"
                     python vectorize.py -x "$INDEX" --category PRE_ROLLS --subcategory "$SUBCAT" --limit "$LIMIT" --upload || echo "    (skipped or failed)"
                     sleep $SLEEP
@@ -92,9 +100,41 @@ case "$PRESET" in
                 ;;
             VAPORIZERS)
                 echo "Syncing all VAPORIZERS subcategories (no strain filter)..."
-                for SUBCAT in DEFAULT LIVE_RESIN ALL_IN_ONE CARTRIDGES DISPOSABLES; do
+                for SUBCAT in DEFAULT LIVE_RESIN LIVE_ROSIN ALL_IN_ONE CARTRIDGES DISPOSABLES; do
                     echo "  → VAPORIZERS/$SUBCAT"
                     python vectorize.py -x "$INDEX" --category VAPORIZERS --subcategory "$SUBCAT" --limit "$LIMIT" --upload || echo "    (skipped or failed)"
+                    sleep $SLEEP
+                done
+                ;;
+            CONCENTRATES)
+                echo "Syncing all CONCENTRATES subcategories (no strain filter)..."
+                for SUBCAT in DEFAULT UNFLAVORED BADDER HASH LIVE_RESIN LIVE_ROSIN ROSIN; do
+                    echo "  → CONCENTRATES/$SUBCAT"
+                    python vectorize.py -x "$INDEX" --category CONCENTRATES --subcategory "$SUBCAT" --limit "$LIMIT" --upload || echo "    (skipped or failed)"
+                    sleep $SLEEP
+                done
+                ;;
+            CBD)
+                echo "Syncing all CBD subcategories (no strain filter - all HIGH_CBD)..."
+                for SUBCAT in DEFAULT; do
+                    echo "  → CBD/$SUBCAT"
+                    python vectorize.py -x "$INDEX" --category CBD --subcategory "$SUBCAT" --limit "$LIMIT" --upload || echo "    (skipped or failed)"
+                    sleep $SLEEP
+                done
+                ;;
+            TOPICALS)
+                echo "Syncing all TOPICALS subcategories (no strain filter)..."
+                for SUBCAT in DEFAULT BALMS; do
+                    echo "  → TOPICALS/$SUBCAT"
+                    python vectorize.py -x "$INDEX" --category TOPICALS --subcategory "$SUBCAT" --limit "$LIMIT" --upload || echo "    (skipped or failed)"
+                    sleep $SLEEP
+                done
+                ;;
+            ACCESSORIES)
+                echo "Syncing all ACCESSORIES subcategories (no strain filter - physical products)..."
+                for SUBCAT in DEFAULT PAPERS_ROLLING_SUPPLIES GRINDERS LIGHTERS BATTERIES GLASSWARE; do
+                    echo "  → ACCESSORIES/$SUBCAT"
+                    python vectorize.py -x "$INDEX" --category ACCESSORIES --subcategory "$SUBCAT" --limit "$LIMIT" --upload || echo "    (skipped or failed)"
                     sleep $SLEEP
                 done
                 ;;
@@ -116,22 +156,50 @@ case "$PRESET" in
                 done
                 echo ""
                 echo "--- PRE_ROLLS ---"
-                for SUBCAT in SINGLES PACKS INFUSED INFUSED_PRE_ROLL_PACKS BLUNTS; do
+                for SUBCAT in DEFAULT SINGLES PACKS INFUSED INFUSED_PRE_ROLL_PACKS BLUNTS; do
                     echo "  → PRE_ROLLS/$SUBCAT"
                     python vectorize.py -x "$INDEX" --category PRE_ROLLS --subcategory "$SUBCAT" --limit "$LIMIT" --upload || echo "    (skipped or failed)"
                     sleep $SLEEP
                 done
                 echo ""
                 echo "--- VAPORIZERS ---"
-                for SUBCAT in DEFAULT LIVE_RESIN ALL_IN_ONE CARTRIDGES DISPOSABLES; do
+                for SUBCAT in DEFAULT LIVE_RESIN LIVE_ROSIN ALL_IN_ONE CARTRIDGES DISPOSABLES; do
                     echo "  → VAPORIZERS/$SUBCAT"
                     python vectorize.py -x "$INDEX" --category VAPORIZERS --subcategory "$SUBCAT" --limit "$LIMIT" --upload || echo "    (skipped or failed)"
+                    sleep $SLEEP
+                done
+                echo ""
+                echo "--- CONCENTRATES ---"
+                for SUBCAT in DEFAULT UNFLAVORED BADDER HASH LIVE_RESIN LIVE_ROSIN ROSIN; do
+                    echo "  → CONCENTRATES/$SUBCAT"
+                    python vectorize.py -x "$INDEX" --category CONCENTRATES --subcategory "$SUBCAT" --limit "$LIMIT" --upload || echo "    (skipped or failed)"
+                    sleep $SLEEP
+                done
+                echo ""
+                echo "--- CBD ---"
+                for SUBCAT in DEFAULT; do
+                    echo "  → CBD/$SUBCAT"
+                    python vectorize.py -x "$INDEX" --category CBD --subcategory "$SUBCAT" --limit "$LIMIT" --upload || echo "    (skipped or failed)"
+                    sleep $SLEEP
+                done
+                echo ""
+                echo "--- TOPICALS ---"
+                for SUBCAT in DEFAULT BALMS; do
+                    echo "  → TOPICALS/$SUBCAT"
+                    python vectorize.py -x "$INDEX" --category TOPICALS --subcategory "$SUBCAT" --limit "$LIMIT" --upload || echo "    (skipped or failed)"
+                    sleep $SLEEP
+                done
+                echo ""
+                echo "--- ACCESSORIES ---"
+                for SUBCAT in DEFAULT PAPERS_ROLLING_SUPPLIES GRINDERS LIGHTERS BATTERIES GLASSWARE; do
+                    echo "  → ACCESSORIES/$SUBCAT"
+                    python vectorize.py -x "$INDEX" --category ACCESSORIES --subcategory "$SUBCAT" --limit "$LIMIT" --upload || echo "    (skipped or failed)"
                     sleep $SLEEP
                 done
                 ;;
             *)
                 echo "Error: Invalid category '$CATEGORY' for preset '$PRESET'"
-                echo "Valid categories: EDIBLES, FLOWER, PRE_ROLLS, VAPORIZERS, ALL"
+                echo "Valid categories: EDIBLES, FLOWER, PRE_ROLLS, VAPORIZERS, CONCENTRATES, CBD, TOPICALS, ACCESSORIES, ALL"
                 exit 1
                 ;;
         esac

@@ -326,6 +326,119 @@ python vectorize.py -x products-prod --category VAPORIZERS --subcategory DISPOSA
 
 **Note:** Vaporizers have higher THC percentages (66-90%+) compared to flower/prerolls (13-28%).
 
+### CONCENTRATES Category
+
+Upload concentrate products (tinctures, badder, hash, live resin, live rosin, rosin) to Vectorize.
+
+**Important**: CONCENTRATES has two distinct types:
+1. **Tinctures** (DEFAULT, UNFLAVORED) - mg-based potency like edibles
+2. **Other concentrates** (BADDER, HASH, LIVE_RESIN, LIVE_ROSIN, ROSIN) - percentage-based potency like vaporizers
+
+```bash
+# Test 20 CONCENTRATES products
+python vectorize.py -x products-test --category CONCENTRATES --limit 20
+
+# Upload INDICA concentrates
+python vectorize.py -x products-prod --category CONCENTRATES --strain INDICA --limit 25 --upload
+
+# Upload live rosin only
+python vectorize.py -x products-prod --category CONCENTRATES --subcategory LIVE_ROSIN --limit 20 --upload
+
+# Upload badder
+python vectorize.py -x products-prod --category CONCENTRATES --subcategory BADDER --strain HYBRID --limit 15 --upload
+
+# Upload tinctures (default)
+python vectorize.py -x products-prod --category CONCENTRATES --subcategory DEFAULT --limit 10 --upload
+```
+
+**CONCENTRATES Subcategories:**
+- `DEFAULT` - Standard/tinctures
+- `UNFLAVORED` - Unflavored tinctures
+- `BADDER` - Badder/budder consistency
+- `HASH` - Hash concentrates
+- `LIVE_RESIN` - Live resin extracts
+- `LIVE_ROSIN` - Live rosin (solventless)
+- `ROSIN` - Standard rosin (solventless)
+
+**Note**: Tinctures have mg-based THC/CBD (like edibles), other concentrates have percentage-based THC (66-90%+).
+
+### CBD Category
+
+Upload CBD products (wellness products with high CBD and minimal/no THC) to Vectorize.
+
+**Important**: CBD products are all HIGH_CBD strain type with mg-based potency. Only one subcategory (DEFAULT).
+
+```bash
+# Test 20 CBD products
+python vectorize.py -x products-test --category CBD --limit 20
+
+# Upload CBD products
+python vectorize.py -x products-prod --category CBD --limit 25 --upload
+
+# Upload specific CBD products
+python vectorize.py -x products-prod --category CBD --subcategory DEFAULT --limit 15 --upload
+```
+
+**CBD Subcategories:**
+- `DEFAULT` - All CBD products (creams, roll-ons, chews, peanut butter, etc.)
+
+**Note**: CBD products have mg-based CBD (150mg-3000mg range), minimal/no THC, and are wellness-focused (pain relief, anxiety, pet products).
+
+### TOPICALS Category
+
+Upload topical products (balms, creams, lotions applied externally) to Vectorize.
+
+**Important**: TOPICALS have mg-based THC:CBD ratios and are non-psychoactive (applied externally, not ingested).
+
+```bash
+# Test 20 TOPICALS products
+python vectorize.py -x products-test --category TOPICALS --limit 20
+
+# Upload topical balms
+python vectorize.py -x products-prod --category TOPICALS --subcategory BALMS --limit 25 --upload
+
+# Upload all topicals
+python vectorize.py -x products-prod --category TOPICALS --limit 15 --upload
+```
+
+**TOPICALS Subcategories:**
+- `BALMS` - Topical balms (1:1, 3:1, 1:3 THC:CBD ratios)
+
+**Note**: Topicals have mg-based potency (e.g., 1000mg THC : 1000mg CBD for 1:1 ratio), used for external pain relief.
+
+### ACCESSORIES Category
+
+Upload accessory products (physical products with no cannabinoid content) to Vectorize.
+
+**Important**: ACCESSORIES have no potency, no effects, no terpenes - they are physical consumption/storage tools.
+
+```bash
+# Test 20 ACCESSORIES products
+python vectorize.py -x products-test --category ACCESSORIES --limit 20
+
+# Upload rolling papers and supplies
+python vectorize.py -x products-prod --category ACCESSORIES --subcategory PAPERS_ROLLING_SUPPLIES --limit 15 --upload
+
+# Upload grinders
+python vectorize.py -x products-prod --category ACCESSORIES --subcategory GRINDERS --limit 10 --upload
+
+# Upload batteries
+python vectorize.py -x products-prod --category ACCESSORIES --subcategory BATTERIES --limit 10 --upload
+
+# Upload all accessories
+python vectorize.py -x products-prod --category ACCESSORIES --limit 25 --upload
+```
+
+**ACCESSORIES Subcategories:**
+- `DEFAULT` - Miscellaneous accessories
+- `PAPERS_ROLLING_SUPPLIES` - Rolling papers, filter tips, trays
+- `GRINDERS` - Herb grinders (2-piece, 3-piece, 4-piece)
+- `LIGHTERS` - Disposable and refillable lighters
+- `BATTERIES` - 510-thread and variable voltage batteries
+- `GLASSWARE` - Glass pipes, tips, storage jars
+
+**Note**: Accessories are physical products (papers, grinders, lighters, etc.) with no cannabinoid content.
+
 ### Use Local Files
 
 Use local JSON files instead of fetching from Dutchie API. Useful for testing or when API is unavailable.
@@ -468,7 +581,10 @@ Use preset scripts to sync multiple subcategories at once.
 # All VAPORIZERS subcategories
 ./preset_sync.sh all-subcategories VAPORIZERS products-demo-x 15
 
-# All 4 categories
+# All CONCENTRATES subcategories
+./preset_sync.sh all-subcategories CONCENTRATES products-demo-x 15
+
+# All 5 categories
 ./preset_sync.sh all-subcategories ALL products-demo-x 15
 ```
 
@@ -481,14 +597,17 @@ Use preset scripts to sync multiple subcategories at once.
 **PRE_ROLLS subcategories (5 total):**
 - SINGLES, PACKS, INFUSED, INFUSED_PRE_ROLL_PACKS, BLUNTS
 
-**VAPORIZERS subcategories (5 total):**
-- DEFAULT, LIVE_RESIN, ALL_IN_ONE, CARTRIDGES, DISPOSABLES
+**VAPORIZERS subcategories (6 total):**
+- DEFAULT, LIVE_RESIN, LIVE_ROSIN, ALL_IN_ONE, CARTRIDGES, DISPOSABLES
+
+**CONCENTRATES subcategories (7 total):**
+- DEFAULT, UNFLAVORED, BADDER, HASH, LIVE_RESIN, LIVE_ROSIN, ROSIN
 
 **Available Presets:**
 
 | Preset | Description | Example |
 |--------|-------------|---------|
-| `all-subcategories` | All subcategories for a category | `./preset_sync.sh all-subcategories VAPORIZERS products-demo-x 15` |
+| `all-subcategories` | All subcategories for a category | `./preset_sync.sh all-subcategories CONCENTRATES products-demo-x 15` |
 | `gummies-all` | All gummy types × all strains | `./preset_sync.sh gummies-all EDIBLES products-demo-x 15` |
 | `gummies-indica` | All gummy types × INDICA | `./preset_sync.sh gummies-indica EDIBLES products-demo-x 20` |
 | `chocolates` | Chocolates × all strains | `./preset_sync.sh chocolates EDIBLES products-prod 10` |
@@ -562,6 +681,9 @@ Sync different categories at different times:
 
 # VAPORIZERS at 5 AM
 0 5 * * * cd /path/to/vectorizer/src && python vectorize.py --index products-demo-3 --category VAPORIZERS --upload
+
+# CONCENTRATES at 6 AM
+0 6 * * * cd /path/to/vectorizer/src && python vectorize.py --index products-demo-3 --category CONCENTRATES --upload
 ```
 
 ### With Logging
