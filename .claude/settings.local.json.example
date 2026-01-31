@@ -10,6 +10,12 @@
     "ui_focus": {
       "description": "Focus on Client + Component Library (DEFAULT - matches team settings)",
       "instructions": "Copy this entire deny array to permissions.deny above",
+      "allow": [
+        "Read(./Svelte-Component-Library/src/lib/**)",
+        "Edit(./Svelte-Component-Library/src/lib/**)",
+        "Read(./Svelte-Component-Library/.storybook/**)",
+        "Edit(./Svelte-Component-Library/.storybook/**)"
+      ],
       "deny": [
         "Read(./backend/**)",
         "Read(./vectorizer/**)",
@@ -108,6 +114,42 @@
         "Edit(**/__pycache__/**)"
       ]
     },
+
+    "backend_and_vectorizer": {
+      "description": "Full-stack Data Focus (Backend API + Python Vectorizer)",
+      "instructions": "Use this when mapping the data flow from ingestion to endpoint.",
+      "deny": [
+        "Read(./Svelte-Component-Library/**)",
+        "Read(./client/**)",
+        "Edit(./Svelte-Component-Library/**)",
+        "Edit(./client/**)",
+        
+        "Read(**/node_modules/**)",
+        "Read(**/.svelte-kit/**)",
+        "Read(**/dist/**)",
+        "Read(**/build/**)",
+        "Read(**/storybook-static/**)",
+        "Read(**/.wrangler/**)",
+        "Read(**/venv/**)",
+        "Read(**/.venv/**)",
+        "Read(**/__pycache__/**)",
+        "Read(**/.cache/**)",
+        "Read(**/.vite/**)",
+        "Read(**/package-lock.json)",
+        "Read(**/yarn.lock)",
+        "Read(**/pnpm-lock.yaml)",
+        "Read(**/coverage/**)",
+        "Read(**/*.log)",
+        "Read(**/.DS_Store)",
+        "Read(**/.env)",
+        "Read(**/.env.*)",
+        "Read(./backend/.dev.vars)",
+        "Read(**/.vscode/**)",
+        "Read(**/.idea/**)",
+        "Edit(**/node_modules/**)",
+        "Edit(**/__pycache__/**)"
+      ]
+    }
 
     "full_access": {
       "description": "Access all areas (use sparingly - increases context usage)",

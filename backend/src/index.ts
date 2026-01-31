@@ -141,13 +141,15 @@ Analyze the conversation history and the latest user message.
 **INTENT CLASSIFICATION (CRITICAL - Determine this FIRST):**
 - Use "recommendation" intent when user:
   - Asks about products ("tell me about products", "what products", "show me products")
+  - Explicitly requests recommendations with verbs like "recommend", "suggest", "propose", "advise" ("Can you recommend...", "Can you suggest...", "Can you propose...")
   - Wants products ("I want", "I need", "looking for", "any", "something for")
   - Asks "do you have" or "which...do you have" ("do you have lighters?", "which accessories do you have?") do you have category or subcategory?
   - Tell me about strain, type, category, subcategory is a recommendation intent.
   - Insinuates desired effect ("Something for sleep", "How about for social setting", "anything for partying", "stuff to cheer me up")
-  - Requests recommendations ("recommend", "suggest", "best options", "what's good for")
+  - Requests recommendations ("recommend", "suggest", "propose", "advise", "best options", "what's good for")
   - Mentions effects, categories, types, or product preferences
   - How about category, subcategory, strain, type is a recommendation intent.
+  - CRITICAL: If user mentions ANY category (flower, prerolls, edibles, vaporizers, concentrates, cbd, topicals, accessories) with action verbs (recommend, suggest, tell me about, show me), it's ALWAYS recommendation intent
 - Use "product-question" intent when user:
   - Asks about a SPECIFIC product by name ("tell me more about X", "what can you tell me about X", "what else about X")
   - Asks questions about a previously recommended product ("what are the effects of that one?", "how strong is that?")
@@ -163,6 +165,11 @@ Analyze the conversation history and the latest user message.
 
 **Examples of "recommendation" intent:**
 - "Can you tell me about products for deep sleep?" → recommendation
+- "Can you recommend uplifting sativa products? flower, vapes" → recommendation
+- "Can you suggest relaxing indica products? flower, pre rolls, vapes" → recommendation
+- "Can you propose focused, clear mind sativa energizing products?" → recommendation
+- "Tell me about uplifting, sativa energizing products please" → recommendation
+- "Tell me about focused, clear minded sativa edibles" → recommendation
 - "any pre roll or flower for deep sleep" → recommendation
 - "anything for deep sleep" → recommendation
 - "what's good for sleep?" → recommendation
@@ -738,9 +745,10 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
 
     // Validate and normalize filters
     const normalizedFilters: Record<string, any> = {};
-    
-    // Normalize and validate category (handle both single value and array)
-    if (response.filters.category) {
+
+    try {
+      // Normalize and validate category (handle both single value and array)
+      if (response.filters.category) {
       const categoryValue = response.filters.category;
       if (Array.isArray(categoryValue)) {
         // Validate each category in the array
@@ -760,11 +768,26 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
       }
     }
     
-    // Normalize type to lowercase
+    // Normalize type to lowercase (handle both single value and array)
     if (response.filters.type) {
-      const normalizedType = response.filters.type.toLowerCase();
-      if (["indica", "sativa", "hybrid", "indica-hybrid", "sativa-hybrid"].includes(normalizedType)) {
-        normalizedFilters.type = normalizedType;
+      const typeValue = response.filters.type;
+      const validTypes = ["indica", "sativa", "hybrid", "indica-hybrid", "sativa-hybrid"];
+
+      if (Array.isArray(typeValue)) {
+        // Validate each type in the array
+        const normalizedTypes = typeValue
+          .map((t: any) => String(t).toLowerCase())
+          .filter((t: string) => validTypes.includes(t));
+        if (normalizedTypes.length > 0) {
+          normalizedFilters.type = normalizedTypes;
+        }
+        // If all invalid, omit it (better to omit than be wrong)
+      } else {
+        // Single value
+        const normalizedType = String(typeValue).toLowerCase();
+        if (validTypes.includes(normalizedType)) {
+          normalizedFilters.type = normalizedType;
+        }
       }
     }
     
@@ -902,6 +925,32 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
         normalizedFilters.thc_percentage_max = Number(response.filters.thc_percentage_max);
       }
     }
+    } catch (normalizationErr) {
+      // Normalization error - provide detailed field-level error
+      const errorMessage = normalizationErr instanceof Error ? normalizationErr.message : String(normalizationErr);
+
+      console.error("Filter normalization error:", {
+        error: errorMessage,
+        filters: response.filters,
+        rawResponse: text
+      });
+
+      return c.json({
+        error: "Filter normalization failed",
+        errorType: "NORMALIZATION_ERROR",
+        errorMessage: errorMessage,
+        details: {
+          parseError: "Failed to normalize filter fields (category, type, subcategory, etc.)",
+          receivedFilters: response.filters,
+          suggestion: "One of the filter fields (category, type, etc.) may be in an unexpected format. Check if arrays are handled correctly."
+        },
+        // Return the parsed intent/semantic_search but with empty filters
+        intent: response.intent,
+        filters: {},
+        semantic_search: response.semantic_search || "",
+        product_query: response.product_query || null
+      }, 400);
+    }
 
     return c.json({
       intent: response.intent,
@@ -911,15 +960,31 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
       ...(tokenUsage ? { tokenUsage } : {})
     });
   } catch (err) {
-    console.error("Failed to parse intent response:", err);
-    console.error("Raw response:", text);
-    // Fallback to general intent with empty filters
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    const errorStack = err instanceof Error ? err.stack : undefined;
+
+    console.error("Failed to parse intent response:", {
+      error: errorMessage,
+      stack: errorStack,
+      rawResponse: text
+    });
+
+    // Return detailed error response (400 Bad Request) instead of silently defaulting to "general"
     return c.json({
+      error: "Intent parsing failed",
+      errorType: "INTENT_PARSE_ERROR",
+      errorMessage: errorMessage,
+      details: {
+        parseError: "Failed to parse or normalize the intent response from LLM",
+        rawResponse: text ? text.substring(0, 500) : "(empty)", // Truncate for safety
+        suggestion: "This is likely a normalization bug in the backend. Check server logs for full details."
+      },
+      // Fallback values for graceful degradation
       intent: "general",
       filters: {},
       semantic_search: "",
       product_query: null
-    });
+    }, 400);
   }
 });
 

@@ -16,25 +16,362 @@ The system is built as **four loosely coupled components** for maximum flexibili
 
 ## Architecture & Components
 
-### 1. **Vectorizer (`vectorizer/vectorize.py`)**
-- **Technology**: Python + LangChain + Cloudflare Vectorize
-- **Purpose**: Script to embed and upload the product catalog into the vector database
-- **Key Features**:
-  - Fetches product data from Dutchie GraphQL API with category/subcategory/strain filters
-  - Supports filtering by `--category`, `--subcategory`, and `--strain` CLI flags
-  - Smart THC/CBD extraction with "20pk | 100mg" combined format handling
-  - Generates embeddings using Cloudflare Workers AI (`@cf/baai/bge-large-en-v1.5`)
-  - Includes terpene aromas, health benefits, and cannabinoid descriptions in semantic search
-  - Upserts into Cloudflare Vectorize index
-  - Designed for one-time or periodic runs (local or CI/CD, cron-ready)
-- **CLI Examples**:
-  ```bash
-  # INDICA gummies
-  python vectorize.py -x products-prod --category EDIBLES --subcategory GUMMIES --strain INDICA --limit 15 --upload
-  # SATIVA chocolates
-  python vectorize.py -x products-prod --category EDIBLES --subcategory CHOCOLATES --strain SATIVA --limit 15 --upload
-  ```
-- **Status**: Production-ready with full Dutchie API integration
+### 1. **Vectorizer (`vectorizer/`)**
+- **Technology**: Python + LangChain + Cloudflare Vectorize + Dutchie GraphQL API
+- **Purpose**: ETL pipeline to fetch, transform, and embed the product catalog into the vector database
+- **Architecture**: Modular pipeline with separate concerns (fetch, transform, embed, upload)
+- **Status**: Production-ready with full Dutchie API integration and comprehensive transformation logic
+
+#### Vectorizer Scripts
+
+**Core Scripts**:
+- `vectorize.py` - Main vectorization pipeline (orchestrates fetch → transform → embed → upload)
+- `normalize_products.py` - Product transformation engine (200+ lines of normalization, extraction, and mapping logic)
+- `manage_indexes.py` - Index lifecycle management (create, delete, list, exists operations)
+- `dutchie_client.py` - Dutchie GraphQL API client (handles authentication, pagination, filtering)
+- `preset_sync.sh` - Batch sync automation (predefined presets for common sync patterns)
+
+**Schema Files**:
+- `schema.json` - Canonical schema (categories, subcategories, potency scales, field mappings) - **source of truth copied to backend**
+- `schema/*.md` - Category-specific transformation documentation (flower_schema.md, edibles_schema.md, prerolls_schema.md, etc.)
+- `schema/terpenes.json` - Terpene reference data (aromas, effects, health benefits)
+- `schema/cannaboids.json` - Cannabinoid reference data (descriptions, effects)
+- `CLI_COMMANDS.md` - Complete CLI reference guide with examples
+
+#### Transformation Pipeline (`normalize_products.py`)
+
+The vectorizer transforms raw Dutchie API data into normalized, vector-ready documents through a comprehensive transformation pipeline:
+
+**1. Category & Type Normalization**:
+- Category: `PRE_ROLLS` → `prerolls`, `FLOWER` → `flower`, `EDIBLES` → `edibles`
+- Strain type: `INDICA_HYBRID` → `indica-hybrid`, `SATIVA_HYBRID` → `sativa-hybrid`
+- Removes underscores, converts to lowercase
+
+**2. Subcategory Mapping** (66+ mappings):
+```python
+# Display names → Schema format (lowercase kebab-case)
+"PREMIUM" → "premium-flower"
+"WHOLE_FLOWER" → "whole-flower"
+"LIVE_RESIN_GUMMIES" → "live-resin-gummies"
+"INFUSED_PRE_ROLL_PACKS" → "infused-preroll-packs"
+"ALL_IN_ONE" → "all-in-one"
+"PAPERS_ROLLING_SUPPLIES" → "papers-rolling-supplies"
+```
+
+**3. THC/CBD Extraction** (category-specific):
+- **Flower/Prerolls/Vaporizers/Concentrates**: Extract `thc_percentage` and `cbd_percentage` from `potencyThc.range[0]` and `potencyCbd.range[0]`
+- **Edibles**: Extract `thc_per_unit_mg`, `thc_per_serving_mg`, `cbd_per_unit_mg` from combined formats like "20pk | 100mg" → 100mg total / 20pk = 5mg per unit
+- **CBD/Topicals**: Extract `cbd_total_mg` and `thc_total_mg` from potency fields
+- **Edge cases**: Handles missing values, invalid formats, zero values, percentage/mg unit conversions
+
+**4. Weight & Pack Count Parsing**:
+
+**Flower Weight** (from `variants[0].option`):
+```
+"1/8oz" → 3.54g (total_weight_grams), 0.125oz (total_weight_ounce)
+"1/4oz" → 7.09g, 0.250oz
+"1/2oz" → 14.17g, 0.500oz
+"1oz" → 28.35g, 1.000oz
+"3.5g" → 3.5g, 0.123oz
+```
+
+**Preroll Pack Count** (from product name/slug):
+```
+"5pk" → pack_count: 5, individual_weight_grams: total_weight / 5
+"10 Pack" → pack_count: 10
+"Single" → pack_count: 1
+```
+
+**5. Effects & Flavors**:
+- Normalize to lowercase: `["Relaxed", "Happy"]` → `["relaxed", "happy"]`
+- Map to canonical effects (see schema section above)
+- Default to `["relaxed"]` if empty
+- Extract flavors from product name, description, or tags
+
+**6. Terpenes & Cannabinoids Enrichment**:
+- Extract terpene names from nested objects: `terpenes[].terpene.name` → `["Myrcene", "Limonene", "Caryophyllene"]`
+- Extract cannabinoid names: `cannabinoids[].cannabinoid.name` → `["THC", "CBD", "CBG"]`
+- Flatten to string arrays for Vectorize metadata compatibility (Vectorize doesn't support nested objects)
+
+**7. Potency Classification** (category-specific scales):
+
+Uses `POTENCY_SCALES` dict to classify potency into human-readable labels:
+
+```python
+# Flower/Prerolls (0-100% scale)
+thc_percentage: 26.5% → "strong" (22-28%)
+thc_percentage: 15.2% → "balanced" (13-18%)
+
+# Vaporizers/Concentrates (66-100% scale)
+thc_percentage: 88% → "strong" (85-90%)
+thc_percentage: 72% → "balanced" (66-75%)
+
+# Edibles (mg per unit scale)
+thc_per_unit_mg: 7.5mg → "moderate" (5-10mg)
+thc_per_unit_mg: 2mg → "mild" (0-2.5mg)
+```
+
+**8. Price Priority**:
+1. `variants[0].specialPriceRec` (special recreational price)
+2. `variants[0].priceRec` (regular recreational price)
+3. `variants[0].priceMed` (medical price, fallback)
+
+**9. Metadata Enrichment**:
+- Add shop link: `https://cannavita.us/shop/?dtche[product]={slug}`
+- Extract image URL from `image` or `images[0].url`
+- Add brand name and tagline from `brand.name` and `brand.description`
+- Set `inStock: true` (products in API response are always in stock)
+- Mark `staffPick` if true
+
+**10. Embedding Generation**:
+
+Construct rich text for semantic search:
+```
+{name}. {description}.
+Effects: {effects_joined}.
+Flavor: {flavor_joined}.
+Terpenes: {terpene_aromas_joined}.
+Cannabinoids: {cannabinoid_descriptions_joined}.
+Health Benefits: {health_benefits_joined}.
+```
+
+Generate embeddings using Cloudflare Workers AI (`@cf/baai/bge-large-en-v1.5`) - 1024-dimensional vectors.
+
+#### Batch Sync Automation (`preset_sync.sh`)
+
+Automates multi-subcategory/multi-strain sync operations with predefined presets.
+
+**Available Presets**:
+
+| Preset | Description | Example |
+|--------|-------------|---------|
+| `all-subcategories` | All subcategories for a category (no strain filter) | `./preset_sync.sh all-subcategories EDIBLES products-prod 15` |
+| `gummies-all` | All gummy types × all strains [EDIBLES only] | `./preset_sync.sh gummies-all EDIBLES products-prod 15` |
+| `gummies-indica` | All gummy types × INDICA [EDIBLES only] | `./preset_sync.sh gummies-indica EDIBLES products-prod 20` |
+| `gummies-sativa` | All gummy types × SATIVA [EDIBLES only] | `./preset_sync.sh gummies-sativa EDIBLES products-prod 20` |
+| `chocolates` | Chocolates × all strains [EDIBLES only] | `./preset_sync.sh chocolates EDIBLES products-prod 10` |
+| `edibles-full` | All edibles subcategories × all strains | `./preset_sync.sh edibles-full EDIBLES products-prod 30` |
+| `edibles-quick` | Gummies + chocolates only | `./preset_sync.sh edibles-quick EDIBLES products-prod 30` |
+
+**Features**:
+- Automatic rate limiting (2s delay between requests)
+- Graceful failure handling (skips failed categories)
+- Progress output with emoji indicators
+- Supports all 8 categories: EDIBLES, FLOWER, PRE_ROLLS, VAPORIZERS, CONCENTRATES, CBD, TOPICALS, ACCESSORIES
+
+**Usage**:
+```bash
+# Sync all EDIBLES subcategories (15 products each, no strain filter)
+./preset_sync.sh all-subcategories EDIBLES products-prod 15
+
+# Sync all categories and subcategories (comprehensive sync)
+./preset_sync.sh all-subcategories ALL products-prod 15
+
+# Sync all gummy types x all strains (INDICA, SATIVA, HYBRID)
+./preset_sync.sh gummies-all EDIBLES products-prod 15
+```
+
+#### Index Management (`manage_indexes.py`)
+
+**Operations**:
+- `--create INDEX_NAME` - Create new Vectorize index (1024 dimensions, cosine similarity)
+- `--delete INDEX_NAME` - Delete existing index (warning: permanent)
+- `--list` - List all indexes with vector counts and status
+- `--exists INDEX_NAME` - Check if index exists (exit code 0/1)
+
+**Examples**:
+```bash
+# Create index
+python manage_indexes.py --create products-prod
+
+# List all indexes
+python manage_indexes.py --list
+
+# Check if index exists
+python manage_indexes.py --exists products-prod
+
+# Delete index
+python manage_indexes.py --delete products-demo-old
+```
+
+#### CLI Usage (`vectorize.py`)
+
+**Dry Run** (test without uploading):
+```bash
+# Test 20 EDIBLES products
+python vectorize.py -x products-test --category EDIBLES --limit 20
+
+# Test INDICA gummies
+python vectorize.py -x products-test --category EDIBLES --subcategory GUMMIES --strain INDICA --limit 15
+
+# Test SATIVA chocolates
+python vectorize.py -x products-test --category EDIBLES --subcategory CHOCOLATES --strain SATIVA --limit 10
+```
+
+**Upload to Vectorize**:
+```bash
+# Upload 100 EDIBLES products
+python vectorize.py -x products-prod --category EDIBLES --limit 100 --upload
+
+# Upload INDICA flower
+python vectorize.py -x products-prod --category FLOWER --strain INDICA --limit 50 --upload
+
+# Upload live resin vaporizers
+python vectorize.py -x products-prod --category VAPORIZERS --subcategory LIVE_RESIN --limit 30 --upload
+```
+
+**With Offset** (for pagination):
+```bash
+# Batch 1: Products 0-100
+python vectorize.py -x products-prod --category EDIBLES --offset 0 --limit 100 --upload
+
+# Batch 2: Products 100-200
+python vectorize.py -x products-prod --category EDIBLES --offset 100 --limit 100 --upload
+```
+
+#### Schema Synchronization
+
+**Important**: The vectorizer's `schema.json` is the **source of truth** and has been **copied to** `backend/src/schema.json`. Both schemas must stay synchronized.
+
+**Synchronization Process**:
+1. Update `vectorizer/src/schema.json` first (when adding categories, subcategories, or potency scales)
+2. Copy changes to `backend/src/schema.json`
+3. Update transformation logic in `normalize_products.py` if needed
+4. Update schema documentation in `vectorizer/src/schema/*.md`
+5. Test transformations with dry run: `python vectorize.py -x test --category CATEGORY --limit 5`
+6. Update backend schema utilities in `backend/src/schema.ts` if new mappings added
+
+**Current Sync Status**: Backend schema has additional fields (`live-rosin` for vaporizers/concentrates, `cbd_total_mg_fields`) that should be backported to vectorizer schema if needed.
+
+#### Key Design Decisions
+
+1. **Separation of Concerns**: Fetch (Dutchie API) → Transform (normalize) → Embed (Workers AI) → Upload (Vectorize) are separate, testable stages
+2. **Category-Specific Logic**: Different categories use different fields (thc_percentage vs thc_per_unit_mg), different scales, different parsing logic
+3. **Lowercase Kebab-Case**: All normalized values use lowercase kebab-case for consistency (`premium-flower`, `indica-hybrid`, `clear-mind`)
+4. **Schema as Source of Truth**: Single schema.json defines valid categories, subcategories, potency scales - used by both vectorizer and backend
+5. **Metadata Flattening**: Nested objects (terpenes, cannabinoids) flattened to string arrays for Vectorize compatibility
+6. **Defaults Over Nulls**: Empty effects → `["relaxed"]`, missing price → use fallback, missing weight → null but don't fail
+7. **Graceful Failure**: Skip invalid products, log warnings, continue processing batch (resilient to API inconsistencies)
+
+#### Designed for Production
+
+- **Cron-ready**: Use with `--upload` flag for scheduled syncs
+- **Pagination support**: `--offset` and `--limit` for large catalogs
+- **Rate limiting**: Built into preset_sync.sh (2s delay)
+- **Dry run mode**: Test transformations before uploading (default behavior)
+- **Comprehensive logging**: Detailed output for debugging transformation issues
+- **Schema validation**: Validates categories/subcategories against schema.json before processing
+- **CLI reference**: Complete documentation in `CLI_COMMANDS.md` with 50+ examples
+
+#### Data Schema & Transformation Pipeline
+
+The vectorizer and backend share a canonical data schema defined in `backend/src/schema.json` and `backend/src/schema.ts`. This schema ensures consistency across data ingestion, storage, and retrieval.
+
+**Schema Files**:
+- `backend/src/schema.json` - Canonical source of truth (categories, subcategories, potency scales, field mappings)
+- `backend/src/schema.ts` - TypeScript interface and utility functions for schema validation and normalization
+
+**Schema Structure**:
+
+1. **Categories** (8 total):
+   ```json
+   ["flower", "prerolls", "edibles", "concentrates", "vaporizers", "cbd", "topicals", "accessories"]
+   ```
+
+2. **Types** (5 total):
+   ```json
+   ["indica", "sativa", "hybrid", "indica-hybrid", "sativa-hybrid"]
+   ```
+
+3. **Subcategories** (category-specific):
+   - `edibles` → chews, chocolates, cooking-baking, drinks, gummies, live-resin-gummies, live-rosin-gummies
+   - `vaporizers` → all-in-one, cartridges, disposables, live-resin, live-rosin
+   - `prerolls` → blunts, infused-prerolls, infused-preroll-packs, pre-roll-packs, singles
+   - `flower` → bulk-flower, pre-ground, premium-flower, small-buds, whole-flower
+   - `concentrates` → badder, hash, live-resin, live-rosin, rosin, unflavored
+   - `topicals` → balms
+   - `accessories` → batteries, glassware, grinders, lighters, papers-rolling-supplies
+
+4. **Canonical Effects** (10 total):
+   ```typescript
+   ["calm", "happy", "relaxed", "energetic", "clear-mind", "creative", "focused", "inspired", "sleepy", "uplifted"]
+   ```
+
+5. **Category Field Mappings** (which THC fields to use):
+   - **thc_percentage**: flower, prerolls, vaporizers, concentrates
+   - **thc_per_unit_mg**: edibles
+   - **cbd_total_mg**: cbd, topicals
+   - **individual_weight_grams**: prerolls
+   - **quantity**: all categories (inventory tracking)
+
+6. **Potency Scales** (category-specific THC ranges):
+
+   **Flower/Prerolls**:
+   - Mild: 0-13%, Balanced: 13-18%, Moderate: 18-22%, Strong: 22-28%, Very Strong: 28-100%
+
+   **Vaporizers/Concentrates**:
+   - Mild: 0-66%, Balanced: 66-75%, Moderate: 75-85%, Strong: 85-90%, Very Strong: 90-100%
+
+   **Edibles**:
+   - Mild: 0-2.5mg, Balanced: 2.5-5mg, Moderate: 5-10mg, Strong: 10-25mg, Very Strong: 25-100mg
+
+**Data Transformation Pipeline**:
+
+The vectorizer transforms raw Dutchie API data into vector-ready documents through these steps:
+
+1. **Fetch Products** (Dutchie GraphQL API):
+   - Supports filtering by `--category`, `--subcategory`, and `--strain` CLI flags
+   - Retrieves product data with full fields (name, description, brand, price, THC, CBD, effects, flavors, etc.)
+
+2. **Schema Validation & Normalization**:
+   - Validates categories against `schema.json` categories list
+   - Normalizes subcategories to lowercase kebab-case format
+   - Maps effects to canonical effects list (e.g., "joyful" → "happy", "tired" → "sleepy")
+   - Validates THC field usage based on category (percentage vs per-unit-mg)
+
+3. **THC/CBD Extraction**:
+   - Smart parsing for combined formats: "20pk | 100mg" → 100mg total, 5mg per unit
+   - Category-specific extraction:
+     - **Flower/Prerolls/Vaporizers/Concentrates**: Extract `thc_percentage` and `cbd_percentage`
+     - **Edibles**: Extract `thc_per_unit_mg`, `thc_per_serving_mg`, `cbd_per_unit_mg`
+     - **CBD/Topicals**: Extract `cbd_total_mg`
+   - Handles edge cases: missing values, invalid formats, zero values
+
+4. **Metadata Enrichment**:
+   - Adds product metadata: `id`, `name`, `category`, `type`, `subcategory`, `brand`, `price`, `inStock`
+   - Adds potency metadata: `thc_percentage`, `thc_per_unit_mg`, `cbd_percentage`, `cbd_total_mg`
+   - Adds effect/flavor arrays: `effects`, `flavor` (stored as arrays for semantic search)
+   - Adds descriptive fields: `description`, `terpene_aromas`, `health_benefits`
+
+5. **Embedding Generation**:
+   - Constructs rich text for embedding:
+     ```
+     {name}. {description}. Effects: {effects_joined}. Flavor: {flavor_joined}. Terpenes: {terpene_aromas}. Benefits: {health_benefits}.
+     ```
+   - Generates embeddings using Cloudflare Workers AI (`@cf/baai/bge-large-en-v1.5`)
+   - Embeddings capture semantic meaning of effects, flavors, and product descriptions
+
+6. **Vectorize Upsert**:
+   - Upserts vectors with full metadata into Cloudflare Vectorize index
+   - Metadata fields are indexed for filtering (category, type, subcategory, brand, price, thc_percentage, inStock)
+   - Product ID is stored as vector ID for retrieval
+
+**Schema Utility Functions** (`backend/src/schema.ts`):
+- `isValidCategory(category)` - Validates category against schema
+- `isValidSubcategory(category, subcategory)` - Validates subcategory for given category
+- `normalizeCategory(category)` - Normalizes to lowercase, returns null if invalid
+- `normalizeSubcategory(category, subcategory)` - Normalizes to lowercase kebab-case, validates against schema
+- `getValidSubcategories(category)` - Returns list of valid subcategories for category
+- `shouldUseTHCPercentage(category)` - Returns true for flower/prerolls/vaporizers/concentrates
+- `shouldUseTHCPerUnitMg(category)` - Returns true for edibles
+- `getSchemaForPrompt()` - Formats schema as string for LLM prompts
+
+**Why This Matters**:
+- **Consistency**: Same categories/effects across vectorizer, backend API, and frontend UI
+- **Validation**: Prevents invalid data from entering the vector database
+- **Normalization**: Ensures "Flower" and "flower" are treated identically
+- **THC Field Safety**: Prevents mixing percentage and per-unit-mg fields (category-specific)
+- **Effect Mapping**: Maps user language ("tired") to canonical effects ("sleepy") for better search results
 
 ### 2. **Backend API (`backend/src/index.ts`)**
 - **Technology**: TypeScript + Hono + Cloudflare Workers
@@ -211,6 +548,105 @@ The system is built as **four loosely coupled components** for maximum flexibili
 #### RAG Architecture Flow & Debugging
 
 **Flow:** `/intent` → UI → `/recommendations` → `validateAndExpandFilters` → Vector Search → Re-ranker → Results
+
+**Practical Flow Example:**
+
+Let's walk through a complete recommendation flow with a real query:
+
+**User Query**: `"Tell me about focused, clear minded sativa edibles"`
+
+**Step 1 - Intent Extraction** (`POST /chat/intent`):
+
+The intent API analyzes the query and extracts:
+
+```json
+{
+  "intent": "recommendation",
+  "filters": {
+    "category": "edibles",
+    "type": "sativa",
+    "effects": ["focused", "clear-mind"]
+  },
+  "semantic_search": "focused clear-minded sativa edibles energetic alert daytime"
+}
+```
+
+*What happened*: The LLM identified this as a recommendation request (mentions category "edibles"), extracted the category ("edibles"), type ("sativa"), and effects ("focused" maps to canonical effect "focused", "clear minded" maps to "clear-mind"). It also generated a semantic search query with effect-related keywords that match product embedding vocabulary.
+
+**Step 2 - UI Decision**: Frontend sees `intent: "recommendation"` and calls `/chat/recommendations` with the extracted filters and semantic_search.
+
+**Step 3 - Hybrid Recommendation Retrieval** (`POST /chat/recommendations`):
+
+The recommendations API receives:
+```json
+{
+  "messages": [...],
+  "filters": {
+    "category": "edibles",
+    "type": "sativa",
+    "effects": ["focused", "clear-mind"]
+  },
+  "semantic_search": "focused clear-minded sativa edibles energetic alert daytime"
+}
+```
+
+**3a. Metadata Filtering** (Vectorize):
+- Applies exact-match filter: `category = "edibles"`
+- Applies exact-match filter: `type = "sativa"`
+- Does NOT filter on `effects` (array fields not supported by Vectorize)
+
+**3b. Semantic Search** (Vectorize):
+- Generates embedding for: `"focused clear-minded sativa edibles energetic alert daytime"`
+- Searches for top 10 products matching metadata filters with highest semantic similarity
+- Returns products like:
+  - "Sativa Gummies - Focus Blend" (effects: ["focused", "energetic", "creative"])
+  - "Daytime Chocolates - Sativa" (effects: ["uplifted", "happy", "clear-mind"])
+  - "Live Rosin Gummies - Sativa" (effects: ["focused", "energetic", "happy"])
+
+**3c. LLM Re-ranking**:
+- Takes top 10 candidates from vector search
+- Re-ranks based on:
+  1. **Effects Match** (HIGHEST PRIORITY): Does the product have "focused" or "clear-mind" effects?
+  2. **Category Match**: Already filtered (all are edibles)
+  3. **Type Match**: Already filtered (all are sativa)
+  4. **Description Relevance**: Does description mention focus, clarity, daytime use?
+  5. **Price & THC**: Reasonable ranges for user's likely preference
+- Excludes products with contradictory effects (e.g., "sleepy" when user wants "focused")
+- Returns top 3-5 best matches
+
+**Step 4 - Final Response**:
+```json
+{
+  "recommendations": [
+    {
+      "id": "prod-123",
+      "name": "Focus Blend Gummies - Sativa",
+      "category": "edibles",
+      "type": "sativa",
+      "effects": ["focused", "energetic", "creative"],
+      "flavor": ["citrus", "tropical"],
+      "thc_per_unit_mg": 5,
+      "price": 24.99,
+      "description": "Perfect for daytime focus and productivity..."
+    },
+    {
+      "id": "prod-456",
+      "name": "Clear Mind Chocolates",
+      "category": "edibles",
+      "type": "sativa",
+      "effects": ["clear-mind", "uplifted", "happy"],
+      "flavor": ["dark-chocolate", "mint"],
+      "thc_per_unit_mg": 10,
+      "price": 29.99,
+      "description": "Elevate your mental clarity with these artisan chocolates..."
+    }
+  ]
+}
+```
+
+**Step 5 - UI Display**: Frontend displays product cards inline in the conversation with rich details (image, name, effects, price, THC, etc.).
+
+---
 
 **Debugging Unsatisfactory Queries:**
 
