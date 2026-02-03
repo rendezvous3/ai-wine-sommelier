@@ -394,6 +394,159 @@ export function buildVectorizeFilters(filters: Record<string, any>): Record<stri
   return Object.keys(vectorizeFilters).length > 0 ? vectorizeFilters : undefined;
 }
 
+/**
+ * Extracts and parses JSON from LLM responses with maximum resilience.
+ * Handles: markdown blocks, incomplete JSON, extra text, malformed braces, etc.
+ */
+export function parseRobustJSON(rawText: string): { success: boolean; data?: any; error?: string } {
+  if (!rawText || typeof rawText !== 'string') {
+    return { success: false, error: 'Empty or invalid input' };
+  }
+
+  let text = rawText.trim();
+
+  // Step 1: Remove markdown code blocks
+  if (text.startsWith('```json')) {
+    text = text.replace(/^```json\s*/i, '').replace(/\s*```$/g, '');
+  } else if (text.startsWith('```')) {
+    text = text.replace(/^```\s*/, '').replace(/\s*```$/g, '');
+  }
+
+  // Step 2: Remove thinking tags and XML-like tags
+  text = text.replace(/<think>[\s\S]*?<\/think>/gi, '');
+  text = text.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '');
+  text = text.replace(/<[^>]+>/g, '');
+  text = text.trim();
+
+  if (!text || text.length === 0) {
+    return { success: false, error: 'Empty text after cleaning' };
+  }
+
+  // Step 3: Extract JSON object (find first { and matching })
+  let jsonText = text;
+  const firstBrace = text.indexOf('{');
+
+  if (firstBrace === -1) {
+    return { success: false, error: 'No opening brace found' };
+  }
+
+  // Find matching closing brace
+  let braceCount = 0;
+  let endBrace = -1;
+  for (let i = firstBrace; i < text.length; i++) {
+    if (text[i] === '{') braceCount++;
+    if (text[i] === '}') braceCount--;
+    if (braceCount === 0) {
+      endBrace = i + 1;
+      break;
+    }
+  }
+
+  // Step 4: Handle incomplete JSON (missing closing braces)
+  if (endBrace === -1 || braceCount > 0) {
+    // JSON is incomplete - try to auto-complete it
+    jsonText = text.substring(firstBrace);
+
+    // Count open braces that need closing
+    let openBraces = 0;
+    let openBrackets = 0;
+    let inString = false;
+    let escapeNext = false;
+
+    for (let i = 0; i < jsonText.length; i++) {
+      const char = jsonText[i];
+
+      if (escapeNext) {
+        escapeNext = false;
+        continue;
+      }
+
+      if (char === '\\') {
+        escapeNext = true;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = !inString;
+        continue;
+      }
+
+      if (!inString) {
+        if (char === '{') openBraces++;
+        if (char === '}') openBraces--;
+        if (char === '[') openBrackets++;
+        if (char === ']') openBrackets--;
+      }
+    }
+
+    // Remove trailing comma if present (invalid JSON)
+    jsonText = jsonText.replace(/,(\s*)$/, '$1');
+
+    // Add missing closing brackets and braces
+    for (let i = 0; i < openBrackets; i++) {
+      jsonText += ']';
+    }
+    for (let i = 0; i < openBraces; i++) {
+      jsonText += '}';
+    }
+  } else {
+    jsonText = text.substring(firstBrace, endBrace);
+  }
+
+  // Step 5: Attempt to parse
+  try {
+    const parsed = JSON.parse(jsonText);
+    return { success: true, data: parsed };
+  } catch (parseError) {
+    // Step 6: Try cleaning common JSON errors
+    try {
+      let cleaned = jsonText;
+
+      // Fix 1: Remove trailing commas (common LLM mistake)
+      cleaned = cleaned.replace(/,(\s*[}\]])/g, '$1');
+
+      // Fix 2: Add missing commas between object properties (} "key" → }, "key")
+      cleaned = cleaned.replace(/}\s*"([^"]+)":/g, '}, "$1":');
+      cleaned = cleaned.replace(/]\s*"([^"]+)":/g, '], "$1":');
+
+      // Fix 3: Close unterminated strings (find unmatched quotes)
+      // Count quotes to detect unterminated string
+      let quoteCount = 0;
+      let lastQuoteIndex = -1;
+      for (let i = 0; i < cleaned.length; i++) {
+        if (cleaned[i] === '"' && (i === 0 || cleaned[i - 1] !== '\\')) {
+          quoteCount++;
+          lastQuoteIndex = i;
+        }
+      }
+      // If odd number of quotes, we have an unterminated string
+      if (quoteCount % 2 !== 0 && lastQuoteIndex !== -1) {
+        // Close the unterminated string before the next special char or end
+        const afterQuote = cleaned.substring(lastQuoteIndex + 1);
+        const nextSpecial = afterQuote.search(/[,}\]]/);
+        if (nextSpecial !== -1) {
+          cleaned = cleaned.substring(0, lastQuoteIndex + 1 + nextSpecial) + '"' + cleaned.substring(lastQuoteIndex + 1 + nextSpecial);
+        } else {
+          cleaned = cleaned + '"';
+        }
+      }
+
+      // Fix 4: Fix missing quotes around property names (rare but happens)
+      cleaned = cleaned.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":');
+
+      const parsed = JSON.parse(cleaned);
+      return { success: true, data: parsed };
+    } catch (finalError) {
+      const errorMsg = parseError instanceof Error ? parseError.message : String(parseError);
+      return {
+        success: false,
+        error: `JSON parse failed: ${errorMsg}`,
+        rawSnippet: jsonText.substring(0, 200)
+      };
+    }
+  }
+}
+
 export {
     formatConversationHistory
 }

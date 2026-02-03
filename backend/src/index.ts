@@ -16,7 +16,7 @@ import type {
 // import { streamText } from 'ai';
 import { generatePrompt } from "./prompt";
 import { MODEL_PROVIDER, LLM_PROVIDER, STORE_NAME, AGENT_ROLE, AGENT_ROLE_MODEL, getModelForRole, getBaseUrl, getApiKey, getTokenLimitsForModel, type Tier } from "./types-and-constants";
-import { formatConversationHistory, validateAndExpandFilters, buildVectorizeFilters } from "./utils";
+import { formatConversationHistory, validateAndExpandFilters, buildVectorizeFilters, parseRobustJSON } from "./utils";
 import {
   isValidCategory,
   isValidSubcategory,
@@ -473,70 +473,59 @@ Semantic Search Generation Guidelines:
 Note: In other instances where SUPERLATIVES or Extreme effects are not mentioned, do not hyde the semantic search nor add filters.
 
 Examples:
-- "Can you recommend something to get me sleepy and relaxed?" Result: { "filters": { "effects": ["sleepy", "relaxed"], "type": ["indica", "indica-hybrid"] }, "semantic_search": "sleepy relaxed nighttime indica" } Note: Extract effects, but NO category or THC - user didn't specify them
+- "sleepy and relaxed" → { "filters": { "effects": ["sleepy", "relaxed"], "type": ["indica", "indica-hybrid"] }, "semantic_search": "sleepy relaxed nighttime indica" } | HYDE: sleepy→indica | NO POTENCY FILTERS
 
-- "Any decent Indica hybrid?" Result: { "filters": { "type": "indica-hybrid" }, "semantic_search": "indica hybrid" } Note: "indica-hybrid" is a TYPE, not a category. Do NOT infer category - user didn't mention flower, prerolls, or any other category.
+- "Indica hybrid" → { "filters": { "type": "indica-hybrid" }, "semantic_search": "indica hybrid" } | NO HYDE | NO POTENCY FILTERS
 
-- "How about energizing flower and edibles?" Result: { "filters": { "category": ["flower", "edibles"], "effects": ["energetic"] }, "semantic_search": "energetic uplifting focused creative sativa daytime boost" } Note: semantic_search focuses on effect vocabulary that matches product embeddings, not category names. Categories are filtered via metadata.
+- "energizing flower and edibles" → { "filters": { "category": ["flower", "edibles"], "effects": ["energetic"] }, "semantic_search": "energetic uplifting focused creative sativa daytime boost" } | HYDE: energizing→sativa
 
-- "Can you recommend flower that keeps me energized and is uplifting?" Result: { "filters": { "category": "flower", "type": "sativa", "effects": ["energetic", "uplifted"] }, "semantic_search": "energetic uplifted sativa flower" } Note: All fields explicitly mentioned - extract them all
+- "flower that keeps me energized and uplifting" → { "filters": { "category": "flower", "type": "sativa", "effects": ["energetic", "uplifted"] }, "semantic_search": "energetic uplifted sativa flower" } | HYDE: energized/uplifting→sativa | NO POTENCY FILTERS
 
-- "Looking for Concentrates products with Mild (<66%) THC percentage" Result: { "filters": { "category": "concentrates", "thc_percentage_max": 66 }, "semantic_search": "concentrates products" } Note: Guided Flow format with single bound - use ONLY thc_percentage_max (no min) and ny hyde additions of sativa ot indica
+- "Concentrates Mild (<66%)" → { "filters": { "category": "concentrates", "thc_percentage_max": 66 }, "semantic_search": "concentrates products" } | NO HYDE
 
-- "Looking for Flower products with Moderate (18-22%) THC percentage" Result: { "filters": { "category": "flower", "thc_percentage_min": 18, "thc_percentage_max": 22 }, "semantic_search": "flower products" } Note: Guided Flow format with range - use BOTH thc_percentage_min and thc_percentage_max
+- "Flower Moderate (18-22%)" → { "filters": { "category": "flower", "thc_percentage_min": 18, "thc_percentage_max": 22 }, "semantic_search": "flower products" } | NO HYDE
 
-- "I want 5mg gummies/chocolate/cookie/baked" Result: { "filters": { "category": "edibles", "subcategory": ["gummies"/"chocolates"/"cooking-baking"], "thc_per_unit_mg_min": 5, "thc_per_unit_mg_max": 5 }, "semantic_search": "gummies edible products" } Note: "gummies", "chocolates" is a subcategory that implies "edibles" category - extract both category and subcategory. With edibles, terms like cookie, cake etc. should be mapped to "cooking-baking" subcategory
+- "5mg gummies" → { "filters": { "category": "edibles", "subcategory": ["gummies"], "thc_per_unit_mg_min": 5, "thc_per_unit_mg_max": 5 }, "semantic_search": "gummies edible products" } | NO HYDE | NO POTENCY FILTERS
 
-- "How about some 5mg gummies with berry flavor?" Result: { "filters": { "category": "edibles", "subcategory": ["gummies"], "flavor": ["berry"], "thc_per_unit_mg_min": 5 }, "semantic_search": "berry flavored gummies" } Note: Extract subcategory, flavor, and THC dosage when explicitly mentioned
+- "5mg gummies berry flavor" → { "filters": { "category": "edibles", "subcategory": ["gummies"], "flavor": ["berry"], "thc_per_unit_mg_min": 5 }, "semantic_search": "berry flavored gummies" } | NO HYDE | NO POTENCY FILTERS
 
-- "Tell me about live resin edibles" Result: { "filters": { "category": "edibles", "subcategory": ["live-resin-gummies"] }, "semantic_search": "live resin edibles" } Note: "live resin" in edibles context → subcategory: "live-resin-gummies"
+- "live resin edibles" → { "filters": { "category": "edibles", "subcategory": ["live-resin-gummies"] }, "semantic_search": "live resin edibles" } | NO HYDE | NO POTENCY FILTERS
 
-- "Tell me about live rosin gummies" Result: { "filters": { "category": "edibles", "subcategory": ["live-rosin-gummies"] }, "semantic_search": "live rosin gummies" } Note: CRITICAL - "live rosin" (with 'o') is DIFFERENT from "live resin" (with 'e"). Pay close attention to spelling: "rosin" vs "resin" are different extraction methods
+- "live rosin gummies" → { "filters": { "category": "edibles", "subcategory": ["live-rosin-gummies"] }, "semantic_search": "live rosin gummies" } | NO HYDE (live rosin ≠ live resin)
 
-- "Tell me about live resin gummies" Result: { "filters": { "category": "edibles", "subcategory": ["live-resin-gummies"] }, "semantic_search": "live resin gummies" } Note: "live resin gummies" → subcategory: "live-resin-gummies" (with hyphen). NO thc_per_unit_mg fields because user didn't mention dosage - do NOT hallucinate THC values!
+- "all-in-one vaporizers" → { "filters": { "category": "vaporizers", "subcategory": ["all-in-one"] }, "semantic_search": "all-in-one vaporizers" } | NO HYDE | NO POTENCY FILTERS
 
-- "Show me all-in-one vaporizers" Result: { "filters": { "category": "vaporizers", "subcategory": ["all-in-one"] }, "semantic_search": "all-in-one vaporizers" } Note: "all-in-one" is a subcategory that implies "vaporizers" category
+- "cartridges" → { "filters": { "category": "vaporizers", "subcategory": ["cartridges"] }, "semantic_search": "cartridges vaporizers" } | NO HYDE | | NO POTENCY FILTERS
 
-- "I want cartridges" Result: { "filters": { "category": "vaporizers", "subcategory": ["cartridges"] }, "semantic_search": "cartridges vaporizers" } Note: "cartridges" is a subcategory that implies "vaporizers" category
+- "premium flower" → { "filters": { "category": "flower", "subcategory": ["premium-flower"] }, "semantic_search": "premium flower" } | NO HYDE | | NO POTENCY FILTERS
 
-- "Show me infused prerolls" Result: { "filters": { "category": "prerolls", "subcategory": ["infused-prerolls", "infused-preroll-packs"] }, "semantic_search": "infused prerolls" } Note: "infused-prerolls" is a subcategory that implies "prerolls" category, and no hyde additions.
+- "flower 22% THC" → { "filters": { "category": "flower", "thc_percentage_min": 22, "thc_percentage_max": 22 }, "semantic_search": "flower products" } | NO HYDE
 
-- "I want premium flower" Result: { "filters": { "category": "flower", "subcategory": ["premium-flower"] }, "semantic_search": "premium flower" } Note: "premium-flower" is a subcategory that implies "flower" category (note: use "premium-flower" not just "premium")
+- "strong flower for sleep" → { "filters": { "category": "flower", "effects": ["sleepy"], "type": ["indica", "indica-hybrid"], "thc_percentage_min": 28 }, "semantic_search": "strong flower indica sleep nighttime" } | HYDE: sleep→indica
 
-- "Show me flower with 22% THC" Result: { "filters": { "category": "flower", "thc_percentage_min": 22, "thc_percentage_max": 22 }, "semantic_search": "flower products" }
+- "sleepy vapes very strong" → { "filters": { "category": "vaporizers", "effects": ["sleepy"], "type": ["indica", "indica-hybrid"], "thc_percentage_min": 90 }, "semantic_search": "sleepy vaporizers strong nighttime indica" } | HYDE: sleepy→indica
 
-- "I want strong flower for sleep" Result: { "filters": { "category": "flower", "effects": ["sleepy"], "type": ["indica", "indica-hybrid"], "thc_percentage_min": 28 }, "semantic_search": "strong flower indica sleep nighttime" } Note: Category is known, "strong" maps to min 22% using 3-category natural language classification, extract effects too
+- "5mg edibles less than $28" → { "filters": { "category": "edibles", "thc_per_unit_mg_min": 5, "thc_per_unit_mg_max": 5, "price_max": 28 }, "semantic_search": "edibles 5mg" } | NO HYDE | NO POTENCY FILTERS
 
-- "How about some sleepy vapes very strong?" Result: { "filters": { "category": "vaporizers", "effects": ["sleepy"], "type": ["indica", "indica-hybrid"], "thc_percentage_min": 90 }, "semantic_search": "sleepy vaporizers strong nighttime indica" } Note: Category is known (vaporizers), "very strong" maps to min 90% for vaporizers. NO subcategory because user didn't mention "live-resin", "cartridges", "disposables", etc.
+- "most potent prerolls" → { "filters": { "category": "prerolls", "thc_percentage_min": 28 }, "semantic_search": "most potent prerolls" } | NO HYDE
 
-- "Do you have 5mg edibles preferably less then $28" Result: { "filters": { "category": "edibles", "thc_per_unit_mg_min": 5, "thc_per_unit_mg_max": 5, "price_max": 28 }, "semantic_search": "edibles 5mg" } Note: "5mg" is exact value → use BOTH min AND max with same value. "less than $28" → price_max: 28
+- "potent flower and fruity drinks" → { "filters": { "category": ["flower", "edibles"], "subcategory": ["drinks"], "flavor": ["fruity"], "thc_percentage_min": 28 }, "semantic_search": "potent flower fruity drinks THC" } | NO HYDE
 
-- "What are your most potent prerolls?" Result: { "filters": { "category": "prerolls", "thc_percentage_min": 28 }, "semantic_search": "most potent prerolls" } Note: "most potent" is superlative → thc_percentage_min: 28 for prerolls. NO subcategory.
+- "sleepy concentrates and fruity drinks" → { "filters": { "category": ["concentrates", "edibles"], "subcategory": ["drinks"], "effects": ["sleepy"], "flavor": ["fruity"] }, "semantic_search": "sleepy concentrates fruity drinks THC" } | HYDE: sleepy→indica | NO POTENCY FILTERS
 
-- "I am looking for potent flower and fruity drinks with THC" Result: { "filters": { "category": ["flower", "edibles"], "subcategory": ["drinks"], "flavor": ["fruity"], "thc_percentage_min": 28 }, "semantic_search": "potent flower fruity drinks THC" } Note: "fruity drinks" → subcategory: ["drinks"], flavor: ["fruity"] (NOT compound subcategory "fruity drinks"). "potent" applies to flower only (thc_percentage_min: 22).
+- "Social setting edibles and flower" → { "filters": { "category": ["edibles", "flower"], "type": ["sativa"], "effects": ["uplifted", "energetic"] }, "semantic_search": "uplifting and energetic social setting edibles flower daytime sativa" } | HYDE: uplifting→sativa | NO POTENCY FILTERS
 
-- "Tell me about sleepy concentrates and fruity thc drinks?" Result: { "filters": { "category": ["concentrates", "edibles"], "subcategory": ["drinks"], "effects": ["sleepy"], "flavor": ["fruity"] }, "semantic_search": "sleepy concentrates fruity drinks THC" } Note: Two categories mentioned. "fruity" is flavor, NOT part of subcategory.
+- "infused pre rolls" → { "filters": { "category": ["prerolls"], "subcategory": ["infused-prerolls", "infused-preroll-packs"] }, "semantic_search": "infused prerolls" } | NO HYDE | NO POTENCY FILTERS
 
-- "Can you recommend some uplifting edibles and flower?" Result: { "filters": { "category": ["edibles", "flower"], "type": ["sativa"], "effects": ["uplifted"] }, "semantic_search": "uplifting edibles flower daytime sativa" } Note: "uplifting" is an EFFECT, NOT potency. Do NOT extract THC fields!
+- "milder vapes" → { "filters": { "category": ["vaporizers"], "thc_percentage_max": 66 }, "semantic_search": "milder vapes" } | NO HYDE | NO POTENCY FILTERS
 
-- "Can you recommend some infused pre rolls?" (then user says "Uplifting") Result: { "filters": { "category": ["prerolls"], "subcategory": ["infused-prerolls", "infused-preroll-packs"], "type": ["sativa", "sativa-hybrid"], "effects": ["uplifted"] }, "semantic_search": "uplifting infused prerolls sativa" } Note: "uplifting" is an EFFECT, NOT potency. Do NOT extract THC! "infused prerolls" mentioned → extract subcategory.
+- "daytime gummies" → { "filters": { "category": ["edibles"], "type": ["sativa", "sativa-hybrid"], "subcategory": ["gummies"], "effects": ["uplifted", "energetic"] }, "semantic_search": "daytime energetic uplifting sativa gummies" } | HYDE: daytime→sativa/energetic
 
-- "What are some milder vapes you got?" Result: { "filters": { "category": ["vaporizers"], "thc_percentage_max": 66 }, "semantic_search": "milder vapes" } Note: "milder" is potency → thc_percentage_max: 66 for vaporizers. NO effects mentioned.
+- "downer pre roll and upper vape" → { "filters": { "category": ["prerolls", "vaporizers"], "effects": ["relaxed", "sleepy", "energetic", "uplifted"] }, "semantic_search": "downer preroll upper vape relaxing energizing" } | HYDE: downer→indica, upper→sativa | NO POTENCY FILTERS
 
-- "Tell me about some daytime gummies" Result: { "filters": { "category": ["edibles"], "type": ["sativa", "sativa-hybrid"], "subcategory": ["gummies"], "effects": ["uplifted", "energetic"] }, "semantic_search": "daytime energetic uplifting sativa gummies" } Note: "daytime" implies uplifting/energetic effects. "gummies" is subcategory.
+- "very mild flower, sativa preferred" → { "filters": { "category": ["flower", "prerolls"], "type": ["sativa"], "thc_percentage_max": 13 }, "semantic_search": "very mild flower preroll sativa" } | NO HYDE (type already specified)
 
-- "Tell me about pre roll that is bit of a downer and vape that is upper?" Result: { "filters": { "category": ["prerolls", "vaporizers"], "effects": ["relaxed", "sleepy", "energetic", "uplifted"] }, "semantic_search": "downer preroll upper vape relaxing energizing" } Note: "downer" = effects (relaxed, sleepy), "upper" = effects (energetic, uplifted). NO subcategory (user didn't say "infused" or "all-in-one"). NO THC (user didn't mention potency!)
-
-- "What are some very mild flower and pre roll options, sativa preferred?" Result: { "filters": { "category": ["flower", "prerolls"], "type": ["sativa"], "thc_percentage_max": 13 }, "semantic_search": "very mild flower preroll sativa" } Note: "very mild" is potency → thc_percentage_max: 13 for flower/prerolls.
-
-🚨 **CRITICAL EXAMPLE - HYDE TYPE INFERENCE:**
-
-- "What are your best uplifting/happy and joyful concentrates and drinks?" Result: { "filters": { "category": ["concentrates", "edibles"], "subcategory": ["drinks"], "type": ["sativa", "sativa-hybrid"], "effects": ["happy", "joyful"] }, "semantic_search": "happy joyful sativa sativa hybrid concentrates drinks" } Note: "happy" and "joyful" or "uplifting" imply sativa → AUTOMATICALLY add type: ["sativa"]. "drinks" is subcategory.
-
-🚨 **CRITICAL EXAMPLE - When not to hyde - No Extreme Effects**
-
-- "Tell me about potent flower? -> flower and potency, no hyde.
-- "Tell me about thc drink? -> only category and subcategory, no hyde.
+- "uplifting/happy concentrates and drinks" → { "filters": { "category": ["concentrates", "edibles"], "subcategory": ["drinks"], "type": ["sativa", "sativa-hybrid"], "effects": ["happy"] }, "semantic_search": "happy uplifting sativa concentrates drinks" } | HYDE: uplifting/happy→sativa | | NO POTENCY FILTERS
 
 Last assistant message (CODEX message - PRIMARY SOURCE): "${lastAssistantContent}"
 
@@ -608,32 +597,34 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
     }, 503);
   }
 
-  // Parse and validate response
+  // Parse and validate response using robust JSON parser
+  const parseResult = parseRobustJSON(text);
+
+  if (!parseResult.success) {
+    console.error("Failed to parse intent response:", {
+      error: parseResult.error,
+      rawResponse: text?.substring(0, 500)
+    });
+
+    return c.json({
+      error: "Filter extraction failed - JSON parsing error",
+      errorType: "JSON_PARSE_ERROR",
+      errorMessage: parseResult.error || "Unknown parsing error",
+      details: {
+        parseError: "The AI response could not be parsed as valid JSON",
+        suggestion: "This is likely due to incomplete or malformed JSON from the LLM. The response has been logged."
+      },
+      intent: "recommendation",
+      filters: {},
+      semantic_search: "",
+      product_query: null,
+      assistantQuery: assistantQuery
+    }, 400);
+  }
+
+  const parsed = parseResult.data;
+
   try {
-    // Strip markdown code blocks, thinking tags, and other non-JSON content
-    let cleanedText = text.trim();
-
-    // Remove markdown code blocks
-    if (cleanedText.startsWith('```json')) {
-      cleanedText = cleanedText.replace(/^```json\s*/i, '').replace(/\s*```$/g, '');
-    } else if (cleanedText.startsWith('```')) {
-      cleanedText = cleanedText.replace(/^```\s*/, '').replace(/\s*```$/g, '');
-    }
-
-    // Remove <think> tags and their content
-    cleanedText = cleanedText.replace(/<think>[\s\S]*?<\/think>/gi, '');
-
-    // Remove any remaining XML-like tags (e.g., <thinking>, <output>, etc.)
-    cleanedText = cleanedText.replace(/<[^>]+>/g, '');
-
-    cleanedText = cleanedText.trim();
-
-    if (!cleanedText || cleanedText.length === 0) {
-      console.error("Cleaned text is empty after processing. Original text:", text);
-      throw new Error("Empty response from LLM after cleaning");
-    }
-
-    const parsed = JSON.parse(cleanedText);
 
     // Response structure (intent is already determined by CODEX detection)
     const response = {
@@ -1301,72 +1292,48 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.
       }, 200);
     }
 
-    // Strip markdown code blocks if present
-    text = text.trim();
-    if (text.startsWith('```json')) {
-      text = text.replace(/^```json\s*/i, '').replace(/\s*```$/g, '');
-    } else if (text.startsWith('```')) {
-      text = text.replace(/^```\s*/, '').replace(/\s*```$/g, '');
-    }
-    text = text.trim();
+    // Parse response using robust JSON parser
+    const parseResult = parseRobustJSON(text);
 
-    // Extract JSON object from response (LLM may include extra text)
-    // Look for the first { and find the matching closing }
-    let jsonText = text;
-    const firstBrace = text.indexOf('{');
-    if (firstBrace !== -1) {
-      let braceCount = 0;
-      let endBrace = -1;
-      for (let i = firstBrace; i < text.length; i++) {
-        if (text[i] === '{') braceCount++;
-        if (text[i] === '}') braceCount--;
-        if (braceCount === 0) {
-          endBrace = i + 1;
-          break;
-        }
-      }
-      if (endBrace > firstBrace) {
-        jsonText = text.substring(firstBrace, endBrace);
-      }
-    }
+    if (!parseResult.success) {
+      console.error("Failed to parse re-ranking response:", {
+        error: parseResult.error,
+        rawResponse: text?.substring(0, 500)
+      });
 
-    try {
-      const parsed = JSON.parse(jsonText);
-      const rankedNames = parsed.ranked_names || [];
-      
-      // Map ranked names back to full product objects
-      const rankedProducts = rankedNames
-        .map((name: string) => productMap.get(name))
-        .filter((product: any) => product !== undefined);
-      
-      // If re-ranking failed or returned empty, fallback to original search results
-      if (rankedProducts.length === 0) {
-        return c.json({ 
-          recommendations: results,
-          filtersToUse: filtersToUse,
-          error: "No ranked names found",
-          ...(tokenUsage ? { tokenUsage } : {})
-        }, 200);
-      }
-      
-      return c.json({ 
-        recommendations: rankedProducts, 
-        preRankedProducts: results, 
-        filtersToUse: filtersToUse,
-        ...(tokenUsage ? { tokenUsage } : {})
-      }, 200);
-    } catch (err) {
-      console.error("Invalid JSON from LLM:", text);
-      console.error("Extracted JSON:", jsonText);
-      console.error("Error:", err);
-      // Fallback to original search results if re-ranking fails
-      return c.json({ 
+      // Fallback to original search results without re-ranking
+      return c.json({
         recommendations: results,
         filtersToUse: filtersToUse,
-        error: "Invalid JSON from LLM",
+        error: "Re-ranking JSON parse error - showing unranked results",
         ...(tokenUsage ? { tokenUsage } : {})
       }, 200);
     }
+
+    const parsed = parseResult.data;
+    const rankedNames = parsed.ranked_names || [];
+
+    // Map ranked names back to full product objects
+    const rankedProducts = rankedNames
+      .map((name: string) => productMap.get(name))
+      .filter((product: any) => product !== undefined);
+
+    // If re-ranking failed or returned empty, fallback to original search results
+    if (rankedProducts.length === 0) {
+      return c.json({
+        recommendations: results,
+        filtersToUse: filtersToUse,
+        error: "No ranked names found - showing unranked results",
+        ...(tokenUsage ? { tokenUsage } : {})
+      }, 200);
+    }
+
+    return c.json({
+      recommendations: rankedProducts,
+      preRankedProducts: results,
+      filtersToUse: filtersToUse,
+      ...(tokenUsage ? { tokenUsage } : {})
+    }, 200);
 
   } catch (err) {
     console.error("Recommendation service error:", err);
