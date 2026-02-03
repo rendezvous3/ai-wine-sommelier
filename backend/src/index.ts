@@ -460,13 +460,13 @@ Semantic Search Generation Guidelines:
 - Examples:
   - "uplifting flower" → semantic_search: "uplifting energetic sativa flower"
   - "energizing edibles" → semantic_search: "energizing energetic uplifting sativa daytime"
-  - "sleepy vapes" → semantic_search: "sleepy relaxed indica nighttime bedtime"
-  - "partying pre rolls" → semantic_search: "partying social upbeat happy sativa energetic"
+  - "sleepy vapes" → semantic_search: "sleepy sedated indica nighttime bedtime"
+  - "partying pre rolls" → semantic_search: "partying social setting sativa energetic uplifting pre rolls"
 - Good: "energetic uplifting focused creative sativa daytime" (effect-vocabulary focused + type)
 - Bad: "energizing flower edibles" (category-blended, doesn't match embeddings)
 Note: In other instances where SUPERLATIVES or Extreme effects are not mentioned, do not hyde the semantic search nor add filters.
 
-Examples: NO HYDE - No addtional indica or sativa filters or semantic search enhancements. NO POTENCY FILTERS - no thc_percentage_min or thc_percentage_max filters or thc_per_unit_mg_min or thc_per_unit_mg_max filters.
+Examples: NO HYDE - No additional indica or sativa filters or semantic search enhancements. NO POTENCY FILTERS - no thc_percentage_min or thc_percentage_max filters or thc_per_unit_mg_min or thc_per_unit_mg_max filters.
 
 - "sleepy and relaxed" → { "filters": { "effects": ["sleepy", "relaxed"], "type": ["indica", "indica-hybrid"] }, "semantic_search": "sleepy relaxed nighttime indica" } | HYDE: sleepy→indica | NO POTENCY FILTERS
 
