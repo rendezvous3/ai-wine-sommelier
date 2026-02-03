@@ -296,6 +296,7 @@ THC POTENCY EXTRACTION - Three Scenarios:
 - ❌ DO NOT extract: Only assistant mentioned potency in clarifying questions
 - ❌ DO NOT extract: User only mentioned effects (sleepy, energetic, uplifting, relaxing, downer, upper, etc.)
 - ❌ DO NOT extract: Effect words are NOT potency words!
+- ❌ DO NOT extract: Flavors words are NOT potency words!
 
 **🚨 CRITICAL DISTINCTIONS:**
 - **Effects** (mood/feeling): uplifting, relaxing, sleepy, energetic, calm, creative, happy, downer, upper, sedating
@@ -475,314 +476,68 @@ Semantic Search Generation Guidelines:
 
 - Good: "energetic uplifting focused creative sativa daytime" (effect-vocabulary focused + type)
 - Bad: "energizing flower edibles" (category-blended, doesn't match embeddings)
+Note: In other instances where SUPERLATIVES or Extreme effects are not mentioned, do not hyde the semantic search nor add filters.
 
 Examples:
-- "Can you recommend something to get me sleepy and relaxed?"
-  Result: {
-    "filters": {
-      "effects": ["sleepy", "relaxed"],
-      "type": ["indica", "indica-hybrid"]
-    },
-    "semantic_search": "sleepy relaxed nighttime indica"
-  }
-  Note: Extract effects (working well), but NO category, type, or THC extracted - user didn't specify them
+- "Can you recommend something to get me sleepy and relaxed?" Result: { "filters": { "effects": ["sleepy", "relaxed"], "type": ["indica", "indica-hybrid"] }, "semantic_search": "sleepy relaxed nighttime indica" } Note: Extract effects, but NO category or THC - user didn't specify them
 
-- "Any decent Indica hybrid?"
-  Result: {
-    "filters": {
-      "type": "indica-hybrid"
-    },
-    "semantic_search": "indica hybrid"
-  }
-  Note: "indica-hybrid" is a TYPE, not a category. Do NOT infer category - user didn't mention flower, prerolls, or any other category.
+- "Any decent Indica hybrid?" Result: { "filters": { "type": "indica-hybrid" }, "semantic_search": "indica hybrid" } Note: "indica-hybrid" is a TYPE, not a category. Do NOT infer category - user didn't mention flower, prerolls, or any other category.
 
-- "How about energizing flower and edibles?"
-  Result: {
-    "filters": {
-      "category": ["flower", "edibles"],
-      "effects": ["energetic"]
-    },
-    "semantic_search": "energetic uplifting focused creative sativa daytime boost"
-  }
-  Note: semantic_search focuses on effect vocabulary that matches product embeddings, not category names. Categories are filtered via metadata.
+- "How about energizing flower and edibles?" Result: { "filters": { "category": ["flower", "edibles"], "effects": ["energetic"] }, "semantic_search": "energetic uplifting focused creative sativa daytime boost" } Note: semantic_search focuses on effect vocabulary that matches product embeddings, not category names. Categories are filtered via metadata.
 
-- "Can you recommend flower that keeps me energized and is uplifting?"
-  Result: {
-    "filters": {
-      "category": "flower",
-      "type": "sativa",
-      "effects": ["energetic", "uplifted"]
-    },
-    "semantic_search": "energetic uplifted sativa flower"
-  }
-  Note: All fields explicitly mentioned - extract them all
+- "Can you recommend flower that keeps me energized and is uplifting?" Result: { "filters": { "category": "flower", "type": "sativa", "effects": ["energetic", "uplifted"] }, "semantic_search": "energetic uplifted sativa flower" } Note: All fields explicitly mentioned - extract them all
 
-- "Looking for Concentrates products with Mild (<66%) THC percentage"
-  Result: {
-    "filters": { "category": "concentrates", "thc_percentage_max": 66 },
-    "semantic_search": "concentrates products"
-  }
-  Note: Guided Flow format with single bound - use ONLY thc_percentage_max (no min)
+- "Looking for Concentrates products with Mild (<66%) THC percentage" Result: { "filters": { "category": "concentrates", "thc_percentage_max": 66 }, "semantic_search": "concentrates products" } Note: Guided Flow format with single bound - use ONLY thc_percentage_max (no min)
 
-- "Looking for Flower products with Moderate (18-22%) THC percentage"
-  Result: {
-    "filters": { "category": "flower", "thc_percentage_min": 18, "thc_percentage_max": 22 },
-    "semantic_search": "flower products"
-  }
-  Note: Guided Flow format with range - use BOTH thc_percentage_min and thc_percentage_max
+- "Looking for Flower products with Moderate (18-22%) THC percentage" Result: { "filters": { "category": "flower", "thc_percentage_min": 18, "thc_percentage_max": 22 }, "semantic_search": "flower products" } Note: Guided Flow format with range - use BOTH thc_percentage_min and thc_percentage_max
 
-- "I want 5mg gummies/chocolate/cookie/baked"
-  Result: {
-    "filters": {
-      "category": "edibles",
-      "subcategory": ["gummies"/"chocolates"/"cooking-baking"],
-      "thc_per_unit_mg_min": 5,
-      "thc_per_unit_mg_max": 5
-    },
-    "semantic_search": "gummies edible products"
-  }
-  Note: "gummies", "chocolates",  is a subcategory that implies "edibles" category - extract both category and subcategory
-  Note: With edibles, terms like cookie, cake etc. should be mapped to "cooking-baking" subcategory
+- "I want 5mg gummies/chocolate/cookie/baked" Result: { "filters": { "category": "edibles", "subcategory": ["gummies"/"chocolates"/"cooking-baking"], "thc_per_unit_mg_min": 5, "thc_per_unit_mg_max": 5 }, "semantic_search": "gummies edible products" } Note: "gummies", "chocolates" is a subcategory that implies "edibles" category - extract both category and subcategory. With edibles, terms like cookie, cake etc. should be mapped to "cooking-baking" subcategory
 
-- "How about some 5mg gummies with berry flavor?"
-  Result: {
-    "filters": {
-      "category": "edibles",
-      "subcategory": ["gummies"],
-      "flavor": ["berry"],
-      "thc_per_unit_mg_min": 5
-    },
-    "semantic_search": "berry flavored gummies"
-  }
-  Note: Extract subcategory, flavor, and THC dosage when explicitly mentioned
+- "How about some 5mg gummies with berry flavor?" Result: { "filters": { "category": "edibles", "subcategory": ["gummies"], "flavor": ["berry"], "thc_per_unit_mg_min": 5 }, "semantic_search": "berry flavored gummies" } Note: Extract subcategory, flavor, and THC dosage when explicitly mentioned
 
-- "Tell me about live resin edibles"
-  Result: {
-    "filters": {
-      "category": "edibles",
-      "subcategory": ["live-resin-gummies"]
-    },
-    "semantic_search": "live resin edibles"
-  }
-  Note: "live resin" in edibles context → subcategory: "live-resin-gummies"
+- "Tell me about live resin edibles" Result: { "filters": { "category": "edibles", "subcategory": ["live-resin-gummies"] }, "semantic_search": "live resin edibles" } Note: "live resin" in edibles context → subcategory: "live-resin-gummies"
 
-- "Tell me about live rosin gummies"
-  Result: {
-    "filters": {
-      "category": "edibles",
-      "subcategory": ["live-rosin-gummies"]
-    },
-    "semantic_search": "live rosin gummies"
-  }
-  Note: CRITICAL - "live rosin" (with 'o') is DIFFERENT from "live resin" (with 'e')
-  Note: Pay close attention to spelling: "rosin" vs "resin" are different extraction methods
+- "Tell me about live rosin gummies" Result: { "filters": { "category": "edibles", "subcategory": ["live-rosin-gummies"] }, "semantic_search": "live rosin gummies" } Note: CRITICAL - "live rosin" (with 'o') is DIFFERENT from "live resin" (with 'e"). Pay close attention to spelling: "rosin" vs "resin" are different extraction methods
 
-- "Tell me about live resin gummies"
-  Result: {
-    "filters": {
-      "category": "edibles",
-      "subcategory": ["live-resin-gummies"]
-    },
-    "semantic_search": "live resin gummies"
-  }
-  Note: "live resin gummies" → subcategory: "live-resin-gummies" (with hyphen)
-  Note: NO thc_per_unit_mg fields because user didn't mention dosage - do NOT hallucinate THC values!
+- "Tell me about live resin gummies" Result: { "filters": { "category": "edibles", "subcategory": ["live-resin-gummies"] }, "semantic_search": "live resin gummies" } Note: "live resin gummies" → subcategory: "live-resin-gummies" (with hyphen). NO thc_per_unit_mg fields because user didn't mention dosage - do NOT hallucinate THC values!
 
-- "Show me all-in-one vaporizers"
-  Result: {
-    "filters": {
-      "category": "vaporizers",
-      "subcategory": ["all-in-one"]
-    },
-    "semantic_search": "all-in-one vaporizers"
-  }
-  Note: "all-in-one" is a subcategory that implies "vaporizers" category
+- "Show me all-in-one vaporizers" Result: { "filters": { "category": "vaporizers", "subcategory": ["all-in-one"] }, "semantic_search": "all-in-one vaporizers" } Note: "all-in-one" is a subcategory that implies "vaporizers" category
 
-- "I want cartridges"
-  Result: {
-    "filters": {
-      "category": "vaporizers",
-      "subcategory": ["cartridges"]
-    },
-    "semantic_search": "cartridges vaporizers"
-  }
-  Note: "cartridges" is a subcategory that implies "vaporizers" category
+- "I want cartridges" Result: { "filters": { "category": "vaporizers", "subcategory": ["cartridges"] }, "semantic_search": "cartridges vaporizers" } Note: "cartridges" is a subcategory that implies "vaporizers" category
 
-- "Show me infused prerolls"
-  Result: {
-    "filters": {
-      "category": "prerolls",
-      "subcategory": ["infused-prerolls", "infused-preroll-packs"]
-    },
-    "semantic_search": "infused prerolls"
-  }
-  Note: "infused-prerolls" is a subcategory that implies "prerolls" category
+- "Show me infused prerolls" Result: { "filters": { "category": "prerolls", "subcategory": ["infused-prerolls", "infused-preroll-packs"] }, "semantic_search": "infused prerolls" } Note: "infused-prerolls" is a subcategory that implies "prerolls" category. Also note how we do hot hyde the query
 
-- "I want premium flower"
-  Result: {
-    "filters": {
-      "category": "flower",
-      "subcategory": ["premium-flower"]
-    },
-    "semantic_search": "premium flower"
-  }
-  Note: "premium-flower" is a subcategory that implies "flower" category (note: use "premium-flower" not just "premium")
+- "I want premium flower" Result: { "filters": { "category": "flower", "subcategory": ["premium-flower"] }, "semantic_search": "premium flower" } Note: "premium-flower" is a subcategory that implies "flower" category (note: use "premium-flower" not just "premium")
 
-- "Show me flower with 22% THC"
-  Result: {
-    "filters": { "category": "flower", "thc_percentage_min": 22, "thc_percentage_max": 22 },
-    "semantic_search": "flower products"
-  }
+- "Show me flower with 22% THC" Result: { "filters": { "category": "flower", "thc_percentage_min": 22, "thc_percentage_max": 22 }, "semantic_search": "flower products" }
 
-- "I want strong flower for sleep"
-  Result: {
-    "filters": {
-      "category": "flower",
-      "effects": ["sleepy"],
-      "type": ["indica", "indica-hybrid"],
-      "thc_percentage_min": 28
-    },
-    "semantic_search": "strong flower indica sleep nighttime"
-  }
-  Note: Category is known, "strong" maps to min 22% using 3-category natural language classification, extract effects too
+- "I want strong flower for sleep" Result: { "filters": { "category": "flower", "effects": ["sleepy"], "type": ["indica", "indica-hybrid"], "thc_percentage_min": 28 }, "semantic_search": "strong flower indica sleep nighttime" } Note: Category is known, "strong" maps to min 22% using 3-category natural language classification, extract effects too
 
-- "How about some sleepy vapes very strong?"
-  Result: {
-    "filters": {
-      "category": "vaporizers",
-      "effects": ["sleepy"],
-      "type": ["indica", "indica-hybrid"],
-      "thc_percentage_min": 90
-    },
-    "semantic_search": "sleepy vaporizers strong nighttime indica"
-  }
-  Note: Category is known (vaporizers), "very strong" maps to min 90% for vaporizers. NO subcategory because user didn't mention "live-resin", "cartridges", "disposables", etc.
+- "How about some sleepy vapes very strong?" Result: { "filters": { "category": "vaporizers", "effects": ["sleepy"], "type": ["indica", "indica-hybrid"], "thc_percentage_min": 90 }, "semantic_search": "sleepy vaporizers strong nighttime indica" } Note: Category is known (vaporizers), "very strong" maps to min 90% for vaporizers. NO subcategory because user didn't mention "live-resin", "cartridges", "disposables", etc.
 
-- "Do you have 5mg edibles preferably less then $28"
-  Result: {
-    "filters": {
-      "category": "edibles",
-      "thc_per_unit_mg_min": 5,
-      "thc_per_unit_mg_max": 5,
-      "price_max": 28
-    },
-    "semantic_search": "edibles 5mg"
-  }
-  Note: "5mg" is exact value → use BOTH min AND max with same value. "less than $28" → price_max: 28
+- "Do you have 5mg edibles preferably less then $28" Result: { "filters": { "category": "edibles", "thc_per_unit_mg_min": 5, "thc_per_unit_mg_max": 5, "price_max": 28 }, "semantic_search": "edibles 5mg" } Note: "5mg" is exact value → use BOTH min AND max with same value. "less than $28" → price_max: 28
 
-- "What are your most potent prerolls?"
-  Result: {
-    "filters": {
-      "category": "prerolls",
-      "thc_percentage_min": 28
-    },
-    "semantic_search": "most potent prerolls"
-  }
-  Note: "most potent" is superlative → thc_percentage_min: 28 for prerolls. NO subcategory.
+- "What are your most potent prerolls?" Result: { "filters": { "category": "prerolls", "thc_percentage_min": 28 }, "semantic_search": "most potent prerolls" } Note: "most potent" is superlative → thc_percentage_min: 28 for prerolls. NO subcategory.
 
-- "I am looking for potent flower and fruity drinks with THC"
-  Result: {
-    "filters": {
-      "category": ["flower", "edibles"],
-      "subcategory": ["drinks"],
-      "flavor": ["fruity"],
-      "thc_percentage_min": 28
-    },
-    "semantic_search": "potent flower fruity drinks THC"
-  }
-  Note: "fruity drinks" → subcategory: ["drinks"], flavor: ["fruity"] (NOT compound subcategory "fruity drinks"). "potent" applies to flower only (thc_percentage_min: 22).
+- "I am looking for potent flower and fruity drinks with THC" Result: { "filters": { "category": ["flower", "edibles"], "subcategory": ["drinks"], "flavor": ["fruity"], "thc_percentage_min": 28 }, "semantic_search": "potent flower fruity drinks THC" } Note: "fruity drinks" → subcategory: ["drinks"], flavor: ["fruity"] (NOT compound subcategory "fruity drinks"). "potent" applies to flower only (thc_percentage_min: 22).
 
-- "Tell me about sleepy concentrates and fruity thc drinks?"
-  Result: {
-    "filters": {
-      "category": ["concentrates", "edibles"],
-      "subcategory": ["drinks"],
-      "effects": ["sleepy"],
-      "flavor": ["fruity"]
-    },
-    "semantic_search": "sleepy concentrates fruity drinks THC"
-  }
-  Note: Two categories mentioned. "fruity" is flavor, NOT part of subcategory.
+- "Tell me about sleepy concentrates and fruity thc drinks?" Result: { "filters": { "category": ["concentrates", "edibles"], "subcategory": ["drinks"], "effects": ["sleepy"], "flavor": ["fruity"] }, "semantic_search": "sleepy concentrates fruity drinks THC" } Note: Two categories mentioned. "fruity" is flavor, NOT part of subcategory.
 
-- "Can you recommend some uplifting edibles and flower?"
-  Result: {
-    "filters": {
-      "category": ["edibles", "flower"],
-      "type": ["sativa"],
-      "effects": ["uplifted"],
-    },
-    "semantic_search": "uplifting edibles flower daytime sativa"
-  }
-  Note: "uplifting" is an EFFECT, NOT potency. Do NOT extract THC fields!
+- "Can you recommend some uplifting edibles and flower?" Result: { "filters": { "category": ["edibles", "flower"], "type": ["sativa"], "effects": ["uplifted"] }, "semantic_search": "uplifting edibles flower daytime sativa" } Note: "uplifting" is an EFFECT, NOT potency. Do NOT extract THC fields!
 
-- "Can you recommend some infused pre rolls?" (then user says "Uplifting")
-  Result: {
-    "filters": {
-      "category": ["prerolls"],
-      "subcategory": ["infused-prerolls", "infused-preroll-packs"],
-      "type": ["sativa", "sativa-hybrid"],
-      "effects": ["uplifted"]
-    },
-    "semantic_search": "uplifting infused prerolls sativa"
-  }
-  Note: "uplifting" is an EFFECT, NOT potency. Do NOT extract THC! "infused prerolls" mentioned → extract subcategory.
+- "Can you recommend some infused pre rolls?" (then user says "Uplifting") Result: { "filters": { "category": ["prerolls"], "subcategory": ["infused-prerolls", "infused-preroll-packs"], "type": ["sativa", "sativa-hybrid"], "effects": ["uplifted"] }, "semantic_search": "uplifting infused prerolls sativa" } Note: "uplifting" is an EFFECT, NOT potency. Do NOT extract THC! "infused prerolls" mentioned → extract subcategory.
 
-- "What are some milder vapes you got?"
-  Result: {
-    "filters": {
-      "category": ["vaporizers"],
-      "thc_percentage_max": 66
-    },
-    "semantic_search": "milder vapes"
-  }
-  Note: "milder" is potency → thc_percentage_max: 66 for vaporizers. NO effects mentioned.
+- "What are some milder vapes you got?" Result: { "filters": { "category": ["vaporizers"], "thc_percentage_max": 66 }, "semantic_search": "milder vapes" } Note: "milder" is potency → thc_percentage_max: 66 for vaporizers. NO effects mentioned.
 
-- "Tell me about some daytime gummies"
-  Result: {
-    "filters": {
-      "category": ["edibles"],
-      "type": ["sativa", "sativa-hybrid"],
-      "subcategory": ["gummies"],
-      "effects": ["uplifted", "energetic"]
-    },
-    "semantic_search": "daytime energetic uplifting sativa gummies"
-  }
-  Note: "daytime" implies uplifting/energetic effects. "gummies" is subcategory.
+- "Tell me about some daytime gummies" Result: { "filters": { "category": ["edibles"], "type": ["sativa", "sativa-hybrid"], "subcategory": ["gummies"], "effects": ["uplifted", "energetic"] }, "semantic_search": "daytime energetic uplifting sativa gummies" } Note: "daytime" implies uplifting/energetic effects. "gummies" is subcategory.
 
-- "Tell me about pre roll that is bit of a downer and vape that is upper?"
-  Result: {
-    "filters": {
-      "category": ["prerolls", "vaporizers"],
-      "effects": ["relaxed", "sleepy", "energetic", "uplifted"]
-    },
-    "semantic_search": "downer preroll upper vape relaxing energizing"
-  }
-  Note: "downer" = effects (relaxed, sleepy), "upper" = effects (energetic, uplifted). NO subcategory (user didn't say "infused" or "all-in-one"). NO THC (user didn't mention potency!)
+- "Tell me about pre roll that is bit of a downer and vape that is upper?" Result: { "filters": { "category": ["prerolls", "vaporizers"], "effects": ["relaxed", "sleepy", "energetic", "uplifted"] }, "semantic_search": "downer preroll upper vape relaxing energizing" } Note: "downer" = effects (relaxed, sleepy), "upper" = effects (energetic, uplifted). NO subcategory (user didn't say "infused" or "all-in-one"). NO THC (user didn't mention potency!)
 
-- "What are some very mild flower and pre roll options, sativa preferred?"
-  Result: {
-    "filters": {
-      "category": ["flower", "prerolls"],
-      "type": ["sativa"],
-      "thc_percentage_max": 13
-    },
-    "semantic_search": "very mild flower preroll sativa"
-  }
-  Note: "very mild" is potency → thc_percentage_max: 13 for flower/prerolls.
+- "What are some very mild flower and pre roll options, sativa preferred?" Result: { "filters": { "category": ["flower", "prerolls"], "type": ["sativa"], "thc_percentage_max": 13 }, "semantic_search": "very mild flower preroll sativa" } Note: "very mild" is potency → thc_percentage_max: 13 for flower/prerolls.
 
 🚨 **CRITICAL EXAMPLE - HYDE TYPE INFERENCE:**
 
-- "What are your best happy and joyful concentrates and drinks?"
-  Result: {
-    "filters": {
-      "category": ["concentrates", "edibles"],
-      "subcategory": ["drinks"],
-      "type": ["sativa", "sativa-hybrid"],
-      "effects": ["happy", "joyful"]
-    },
-    "semantic_search": "happy joyful sativa sativa hybrid concentrates drinks"
-  }
-  Note: "happy" and "joyful" imply sativa → AUTOMATICALLY add type: ["sativa"]. "drinks" is subcategory.
+- "What are your best uplifting/happy and joyful concentrates and drinks?" Result: { "filters": { "category": ["concentrates", "edibles"], "subcategory": ["drinks"], "type": ["sativa", "sativa-hybrid"], "effects": ["happy", "joyful"] }, "semantic_search": "happy joyful sativa sativa hybrid concentrates drinks" } Note: "happy" and "joyful" or "uplifting" imply sativa → AUTOMATICALLY add type: ["sativa"]. "drinks" is subcategory.
 
 ${conversationHistory ? `Conversation history:\n${conversationHistory}\n\n` : ""}
 
