@@ -401,8 +401,7 @@ When extracting THC preferences:
 - "live rosin" (edibles context) → subcategory: ["live-rosin-gummies"], category: "edibles"
 
 **Rule 5: Subcategory can be single value or array**
-- "gummies" → ["gummies"]
-- "gummies and chocolates" → ["gummies", "chocolates"]
+- "gummies" → ["gummies"]. "gummies and chocolates" → ["gummies", "chocolates"]
 
 **Rule 6: CRITICAL DISTINCTION - live-resin vs live-rosin**
 - "live resin" (with 'e') ≠ "live rosin" (with 'o')
@@ -436,13 +435,10 @@ Effects Notes:
   - deep sleep, bedtime, nighttime → sleepy, relaxed
 
 - If an effect phrase doesn't match any mapping above, still include it in lowercase (don't be too restrictive)
-- Effects should be lowercase
-- Effects can be an array of strings
-- Always prefer canonical effects when mapping is available
-- ALWAYS apply effect mapping and DEDUPLICATE - never return both original and mapped effect
+- Effects should be lowercase. Effects can be an array of strings
+- ALWAYS prefer canonical effects when mapping is available. ALWAYS apply effect mapping and DEDUPLICATE - never return both original and mapped effect
 - DO NOT EVER return non-canonical effects like "joyful", "tired", "euphoric" in the effects array
-- "joyful" → MUST become "happy" (do NOT return "joyful")
-- "happy and joyful" → return ONLY ["happy"] since joyful maps to happy
+- "joyful" → MUST become "happy" (do NOT return "joyful"). "happy and joyful" → return ONLY ["happy"] since joyful maps to happy
 - "sleepy and tired" → return ONLY ["sleepy"] since tired maps to sleepy
 - If user mentions ANY word from the effects mapping, return ONLY the canonical effect it maps to
 
@@ -454,10 +450,8 @@ TYPE mapping:
 - "sativa-hybrid", "sativa hybrid", "sativa-hybrid-dominant" → "sativa-hybrid"
 
 Semantic Search Generation Guidelines:
-- Focus on EFFECT-RELATED keywords that match product description vocabulary
-- Include effect synonyms: energizing → energetic, uplifting, focused, creative, sativa, daytime
-- Include mood/context words: party → social, festive, upbeat; sleep → nighttime, bedtime, restful
-- De-emphasize category names (category is filtered via metadata, not semantic search)
+- Focus on EFFECT-RELATED keywords that match product description vocabulary. Include effect synonyms: energizing → energetic, uplifting, focused, creative, sativa, daytime
+- Include mood/context words: party → social, festive, upbeat; sleep → nighttime, bedtime, restful. De-emphasize category names (category is filtered via metadata, not semantic search)
 
 🚨 **CRITICAL: HYDE SEMANTIC SEARCH ENHANCEMENT**
 - We want to enhance semantic search query when SUPERLATIVES or Extreme effects are mentioned.
@@ -472,7 +466,8 @@ Semantic Search Generation Guidelines:
 - Bad: "energizing flower edibles" (category-blended, doesn't match embeddings)
 Note: In other instances where SUPERLATIVES or Extreme effects are not mentioned, do not hyde the semantic search nor add filters.
 
-Examples:
+Examples: NO HYDE - No addtional indica or sativa filters or semantic search enhancements. NO POTENCY FILTERS - no thc_percentage_min or thc_percentage_max filters or thc_per_unit_mg_min or thc_per_unit_mg_max filters.
+
 - "sleepy and relaxed" → { "filters": { "effects": ["sleepy", "relaxed"], "type": ["indica", "indica-hybrid"] }, "semantic_search": "sleepy relaxed nighttime indica" } | HYDE: sleepy→indica | NO POTENCY FILTERS
 
 - "Indica hybrid" → { "filters": { "type": "indica-hybrid" }, "semantic_search": "indica hybrid" } | NO HYDE | NO POTENCY FILTERS
