@@ -124,20 +124,13 @@ app.post("/chat/intent", async (c) => {
 
   const lastMessage = messages[messages.length - 1]?.content || "";
 
-  // Use ONLY recent conversation history (last 3 messages before current) to save tokens
-  // The CODEX message already contains the user's full intent, so we don't need deep history
-  const recentMessages = messages.length > 3
-    ? messages.slice(-4, -1)  // Last 3 messages before current
-    : messages.slice(0, -1);
-
-  const conversationHistory = recentMessages.length > 0
-    ? formatConversationHistory(recentMessages)
-    : "";
-
   // CODEX DETECTION (before LLM call)
   // Check last assistant message for CODEX cues
   const lastAssistantMsg = messages.filter((m: any) => m.role === 'assistant').pop();
   const lastAssistantContent = lastAssistantMsg?.content || '';
+  
+  // Store assistant query for response verification
+  const assistantQuery = lastAssistantContent;
 
   const RECOMMEND_CUES = [
     'I completely understand what you\'re looking for',
@@ -160,7 +153,8 @@ app.post("/chat/intent", async (c) => {
       intent: 'general',
       filters: {},
       semantic_search: '',
-      product_query: null
+      product_query: null,
+      assistantQuery: assistantQuery
     });
   }
 
@@ -175,7 +169,8 @@ app.post("/chat/intent", async (c) => {
       intent: 'product-question',
       filters: {},
       semantic_search: '',
-      product_query: productName
+      product_query: productName,
+      assistantQuery: assistantQuery
     });
   }
 
@@ -473,7 +468,6 @@ Semantic Search Generation Guidelines:
   - "energizing edibles" → semantic_search: "energizing energetic uplifting sativa daytime"
   - "sleepy vapes" → semantic_search: "sleepy relaxed indica nighttime bedtime"
   - "partying pre rolls" → semantic_search: "partying social upbeat happy sativa energetic"
-
 - Good: "energetic uplifting focused creative sativa daytime" (effect-vocabulary focused + type)
 - Bad: "energizing flower edibles" (category-blended, doesn't match embeddings)
 Note: In other instances where SUPERLATIVES or Extreme effects are not mentioned, do not hyde the semantic search nor add filters.
@@ -487,7 +481,7 @@ Examples:
 
 - "Can you recommend flower that keeps me energized and is uplifting?" Result: { "filters": { "category": "flower", "type": "sativa", "effects": ["energetic", "uplifted"] }, "semantic_search": "energetic uplifted sativa flower" } Note: All fields explicitly mentioned - extract them all
 
-- "Looking for Concentrates products with Mild (<66%) THC percentage" Result: { "filters": { "category": "concentrates", "thc_percentage_max": 66 }, "semantic_search": "concentrates products" } Note: Guided Flow format with single bound - use ONLY thc_percentage_max (no min)
+- "Looking for Concentrates products with Mild (<66%) THC percentage" Result: { "filters": { "category": "concentrates", "thc_percentage_max": 66 }, "semantic_search": "concentrates products" } Note: Guided Flow format with single bound - use ONLY thc_percentage_max (no min) and ny hyde additions of sativa ot indica
 
 - "Looking for Flower products with Moderate (18-22%) THC percentage" Result: { "filters": { "category": "flower", "thc_percentage_min": 18, "thc_percentage_max": 22 }, "semantic_search": "flower products" } Note: Guided Flow format with range - use BOTH thc_percentage_min and thc_percentage_max
 
@@ -505,7 +499,7 @@ Examples:
 
 - "I want cartridges" Result: { "filters": { "category": "vaporizers", "subcategory": ["cartridges"] }, "semantic_search": "cartridges vaporizers" } Note: "cartridges" is a subcategory that implies "vaporizers" category
 
-- "Show me infused prerolls" Result: { "filters": { "category": "prerolls", "subcategory": ["infused-prerolls", "infused-preroll-packs"] }, "semantic_search": "infused prerolls" } Note: "infused-prerolls" is a subcategory that implies "prerolls" category. Also note how we do hot hyde the query
+- "Show me infused prerolls" Result: { "filters": { "category": "prerolls", "subcategory": ["infused-prerolls", "infused-preroll-packs"] }, "semantic_search": "infused prerolls" } Note: "infused-prerolls" is a subcategory that implies "prerolls" category, and no hyde additions.
 
 - "I want premium flower" Result: { "filters": { "category": "flower", "subcategory": ["premium-flower"] }, "semantic_search": "premium flower" } Note: "premium-flower" is a subcategory that implies "flower" category (note: use "premium-flower" not just "premium")
 
@@ -539,7 +533,12 @@ Examples:
 
 - "What are your best uplifting/happy and joyful concentrates and drinks?" Result: { "filters": { "category": ["concentrates", "edibles"], "subcategory": ["drinks"], "type": ["sativa", "sativa-hybrid"], "effects": ["happy", "joyful"] }, "semantic_search": "happy joyful sativa sativa hybrid concentrates drinks" } Note: "happy" and "joyful" or "uplifting" imply sativa → AUTOMATICALLY add type: ["sativa"]. "drinks" is subcategory.
 
-${conversationHistory ? `Conversation history:\n${conversationHistory}\n\n` : ""}
+🚨 **CRITICAL EXAMPLE - When not to hyde - No Extreme Effects**
+
+- "Tell me about potent flower? -> flower and potency, no hyde.
+- "Tell me about thc drink? -> only category and subcategory, no hyde.
+
+Last assistant message (CODEX message - PRIMARY SOURCE): "${lastAssistantContent}"
 
 Latest user message: "${lastMessage}"
 
@@ -604,7 +603,8 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
       service: "intent",
       intent: "general", 
       filters: {}, 
-      semantic_search: "" 
+      semantic_search: "",
+      assistantQuery: assistantQuery
     }, 503);
   }
 
@@ -855,6 +855,7 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
       filters: normalizedFilters,
       semantic_search: response.semantic_search,
       product_query: null, // Product queries are handled separately by CODEX:PRODUCT_LOOKUP
+      assistantQuery: assistantQuery,
       ...(tokenUsage ? { tokenUsage } : {})
     });
   } catch (err) {
@@ -881,7 +882,8 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
       intent: "recommendation",
       filters: {},
       semantic_search: "",
-      product_query: null
+      product_query: null,
+      assistantQuery: assistantQuery
     }, 400);
   }
 });

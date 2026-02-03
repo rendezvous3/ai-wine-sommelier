@@ -1,27 +1,13 @@
 {
   "permissions": {
-      "allow": [
-        "Read(./Svelte-Component-Library/src/lib/**)",
-        "Edit(./Svelte-Component-Library/src/lib/**)",
-        "Read(./Svelte-Component-Library/.storybook/**)",
-        "Edit(./Svelte-Component-Library/.storybook/**)",
-        "Read(./client/src/**)",
-        "Edit(./client/src/**)"
-      ],
     "deny": [
-      "Read(./Svelte-Component-Library/src/!(lib)/**)",
-      "Edit(./Svelte-Component-Library/src/!(lib)/**)",
-      "Read(./Svelte-Component-Library/!(src|.storybook)/**)",
-      "Edit(./Svelte-Component-Library/!(src|.storybook)/**)",
-
-      "Read(./client/!(src)/**)",
-      "Edit(./client/!(src)/**)",
-      
+      "Read(./Svelte-Component-Library/**)",
+      "Read(./client/**)",
+      "Read(./vectorizer/**)",
       "Read(**/node_modules/**)",
       "Read(**/.svelte-kit/**)",
       "Read(**/dist/**)",
       "Read(**/build/**)",
-      "Read(**/storybook-static/**)",
       "Read(**/.wrangler/**)",
       "Read(**/venv/**)",
       "Read(**/.venv/**)",
@@ -36,11 +22,12 @@
       "Read(**/.DS_Store)",
       "Read(**/.env)",
       "Read(**/.env.*)",
-      "Read(./backend/.dev.vars)",
       "Read(**/.vscode/**)",
       "Read(**/.idea/**)",
-      "Edit(**/node_modules/**)",
-      "Edit(**/__pycache__/**)"
+      "Edit(./Svelte-Component-Library/**)",
+      "Edit(./client/**)",
+      "Edit(./vectorizer/**)",
+      "Edit(**/node_modules/**)"
     ]
   }
 }
