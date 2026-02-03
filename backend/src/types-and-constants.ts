@@ -82,6 +82,8 @@ const enum MODEL_ID {
   CEREBRAS_LLAMA_31_8B = "cerebras_llama_31_8b",
   CEREBRAS_LLAMA_33_70B = "cerebras_llama_33_70b",
   CEREBRAS_QWEN_3_32B = "cerebras_qwen_3_32b",
+  CEREBRAS_ZAI_GLM_4_7 = "zai-glm-4.7",
+  CEREBRAS_GPT_OSS_120B = "gpt-oss-120b"
 }
 
 // ---------- MODEL → ID MAP (NEW) ----------

@@ -1,10 +1,21 @@
 {
   "permissions": {
+      "allow": [
+        "Read(./Svelte-Component-Library/src/lib/**)",
+        "Edit(./Svelte-Component-Library/src/lib/**)",
+        "Read(./Svelte-Component-Library/.storybook/**)",
+        "Edit(./Svelte-Component-Library/.storybook/**)",
+        "Read(./client/src/**)",
+        "Edit(./client/src/**)"
+      ],
     "deny": [
-      "Read(./Svelte-Component-Library/**)",
-      "Read(./client/**)",
-      "Edit(./Svelte-Component-Library/**)",
-      "Edit(./client/**)",
+      "Read(./Svelte-Component-Library/src/!(lib)/**)",
+      "Edit(./Svelte-Component-Library/src/!(lib)/**)",
+      "Read(./Svelte-Component-Library/!(src|.storybook)/**)",
+      "Edit(./Svelte-Component-Library/!(src|.storybook)/**)",
+
+      "Read(./client/!(src)/**)",
+      "Edit(./client/!(src)/**)",
       
       "Read(**/node_modules/**)",
       "Read(**/.svelte-kit/**)",

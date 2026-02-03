@@ -62,6 +62,38 @@
 
   let lastPresentedProduct = $state<LastPresentedProduct | null>(null);
 
+  // CODEX Detection Constants
+  const CODEX_PATTERNS = {
+    RECOMMEND: [
+      "I completely understand what you're looking for",
+      "Let me check what we have that matches your preferences",
+      "I'm pulling up products that fit your criteria",
+      "Checking our inventory based on what you described"
+    ],
+    PRODUCT_LOOKUP: [
+      "Let me look up",
+      "I'll pull up the details on"
+    ]
+  };
+
+  // Detect CODEX cue in text
+  function detectCodex(text: string): 'RECOMMEND' | 'PRODUCT_LOOKUP' | null {
+    for (const pattern of CODEX_PATTERNS.RECOMMEND) {
+      if (text.includes(pattern)) return 'RECOMMEND';
+    }
+    for (const pattern of CODEX_PATTERNS.PRODUCT_LOOKUP) {
+      if (text.includes(pattern)) return 'PRODUCT_LOOKUP';
+    }
+    return null;
+  }
+
+  // Extract product name from PRODUCT_LOOKUP cue
+  function extractProductName(text: string): string | null {
+    const match = text.match(/Let me look up (.+?) for you/i)
+                || text.match(/I'll pull up the details on (.+)/i);
+    return match ? match[1].trim() : null;
+  }
+
   // Fuzzy find product in conversation history
   function fuzzyFindProduct(query: string, msgs: Message[]): FuzzyResult {
     const queryLower = query.toLowerCase();
@@ -852,88 +884,14 @@
 
     const payload = { messages };
 
-    // STEP 1 — Intent Classifier
-    let intent = "general";
-    let intentFilters: Record<string, any> = {};
-    let semanticSearch = "";
-    let productQuery = "";  // For product-question intent
-    try {
-      const decide = await fetch(`${BASE_URL}/intent`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      // Check response status before parsing
-      if (!decide.ok) {
-        try {
-          const errorData = await decide.json();
-          messages = [...messages, {
-            role: "assistant",
-            content: errorData.error || "Our AI understanding service is experiencing technical difficulties. Please try again."
-          }];
-        } catch (parseErr) {
-          messages = [...messages, {
-            role: "assistant",
-            content: "Our AI understanding service is experiencing technical difficulties. Please try again."
-          }];
-        }
-        loading = false;
-        return; // Stop processing - can't proceed without intent
-      }
-
-      const d = await decide.json();
-
-      // Check for error field in response
-      if (d.error) {
-        messages = [...messages, {
-          role: "assistant",
-          content: d.error
-        }];
-        loading = false;
-        return; // Stop processing - can't proceed without intent
-      }
-
-      intent = d.intent || "general";
-      // Capture filters and semantic_search when intent is recommendation
-      if (d.intent === "recommendation") {
-        intentFilters = d.filters || {};
-        semanticSearch = d.semantic_search || "";
-      }
-      // Capture product_query when intent is product-question
-      if (d.intent === "product-question") {
-        productQuery = d.product_query || "";
-      }
-    } catch (err) {
-      console.warn("Decision failed, defaulting to general.");
-      // Show error to user
-      messages = [...messages, {
-        role: "assistant",
-        content: "Our AI understanding service is experiencing technical difficulties. Please try again."
-      }];
-      loading = false;
-      return;
-    }
-
-    // STEP 1.5 — Handle product-question intent
-    if (intent === "product-question" && productQuery) {
-      await handleProductQuestion(productQuery, payload);
-      loading = false;
-      return;
-    }
-
+    // STREAM-FIRST ARCHITECTURE
+    // STEP 1: Stream immediately (instant feedback)
+    let fullStreamText = "";
+    let streamingMessageIndex: number | null = null;
     let buffer = "";
 
-    // Track the index of the streaming message to ensure we update the correct one
-    // This index will be used to update only this specific message, preventing duplicates
-    // Defined outside promises so both can access it
-    let streamingMessageIndex: number | null = null;
-    let botMessageContent = "";
-
-    // STEP 2 — Start STREAMING (Agent 1)
-    const streamPromise = (async () => {
+    try {
       const resp = await fetch(`${BASE_URL}/stream`, {
-        // const resp = await fetch("http://localhost:8787/chat/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -949,7 +907,6 @@
             content: errorMessage
           }];
         } catch (parseErr) {
-          // If error response isn't JSON, show generic message
           messages = [...messages, {
             role: "assistant",
             content: "Our streaming service is experiencing technical difficulties. Please try again."
@@ -997,163 +954,149 @@
             const json = JSON.parse(jsonStr);
             const token = json.choices?.[0]?.delta?.content ?? "";
             if (token) {
-              botMessageContent += token;
-              
+              fullStreamText += token;
+
               // Create message only when we have the first token (avoid empty bubble)
               if (streamingMessageIndex === null) {
                 streamingMessageIndex = messages.length;
-                messages = [...messages, { role: "assistant", content: botMessageContent }];
+                messages = [...messages, { role: "assistant", content: fullStreamText }];
               } else {
                 // Update the existing streaming message
                 messages = [
                   ...messages.slice(0, streamingMessageIndex),
-                  { role: "assistant", content: botMessageContent },
+                  { role: "assistant", content: fullStreamText },
                   ...messages.slice(streamingMessageIndex + 1)
                 ];
               }
             }
           } catch (err) {
-            // ignore malformed JSON
-            console.error("Stream error:", err);
-            if (streamingMessageIndex !== null) {
-              messages = [
-                ...messages.slice(0, streamingMessageIndex),
-                { role: "assistant", content: "Sorry, connection lost." },
-                ...messages.slice(streamingMessageIndex + 1)
-              ];
-            }
-            loading = false;
+            console.error("Stream parse error:", err);
           }
         }
 
         // Keep the incomplete part for next read
         buffer = parts[parts.length - 1];
       }
-    })();
-
-    // STEP 3 — Recommendation Tool (only when needed)
-    // Make it sequential: wait for stream, then add "Looking for best matches...", then fetch recommendations
-    let recPromise = Promise.resolve();
-    if (intent === "recommendation") {
-      recPromise = (async () => {
-        // Step 1: Wait for streaming to complete
-        await streamPromise;
-        
-        // Step 2: Now add "Looking for best matches..." message after streaming is done
-        // streamingMessageIndex should be set by now (after first token arrived)
-        // If for some reason it's null (no tokens), use messages.length
-        const finalStreamingIndex = streamingMessageIndex !== null ? streamingMessageIndex : messages.length - 1;
-        const searchingMessageIndex = finalStreamingIndex + 1;
-        messages = [
-          ...messages.slice(0, searchingMessageIndex),
-          { role: "assistant", content: "Looking for best matches...", shimmer: true },
-          ...messages.slice(searchingMessageIndex)
-        ];
-        
-        // Step 3: Wait a tiny bit for the "Looking for best matches..." message to render
-        // This ensures it appears before we start fetching recommendations
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Step 4: Now fetch recommendations
-        try {
-          const recPayload = {
-            ...payload,
-            filters: intentFilters,
-            semantic_search: semanticSearch
-          };
-          const resp = await fetch(
-            `${BASE_URL}/recommendations`,
-            // const resp = await fetch(
-            //   "http://localhost:8787/chat/recommendations",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(recPayload),
-            }
-          );
-          
-          // Check response status
-          if (!resp.ok) {
-            try {
-              const errorData = await resp.json();
-              const errorMessage = errorData.error || "Our recommendation service is experiencing technical difficulties. Please try again.";
-              // Remove "Looking for best matches..." and show error
-              messages = [
-                ...messages.slice(0, searchingMessageIndex),
-                { role: "assistant", content: errorMessage },
-                ...messages.slice(searchingMessageIndex + 1)
-              ];
-            } catch (parseErr) {
-              messages = [
-                ...messages.slice(0, searchingMessageIndex),
-                { role: "assistant", content: "Our recommendation service is experiencing technical difficulties. Please try again." },
-                ...messages.slice(searchingMessageIndex + 1)
-              ];
-            }
-            return;
-          }
-          
-          const data = await resp.json();
-          
-          // Check for error field (even if we have fallback recommendations)
-          if (data.error) {
-            // Show error message, but still show recommendations if available
-            messages = [
-              ...messages.slice(0, searchingMessageIndex),
-              { role: "assistant", content: data.error },
-              ...messages.slice(searchingMessageIndex + 1)
-            ];
-          }
-          
-          productRecommendations = data.recommendations || [];
-          
-          // Step 5: Replace "Looking for best matches..." with recommendations
-          // Keep "Looking for best matches..." visible, add recommendations after it
-          if (productRecommendations.length > 0) {
-            let botMessage: Message = {
-              role: "assistant",
-              content: "",
-              recommendations: productRecommendations,
-            };
-            // Add recommendations message right after "Looking for best matches..." or error message
-            const insertIndex = data.error ? searchingMessageIndex + 1 : searchingMessageIndex + 1;
-            messages = [
-              ...messages.slice(0, insertIndex),
-              botMessage,
-              ...messages.slice(insertIndex)
-            ];
-            // Remove "Looking for best matches..." if it still exists
-            if (messages[searchingMessageIndex]?.content === "Looking for best matches...") {
-              messages = [
-                ...messages.slice(0, searchingMessageIndex),
-                ...messages.slice(searchingMessageIndex + 1)
-              ];
-            }
-          } else {
-            // If no recommendations, remove "Looking for best matches..." message (if it exists)
-            if (messages[searchingMessageIndex]?.content === "Looking for best matches...") {
-              messages = [
-                ...messages.slice(0, searchingMessageIndex),
-                ...messages.slice(searchingMessageIndex + 1)
-              ];
-            }
-          }
-        } catch (err) {
-          console.error("Recommendation tool failed:", err);
-          // Remove "Looking for best matches..." message on error and show error
-          messages = [
-            ...messages.slice(0, searchingMessageIndex),
-            { role: "assistant", content: "Our recommendation service is experiencing technical difficulties. Please try again." },
-            ...messages.slice(searchingMessageIndex + 1)
-          ];
-        }
-      })();
-    } else {
-      // If not recommendation intent, just wait for stream to complete
-      await streamPromise;
+    } catch (err) {
+      console.error("Stream failed:", err);
+      messages = [...messages, {
+        role: "assistant",
+        content: "Our streaming service is experiencing technical difficulties. Please try again."
+      }];
+      loading = false;
+      return;
     }
 
-    await recPromise;
+    // STEP 2: Detect CODEX cue in stream text
+    const codex = detectCodex(fullStreamText);
+
+    // STEP 3: Handle based on CODEX
+    if (codex === 'RECOMMEND') {
+      // Add shimmer loading message
+      const finalStreamingIndex = streamingMessageIndex !== null ? streamingMessageIndex : messages.length - 1;
+      const shimmerIndex = finalStreamingIndex + 1;
+      messages = [
+        ...messages.slice(0, shimmerIndex),
+        { role: "assistant", content: "Looking for best matches...", shimmer: true },
+        ...messages.slice(shimmerIndex)
+      ];
+
+      // Wait a tiny bit for shimmer to render
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      try {
+        // Call intent API (simplified - just extracts filters)
+        // IMPORTANT: Create fresh payload with updated messages (includes stream response)
+
+        // IMPORTANT: Filter out shimmer messages (UI-only, not for API)
+        const messagesForApi = messages.filter(m => !m.shimmer);
+        const intentPayload = { messages: messagesForApi };
+
+        const intentResp = await fetch(`${BASE_URL}/intent`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(intentPayload),
+        });
+
+        if (!intentResp.ok) {
+          const errorData = await intentResp.json().catch(() => ({}));
+          messages = [
+            ...messages.slice(0, shimmerIndex),
+            { role: "assistant", content: errorData.error || "Our AI understanding service is experiencing technical difficulties. Please try again." },
+            ...messages.slice(shimmerIndex + 1)
+          ];
+          loading = false;
+          return;
+        }
+
+        const intentData = await intentResp.json();
+        const intentFilters = intentData.filters || {};
+        const semanticSearch = intentData.semantic_search || "";
+
+        // Call recommendations API
+        // IMPORTANT: Filter out shimmer messages (UI-only, not for API)
+        const recResp = await fetch(`${BASE_URL}/recommendations`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messages: messagesForApi,
+            filters: intentFilters,
+            semantic_search: semanticSearch
+          }),
+        });
+
+        if (!recResp.ok) {
+          const errorData = await recResp.json().catch(() => ({}));
+          messages = [
+            ...messages.slice(0, shimmerIndex),
+            { role: "assistant", content: errorData.error || "Our recommendation service is experiencing technical difficulties. Please try again." },
+            ...messages.slice(shimmerIndex + 1)
+          ];
+          loading = false;
+          return;
+        }
+
+        const recData = await recResp.json();
+        productRecommendations = recData.recommendations || [];
+
+        // Replace shimmer with recommendations
+        if (productRecommendations.length > 0) {
+          const botMessage: Message = {
+            role: "assistant",
+            content: "",
+            recommendations: productRecommendations,
+          };
+          messages = [
+            ...messages.slice(0, shimmerIndex),
+            botMessage,
+            ...messages.slice(shimmerIndex + 1)
+          ];
+        } else {
+          // Remove shimmer if no recommendations
+          messages = [
+            ...messages.slice(0, shimmerIndex),
+            ...messages.slice(shimmerIndex + 1)
+          ];
+        }
+      } catch (err) {
+        console.error("Recommendation flow failed:", err);
+        messages = [
+          ...messages.slice(0, shimmerIndex),
+          { role: "assistant", content: "Our recommendation service is experiencing technical difficulties. Please try again." },
+          ...messages.slice(shimmerIndex + 1)
+        ];
+      }
+    } else if (codex === 'PRODUCT_LOOKUP') {
+      // Extract product name from stream text
+      const productName = extractProductName(fullStreamText);
+      if (productName) {
+        // Call product-lookup flow (existing function)
+        // IMPORTANT: Use fresh messages (includes stream response)
+        await handleProductQuestion(productName, { messages });
+      }
+    }
+    // else: No CODEX = just conversation, we're done
+
     loading = false;
   }
 </script>

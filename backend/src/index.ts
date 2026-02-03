@@ -116,16 +116,70 @@ app.get('/', (c) => {
 app.post("/chat/intent", async (c) => {
   const body = await c.req.json();
   const messages = body.messages || [];
-  
-  // Get last 5 messages for context, or all if less than 5
-  const lastMessages = messages.slice(-7);
-  const lastMessage = lastMessages[lastMessages.length - 1]?.content || "";
-  
-  // Format conversation history for context
-  const conversationHistory = lastMessages.length > 1 
-    ? formatConversationHistory(lastMessages.slice(0, -1))
+
+  // IMPORTANT: Use FULL context to capture multi-turn queries
+  // Example: "What are your most potent vapes?" → "sleep"
+  // We need to see "most potent" from the first user message
+  // The CODEX message is still the trigger, but we need full conversation for filter extraction
+
+  const lastMessage = messages[messages.length - 1]?.content || "";
+
+  // Use ONLY recent conversation history (last 3 messages before current) to save tokens
+  // The CODEX message already contains the user's full intent, so we don't need deep history
+  const recentMessages = messages.length > 3
+    ? messages.slice(-4, -1)  // Last 3 messages before current
+    : messages.slice(0, -1);
+
+  const conversationHistory = recentMessages.length > 0
+    ? formatConversationHistory(recentMessages)
     : "";
 
+  // CODEX DETECTION (before LLM call)
+  // Check last assistant message for CODEX cues
+  const lastAssistantMsg = messages.filter((m: any) => m.role === 'assistant').pop();
+  const lastAssistantContent = lastAssistantMsg?.content || '';
+
+  const RECOMMEND_CUES = [
+    'I completely understand what you\'re looking for',
+    'Let me check what we have that matches your preferences',
+    'I\'m pulling up products that fit your criteria',
+    'Checking our inventory based on what you described'
+  ];
+
+  const PRODUCT_CUES = [
+    'Let me look up',
+    'I\'ll pull up the details on'
+  ];
+
+  const hasRecommendCue = RECOMMEND_CUES.some(cue => lastAssistantContent.includes(cue));
+  const hasProductCue = PRODUCT_CUES.some(cue => lastAssistantContent.includes(cue));
+
+  // If no CODEX cue, return general immediately (no LLM call needed)
+  if (!hasRecommendCue && !hasProductCue) {
+    return c.json({
+      intent: 'general',
+      filters: {},
+      semantic_search: '',
+      product_query: null
+    });
+  }
+
+  // If PRODUCT_LOOKUP cue detected, extract product name and return product-question intent
+  if (hasProductCue) {
+    // Extract product name from cue phrase
+    const lookupMatch = lastAssistantContent.match(/Let me look up (.+?) for you/i)
+                     || lastAssistantContent.match(/I'll pull up the details on (.+)/i);
+    const productName = lookupMatch ? lookupMatch[1].trim() : lastMessage;
+
+    return c.json({
+      intent: 'product-question',
+      filters: {},
+      semantic_search: '',
+      product_query: productName
+    });
+  }
+
+  // CODEX:RECOMMEND detected - call LLM for filter extraction
   const API_KEY = getApiKey(ACTIVE_PROVIDER, c.env);
   const MODEL = getModelForRole(ACTIVE_PROVIDER, "INTENT");
   const BASE_URL = getBaseUrl(ACTIVE_PROVIDER);
@@ -135,71 +189,45 @@ app.post("/chat/intent", async (c) => {
   let tokenUsage: ReturnType<typeof buildTokenUsageResponse> = null;
 
   const prompt = `
-You are the Brain of a Cannabis Dispensary AI.
-Analyze the conversation history and the latest user message.
+You are a filter extraction assistant. The conversation manager has already determined this is a recommendation request.
+Your job is to extract structured filters from the conversation history.
 
-**INTENT CLASSIFICATION (CRITICAL - Determine this FIRST):**
-- Use "recommendation" intent when user:
-  - Asks about products ("tell me about products", "what products", "show me products")
-  - Explicitly requests recommendations with verbs like "recommend", "suggest", "propose", "advise" ("Can you recommend...", "Can you suggest...", "Can you propose...")
-  - Wants products ("I want", "I need", "looking for", "any", "something for")
-  - Asks "do you have" or "which...do you have" ("do you have lighters?", "which accessories do you have?") do you have category or subcategory?
-  - Tell me about strain, type, category, subcategory is a recommendation intent.
-  - Insinuates desired effect ("Something for sleep", "How about for social setting", "anything for partying", "stuff to cheer me up")
-  - Requests recommendations ("recommend", "suggest", "propose", "advise", "best options", "what's good for")
-  - Mentions effects, categories, types, or product preferences
-  - How about category, subcategory, strain, type is a recommendation intent.
-  - CRITICAL: If user mentions ANY category (flower, prerolls, edibles, vaporizers, concentrates, cbd, topicals, accessories) with action verbs (recommend, suggest, tell me about, show me), it's ALWAYS recommendation intent
-- Use "product-question" intent when user:
-  - Asks about a SPECIFIC product by name ("tell me more about X", "what can you tell me about X", "what else about X")
-  - Asks questions about a previously recommended product ("what are the effects of that one?", "how strong is that?")
-  - Wants details about a specific product (THC%, effects, price, description, flavors)
-  - Compares specific products ("how does X compare to Y?")
-  - References a product they saw before ("that sleepy one", "the first one you showed me", "that Gelato")
-  - CRITICAL: This is NOT for wanting NEW recommendations - it's for asking about a SPECIFIC product
-- Use "general" intent ONLY when user asks about:
-  - Store information (hours, location, address, contact)
-  - Policies (returns, age requirements, payment methods)
-  - General cannabis information (education, laws, regulations)
-  - Non-product questions
+**EXTRACTION STRATEGY:**
 
-**Examples of "recommendation" intent:**
-- "Can you tell me about products for deep sleep?" → recommendation
-- "Can you recommend uplifting sativa products? flower, vapes" → recommendation
-- "Can you suggest relaxing indica products? flower, pre rolls, vapes" → recommendation
-- "Can you propose focused, clear mind sativa energizing products?" → recommendation
-- "Tell me about uplifting, sativa energizing products please" → recommendation
-- "Tell me about focused, clear minded sativa edibles" → recommendation
-- "any pre roll or flower for deep sleep" → recommendation
-- "anything for deep sleep" → recommendation
-- "what's good for sleep?" → recommendation
-- "I need something to help me sleep" → recommendation
-- "How about for partying?" → recommendation
-- "How about for XYZ?" → recommendation
-- "good stuff for social setting" → recommendation
+**Stream prepares query**: 
+- The streaming LLM evaluates conversation history, normalizes user intent into structured elements (category, type, effects, potency),
+and emits a CODEX cue with a summary like "uplifting sativa flower for daytime energy" 
+- this normalized summary is your PRIMARY source for extraction which is provided to you in the LAST assistant message.
 
-**Examples of "product-question" intent:**
-- "What else can you tell me about Luci Gelato?" → product-question
-- "Tell me more about that first one" → product-question
-- "What are the effects of Mendo Breath?" → product-question
-- "How strong is that edible you mentioned?" → product-question
-- "Tell me about that sleepy one from before" → product-question
-- "What's the THC percentage of that flower?" → product-question
-- "How does the Gelato compare to the Purple Punch?" → product-question
+**Intent extracts query**: Parse the LAST assistant message (CODEX message) as the primary source, extracting structured filters (category, type, effects, potency) from the normalized summary; use user messages only for validation/enrichment of specific details like exact THC percentages or price ranges.
 
-**Examples of "general" intent:**
-- "What are your hours?" → general
-- "Where are you located?" → general
-- "What's your return policy?" → general
+**Query structure & 2/3 rule**: A complete query needs 2 of 3 elements (Intent Signal + Category OR Effect/Potency OR Category) 
+- the assistant's CODEX message contains these normalized elements ready for extraction
+- focus on parsing the structured summary rather than raw user messages.
 
-Review the conversation. Extract the current active preferences. 
-If a user changes their mind (e.g., from Flower to Pre-roll), the new choice replaces the old one. 
-If they add a preference (e.g., 'And make it strong'), append it.
+- **Type** (CRITICAL - HYDE ENHANCEMENT):
 
-CRITICAL VALIDATION RULE: ONLY use a field if there is EXPLICIT, CLEAR evidence in the conversation. Do NOT infer or assume preferences.
+🚨 **AUTOMATIC TYPE INFERENCE FROM EFFECTS (CRITICAL):**
 
-- **Category**: Only extract if user explicitly mentions category name (flower, prerolls, edibles, concentrates, vaporizers, cbd) OR mentions a subcategory (which implies category)
-- **Type**: Only extract if user explicitly mentions indica, indica-hybrid, sativa, sativa-hybrid, or hybrid
+When user mentions extreme effects that strongly indicate a type, AUTOMATICALLY add the type to filters even if not explicitly mentioned:
+
+**Sativa-Indicating Effects** (add type: "sativa" when user mentions ANY of these):
+- Uplifting: "uplifting", "uplifted", "energizing", "energized", "energetic", "energy"
+- Social: "partying", "party", "socializing", "social", "social setting", "gathering"
+- Creative: "creative", "creativity", "artistic", "imaginative", "inspired"
+- Daytime: "daytime", "morning", "afternoon", "day time"
+- Mental: "focused", "focus", "clear-minded", "clear mind", "alert", "awake"
+- Mood: "happy", "joyful", "euphoric", "upbeat", "cheerful"
+- Activity: "upper", "boost", "activating"
+
+**Indica-Indicating Effects** (add type: "indica" when user mentions ANY of these):
+- Sleep: "sleepy", "sleep", "bedtime", "nighttime", "rest", "restful", "tired"
+- Sedative: "sedating", "sedated", "sedative", "passing out", "hitting the hay", "knocked out"
+- Relaxation: "relaxing", "relaxed", "mellow", "chill", "chilling", "unwind", "unwinding"
+- Body: "body high", "body melt", "couch lock", "couch-lock"
+- Calming: "calm", "calming", "peaceful", "tranquil", "serene"
+- Activity: "downer", "wind down", "winding down"
+
 - **THC/Potency**: Only extract if user explicitly mentions:
   - Numbers (e.g., "5mg", "22%", "below 66%", "from 18 to 22%")
   - Guided flow format (e.g., "Strong (22-28%)")
@@ -213,33 +241,33 @@ DO NOT add fields that weren't explicitly mentioned
 
 ${schemaInfo}
 
-Valid Categories: flower, prerolls, edibles, concentrates, vaporizers, cbd, topicals, accessories
+Valid Categories: flower, prerolls, edibles, concentrates, vaporizers, cbd, accessories, topicals
 
-Category Notes:
+CATEGORY Notes:
 - Category can be a single value or an array of categories (e.g., ["prerolls", "flower"])
 - Use array format when user wants products from multiple categories
 - ONLY extract category if:
-  1. User explicitly mentions category name (flower, prerolls, edibles, concentrates, vaporizers, cbd, topicals, accessories), OR
+  1. User explicitly mentions category name (flower, prerolls, edibles, concentrates, vaporizers, cbd), OR
   2. User mentions a subcategory (which implies the parent category - see subcategory mapping below)
 - DO NOT infer category from effects, type, or other preferences
 - If category is not explicitly mentioned, omit it entirely (null)
 
-Subcategory → Category Mapping:
+SUBCATEGORY → Category Mapping:
 - edibles subcategories (chews, chocolates, gummies, live-resin-gummies, live-rosin-gummies, cooking-baking, drinks) → category: "edibles"
-- vaporizers subcategories (cartridges, disposables, all-in-one, etc.) → category: "vaporizers"
+- vaporizers subcategories (cartridges, disposables, all-in-one, live-resin, live-rosin, etc.) → category: "vaporizers"
 - prerolls subcategories (blunts, singles, infused-prerolls, etc.) → category: "prerolls"
 - important for infused, if infused prerolls are mentioned add both ["infused-prerolls", "infused-preroll-packs"]
 - flower subcategories (premium-flower, whole-flower, small-buds, etc.) → category: "flower"
-- concentrates subcategories (badder, hash, live-resin, tinctures) → category: "concentrates"
+- concentrates subcategories (badder, hash, live-resin, live-rosin, tinctures) → category: "concentrates"
+- accessories subcategories (batteries, glassware, grinders, lighters, papers-rolling-supplies) → category: "accessories"
 - topicals subcategories (balms) → category: "topicals"
-- accessories subcategories (lighters, grinders, batteries, glassware, papers, papers-rolling-supplies) → category: "accessories"
 
 Category-Specific THC Fields:
 - For flower, prerolls, vaporizers, concentrates: Use thc_percentage_min and thc_percentage_max when THC preference is mentioned
 - For edibles: Use thc_per_unit_mg_min and thc_per_unit_mg_max when THC/dosage preference is mentioned
 - NEVER mix these fields - use the correct one based on category
 
-THC Potency Extraction - Three Scenarios:
+THC POTENCY EXTRACTION - Three Scenarios:
 
 **Scenario 1: Explicit Numbers**
 - User mentions specific numbers: "5mg", "22%", "below 66%", "above 28%", "from 18 to 22%"
@@ -253,7 +281,7 @@ THC Potency Extraction - Three Scenarios:
   - Use only the relevant min or max
 
 **Scenario 2: Guided Flow Format**
-- User mentions classification with range in Guided Flow format: "Strong (22-28%)", "Moderate (18-22%)", "Mild (<66%)"
+- User mentions classification with range in the exact Guided Flow format: "Strong (22-28%)", "Moderate (18-22%)", "Mild (<66%)"
 - These use the Guided Flow classification scales (5 categories):
   - Flower/Prerolls: Mild (<13%), Balanced (13-18%), Moderate (18-22%), Strong (22-28%), Very Strong (>28%)
   - Vaporizers/Concentrates: Mild (<66%), Balanced (66-75%), Moderate (75-85%), Strong (85-90%), Very Strong (>90%)
@@ -262,38 +290,73 @@ THC Potency Extraction - Three Scenarios:
   - Range (Balanced X-Y%, Moderate X-Y%, Strong X-Y%) → Use BOTH thc_percentage_min and thc_percentage_max
 
 **Scenario 3: Natural Language Potency Terms (OPEN-ENDED)**
-- User mentions potency terms WITHOUT Guided Flow format or explicit number ranges
-- CRITICAL RULE: For strong/potent direction → Use ONLY thc_percentage_min (no max, open ceiling)
-- CRITICAL RULE: For mild/weak direction → Use ONLY thc_percentage_max (no min, open floor)
+
+🚨 CRITICAL: Only extract THC if USER explicitly mentioned potency words in THEIR messages!
+- ✅ Extract: User said "strong", "potent", "mild", "milder", "weak", "most potent", "strongest", "over 34%", "high THC"
+- ❌ DO NOT extract: Only assistant mentioned potency in clarifying questions
+- ❌ DO NOT extract: User only mentioned effects (sleepy, energetic, uplifting, relaxing, downer, upper, etc.)
+- ❌ DO NOT extract: Effect words are NOT potency words!
+
+**🚨 CRITICAL DISTINCTIONS:**
+- **Effects** (mood/feeling): uplifting, relaxing, sleepy, energetic, calm, creative, happy, downer, upper, sedating
+- **Potency** (THC strength): strong, mild, potent, weak, high THC, low THC, over X%, under X%
+
+**Effect words that are NOT potency:**
+- "uplifting" → effect, NOT potency (do NOT extract THC)
+- "energizing" → effect, NOT potency (do NOT extract THC)
+- "relaxing" → effect, NOT potency (do NOT extract THC)
+- "downer" → effect (relaxing/sleepy), NOT potency (do NOT extract THC)
+- "upper" → effect (energizing/uplifting), NOT potency (do NOT extract THC)
+- "sedating" → effect, NOT potency (do NOT extract THC)
+- "daytime" → effect context (uplifting), NOT potency (do NOT extract THC)
+- "nighttime" → effect context (sleepy), NOT potency (do NOT extract THC)
+
+**Potency Keywords (extract THC ONLY when user says these):**
+- Strong direction: strong, potent, high, intense, powerful, very strong, most potent, strongest, highest THC, maximum strength, high THC, over X%
+- Mild direction: mild, milder, weak, light, low, gentle, beginner-friendly, less potent, lower THC, under X%, below X%
+
+**Extraction Rules:**
+- For strong/potent direction → Use ONLY thc_percentage_min (no max, open ceiling)
+- For mild/weak direction → Use ONLY thc_percentage_max (no min, open floor)
 - ONLY use BOTH min AND max when user provides:
   1. Guided Flow format with range: "Strong (85-90%)", "Moderate (18-22%)"
   2. Explicit numeric range: "from 72 to 95%", "between 75 and 90"
-- SUPERLATIVES ("most potent", "strongest", "highest THC", "maximum strength"):
-  - ALWAYS use ONLY minimum, NEVER maximum
-  - "most potent vapes" → thc_percentage_min: 90 (NO max)
-  - "strongest flower" → thc_percentage_min: 28 (NO max)
-  - Superlatives imply "the highest available" - no upper bound
+
+**SUPERLATIVES ("most potent", "strongest", "highest THC", "maximum strength"):**
+- ALWAYS use ONLY minimum, NEVER maximum
+- "most potent vapes" → thc_percentage_min: 90 (NO max)
+- "strongest flower" → thc_percentage_min: 28 (NO max)
+- "What are your most potent vapes?" → thc_percentage_min: 90
+- Superlatives imply "the highest available" - no upper bound
+
+**Category-Specific Potency Scales:**
 
   **For Flower/Prerolls:**
   - Mild/Weak/Light/Low/Gentle/Beginner-friendly → thc_percentage_max: 13 (no min)
   - Balanced/Moderate/Medium/Average → thc_percentage_min: 13 (no max)
   - Strong/Potent/High/Intense → thc_percentage_min: 22 (no max)
-  - Very Strong/Most Potent/Extreme/Maximum → thc_percentage_min: 28 (no max)
+  - Very Strong/Most Potent/Extreme/Maximum/Strongest → thc_percentage_min: 28 (no max)
 
   **For Edibles:**
   - Mild/Weak/Light/Low/Gentle/Beginner-friendly → thc_per_unit_mg_max: 4 (no min)
   - Balanced/Moderate/Medium/Average → thc_per_unit_mg_min: 5 (no max)
   - Strong/Potent/High/Intense → thc_per_unit_mg_min: 10 (no max)
-  - Very Strong/Most Potent/Extreme/Maximum → thc_per_unit_mg_min: 15 (no max)
+  - Very Strong/Most Potent/Extreme/Maximum/Strongest → thc_per_unit_mg_min: 15 (no max)
 
   **For Vaporizers/Concentrates:**
   - Mild/Weak/Light/Low/Gentle/Beginner-friendly → thc_percentage_max: 66 (no min)
   - Balanced/Moderate/Medium/Average → thc_percentage_min: 66 (no max)
   - Strong/Potent/High/Intense → thc_percentage_min: 85 (no max)
-  - Very Strong/Most Potent/Extreme/Maximum → thc_percentage_min: 90 (no max)
+  - Very Strong/Most Potent/Extreme/Maximum/Strongest → thc_percentage_min: 90 (no max)
 
 - **CRITICAL**: If user says "something strong" without category, DO NOT extract THC (category must be known first)
 - Only extract if category is explicitly mentioned or can be inferred from subcategory
+
+**Examples:**
+- "What are your most potent vapes?" → category: "vaporizers", thc_percentage_min: 90
+- "Strong flower" → category: "flower", thc_percentage_min: 22
+- "Any flower you can recommend?" → category: "flower", NO THC (user didn't mention potency!)
+- "sleepy vapes very strong" → category: "vaporizers", effects: ["sleepy"], thc_percentage_min: 90
 
 When extracting THC preferences:
 - If category is "flower" or "prerolls", use Flower/Prerolls scale with thc_percentage_min/max
@@ -301,48 +364,65 @@ When extracting THC preferences:
 - If category is "edibles", use thc_per_unit_mg_min/max (not percentage)
 - If no category is specified, DO NOT extract THC preferences (category must be known first)
 
-Subcategory Notes:
-- Subcategory is most important for edibles when specifically mentioned, but can be omitted if uncertain
-- For other categories, subcategory is less critical unless explicitly mentioned
-- Only use subcategory if you are 100% certain it matches one of the valid options listed above
-- If uncertain about subcategory, omit it entirely
-- CRITICAL DISTINCTION: "live-resin-gummies" vs "live-rosin-gummies" are DIFFERENT subcategories
-  - "live resin" (with 'e') → "live-resin-gummies"
-  - "live rosin" (with 'o') → "live-rosin-gummies"
-  - These differ by only ONE character but are completely different products - pay close attention to spelling
-- If user mentions multiple subcategories (e.g., "Chews and Gummies"), return as an array: ["chews", "gummies"]
-- Subcategory can be a single string or an array of strings
-- IMPORTANT: Subcategory must be a VALID subcategory value (premium-flower, gummies, cartridges, etc.)
-- NEVER put category names (flower, edibles, prerolls, etc.) in the subcategory field
-- DO NOT infer subcategory from potency, effects, or quality terms
-- "potent vapes" → category: vaporizers, NO subcategory
-- "potent flower" → category: flower, NO subcategory (NOT premium-flower!)
-- "strong flower" → category: flower, NO subcategory
-- "best flower" → category: flower, NO subcategory (NOT premium-flower!)
-- Only extract subcategory when user EXPLICITLY says the subcategory name (cartridges, gummies, premium-flower, etc.)
-- CRITICAL: Subcategory must EXACTLY match a valid subcategory value - NEVER create compound subcategories
-- NEVER combine adjectives with subcategory names:
-  - "fruity drinks" → subcategory: "drinks", flavor: ["fruity"] (NOT subcategory: "fruity drinks")
-  - "berry gummies" → subcategory: "gummies", flavor: ["berry"] (NOT subcategory: "berry gummies")
-- CRITICAL: These words ARE subcategories - if user mentions them, ALWAYS add as subcategory:
-  - "drinks" → MUST add subcategory: "drinks" AND category: "edibles"
-  - "chocolates" → MUST add subcategory: "chocolates" AND category: "edibles"
-  - "gummies" → MUST add subcategory: "gummies" AND category: "edibles"
-  - "infused" or "infused prerolls" → MUST add subcategory: ["infused-prerolls", "infused-preroll-packs"] AND category: "prerolls"
-  - "cartridges" or "carts" → MUST add subcategory: "cartridges" AND category: "vaporizers"
-  - "balms" → MUST add subcategory: "balms" AND category: "topicals"
-  - "lighters" → MUST add subcategory: "lighters" AND category: "accessories"
-  - "grinders" → MUST add subcategory: "grinders" AND category: "accessories"
-  - "batteries" → MUST add subcategory: "batteries" AND category: "accessories"
-  - "glassware" → MUST add subcategory: "glassware" AND category: "accessories"
-  - "papers" or "rolling papers" → MUST add subcategory: "papers-rolling-supplies" AND category: "accessories"
-- Example: "concentrates and drinks" → category: ["concentrates", "edibles"], subcategory: ["drinks"]
-- Example: "flower and gummies" → category: ["flower", "edibles"], subcategory: ["gummies"]
+🚨 SUBCATEGORY EXTRACTION RULES (CRITICAL):
+
+**Rule 1: Subcategory must EXACTLY match valid subcategories from schema above**
+- Check the "Valid Subcategories by Category" list above
+- If the word/phrase is NOT in that list, DO NOT use it as subcategory
+- ❌ "category" in subcategories list → DO NOT use it as subcategory
+- ❌ "fruity drinks" → NOT in schema → subcategory: ["drinks"], flavor: ["fruity"]
+- ❌ "berry gummies" → NOT in schema → subcategory: ["gummies"], flavor: ["berry"]
+- ❌ "strong vapes" → NOT in schema → category: "vaporizers", thc_percentage_min: 85
+- ❌ "potent flower" → NOT in schema → category: "flower", thc_percentage_min: 22
+
+**Rule 2: NEVER create compound subcategories**
+- Compound = adjective + subcategory (fruity drinks, berry gummies, strong vapes)
+- Parse these into subcategory + other field (flavor, thc_percentage, effects)
+- "fruity drinks" → subcategory: ["drinks"], flavor: ["fruity"]
+- "sweet chocolates" → subcategory: ["chocolates"], flavor: ["sweet"]
+
+**Rule 3: DO NOT infer subcategory from potency/effects/quality terms**
+- "potent vapes" → category: "vaporizers", NO subcategory (extract thc_percentage_min instead)
+- "strong flower" → category: "flower", NO subcategory (extract thc_percentage_min instead)
+- "sleepy edibles" → category: "edibles", NO subcategory (extract effects: ["sleepy"] instead)
+- "best flower" → category: "flower", NO subcategory
+- "uplifting pre rolls" → category: "prerolls", NO subcategory (extract effects: ["uplifted"] instead)
+- "downer pre roll" → category: "prerolls", NO subcategory (extract effects: ["relaxed", "sleepy"] instead)
+- "upper vape" → category: "vaporizers", NO subcategory (extract effects: ["energetic", "uplifted"] instead)
+- "daytime gummies" → category: "edibles", subcategory: ["gummies"] (gummies IS a subcategory!)
+- "relaxing vapes" → category: "vaporizers", NO subcategory (extract effects: ["relaxed"] instead)
+
+🚨 CRITICAL: Effect/potency descriptors (downer, upper, relaxing, uplifting, strong, mild) are NOT subcategories!
+
+**Rule 4: These words ARE valid subcategories (extract when user mentions them)**:
+- "drinks" → subcategory: ["drinks"], category: "edibles"
+- "chocolates" → subcategory: ["chocolates"], category: "edibles"
+- "gummies" → subcategory: ["gummies"], category: "edibles"
+- "cartridges" or "carts" → subcategory: ["cartridges"], category: "vaporizers"
+- "infused prerolls" → subcategory: ["infused-prerolls", "infused-preroll-packs"], category: "prerolls"
+- "premium flower" → subcategory: ["premium-flower"], category: "flower"
+- "live resin" (edibles context) → subcategory: ["live-resin-gummies"], category: "edibles"
+- "live rosin" (edibles context) → subcategory: ["live-rosin-gummies"], category: "edibles"
+
+**Rule 5: Subcategory can be single value or array**
+- "gummies" → ["gummies"]
+- "gummies and chocolates" → ["gummies", "chocolates"]
+
+**Rule 6: CRITICAL DISTINCTION - live-resin vs live-rosin**
+- "live resin" (with 'e') ≠ "live rosin" (with 'o')
+- These are completely different extraction methods
+- Pay close attention to spelling
+
+**Examples:**
+- "fruity drinks with thc" → category: "edibles", subcategory: ["drinks"], flavor: ["fruity"]
+- "potent flower and fruity drinks" → category: ["flower", "edibles"], subcategory: ["drinks"], flavor: ["fruity"], thc_percentage_min: 22 (only for flower)
+- "strong vapes" → category: "vaporizers", NO subcategory, thc_percentage_min: 85
+- "infused pre rolls" → category: "prerolls", subcategory: ["infused-prerolls", "infused-preroll-packs"]
 
 Effects Notes:
 - Valid canonical effects: calm, happy, relaxed, energetic, clear-mind, creative, focused, inspired, sleepy, uplifted
 - When extracting effects, ALWAYS map to canonical effects using the mapping below:
-  
+
   **Effects Mapping (phrase → canonical effect):**
   - Sleep-related: "deep sleep", "sleep", "rest", "restful", "drowsy", "tired", "bedtime", "nighttime", "sedated", "sedative" → "sleepy"
   - Relaxation-related: "chilling", "chill", "unwind", "unwinding", "mellow", "couch lock", "couch-lock", "body high", "body melt" → "relaxed"
@@ -359,7 +439,6 @@ Effects Notes:
   - artistic, creative, imaginative, expoloratory, djing → creative, focused, inspired
   - deep sleep, bedtime, nighttime → sleepy, relaxed
 
-  
 - If an effect phrase doesn't match any mapping above, still include it in lowercase (don't be too restrictive)
 - Effects should be lowercase
 - Effects can be an array of strings
@@ -371,54 +450,45 @@ Effects Notes:
 - "sleepy and tired" → return ONLY ["sleepy"] since tired maps to sleepy
 - If user mentions ANY word from the effects mapping, return ONLY the canonical effect it maps to
 
-Type mapping:
+TYPE mapping:
 - "indica", "indica-dominant" → "indica"
 - "sativa", "sativa-dominant" → "sativa"
 - "hybrid" → "hybrid"
-- "indica-hybrid", "indica-hybrid-dominant" → "indica-hybrid"
-- "sativa-hybrid", "sativa-hybrid-dominant" → "sativa-hybrid"
-
-Return ONLY valid JSON with:
-1. "intent": "recommendation" or "product-question" or "general"
-2. "filters": {
-    "category": (flower, prerolls, edibles, concentrates, vaporizers, cbd) or array of these categories or null,
-    "type": (indica, sativa, hybrid, indica-hybrid, sativa-hybrid) or array of these types or null,
-    "thc_percentage_min": (number) or null,
-    "thc_percentage_max": (number) or null,
-    "thc_per_unit_mg_min": (number) or null,
-    "thc_per_unit_mg_max": (number) or null,
-    "subcategory": (string or array of strings) or null,
-    "effects": (array of strings) or null,
-    "flavor": (array of strings) or null,
-    "brand": (string) or null,
-    "price_min": (number) or null,
-    "price_max": (number) or null
-}
-3. "semantic_search": "3-5 keywords describing desired mood/effect/flavor" or empty string
-4. "product_query": (string or null) - ONLY for "product-question" intent: the raw text describing which product the user is asking about (e.g., "Luci Gelato", "that sleepy one", "the first edible"). This is used for fuzzy/semantic matching. Do NOT normalize or hallucinate exact product names.
+- "indica-hybrid", "indica hybrid", "indica-hybrid-dominant" → "indica-hybrid"
+- "sativa-hybrid", "sativa hybrid", "sativa-hybrid-dominant" → "sativa-hybrid"
 
 Semantic Search Generation Guidelines:
 - Focus on EFFECT-RELATED keywords that match product description vocabulary
 - Include effect synonyms: energizing → energetic, uplifting, focused, creative, sativa, daytime
 - Include mood/context words: party → social, festive, upbeat; sleep → nighttime, bedtime, restful
 - De-emphasize category names (category is filtered via metadata, not semantic search)
-- Good: "energetic uplifting focused creative sativa daytime" (effect-vocabulary focused)
+
+🚨 **CRITICAL: HYDE SEMANTIC SEARCH ENHANCEMENT**
+- We want to enhance semantic search query when SUPERLATIVES or Extreme effects are mentioned.
+- Extreme effects are: uplfiting, energizing -> Sativa, sleepy, sedated, relaxed -> Indica.
+- This ensures vector search finds products matching the intended strain type
+- Examples:
+  - "uplifting flower" → semantic_search: "uplifting energetic sativa flower"
+  - "energizing edibles" → semantic_search: "energizing energetic uplifting sativa daytime"
+  - "sleepy vapes" → semantic_search: "sleepy relaxed indica nighttime bedtime"
+  - "partying pre rolls" → semantic_search: "partying social upbeat happy sativa energetic"
+
+- Good: "energetic uplifting focused creative sativa daytime" (effect-vocabulary focused + type)
 - Bad: "energizing flower edibles" (category-blended, doesn't match embeddings)
 
 Examples:
 - "Can you recommend something to get me sleepy and relaxed?"
   Result: {
-    "intent": "recommendation",
     "filters": {
-      "effects": ["sleepy", "relaxed"]
+      "effects": ["sleepy", "relaxed"],
+      "type": ["indica", "indica-hybrid"]
     },
-    "semantic_search": "sleepy relaxed nighttime"
+    "semantic_search": "sleepy relaxed nighttime indica"
   }
   Note: Extract effects (working well), but NO category, type, or THC extracted - user didn't specify them
 
 - "Any decent Indica hybrid?"
   Result: {
-    "intent": "recommendation",
     "filters": {
       "type": "indica-hybrid"
     },
@@ -428,30 +498,27 @@ Examples:
 
 - "How about energizing flower and edibles?"
   Result: {
-    "intent": "recommendation",
     "filters": {
       "category": ["flower", "edibles"],
-      "effects": ["energized"]
+      "effects": ["energetic"]
     },
     "semantic_search": "energetic uplifting focused creative sativa daytime boost"
   }
   Note: semantic_search focuses on effect vocabulary that matches product embeddings, not category names. Categories are filtered via metadata.
 
-- "Can you recommend sativa flower that keeps me energized and is uplifting?"
+- "Can you recommend flower that keeps me energized and is uplifting?"
   Result: {
-    "intent": "recommendation",
     "filters": {
       "category": "flower",
       "type": "sativa",
-      "effects": ["energized", "uplifting"]
+      "effects": ["energetic", "uplifted"]
     },
-    "semantic_search": "energized uplifting sativa flower"
+    "semantic_search": "energetic uplifted sativa flower"
   }
   Note: All fields explicitly mentioned - extract them all
 
 - "Looking for Concentrates products with Mild (<66%) THC percentage"
   Result: {
-    "intent": "recommendation",
     "filters": { "category": "concentrates", "thc_percentage_max": 66 },
     "semantic_search": "concentrates products"
   }
@@ -459,7 +526,6 @@ Examples:
 
 - "Looking for Flower products with Moderate (18-22%) THC percentage"
   Result: {
-    "intent": "recommendation",
     "filters": { "category": "flower", "thc_percentage_min": 18, "thc_percentage_max": 22 },
     "semantic_search": "flower products"
   }
@@ -467,12 +533,11 @@ Examples:
 
 - "I want 5mg gummies/chocolate/cookie/baked"
   Result: {
-    "intent": "recommendation",
-    "filters": { 
-      "category": "edibles", 
+    "filters": {
+      "category": "edibles",
       "subcategory": ["gummies"/"chocolates"/"cooking-baking"],
-      "thc_per_unit_mg_min": 5, 
-      "thc_per_unit_mg_max": 5 
+      "thc_per_unit_mg_min": 5,
+      "thc_per_unit_mg_max": 5
     },
     "semantic_search": "gummies edible products"
   }
@@ -481,7 +546,6 @@ Examples:
 
 - "How about some 5mg gummies with berry flavor?"
   Result: {
-    "intent": "recommendation",
     "filters": {
       "category": "edibles",
       "subcategory": ["gummies"],
@@ -494,7 +558,6 @@ Examples:
 
 - "Tell me about live resin edibles"
   Result: {
-    "intent": "recommendation",
     "filters": {
       "category": "edibles",
       "subcategory": ["live-resin-gummies"]
@@ -505,7 +568,6 @@ Examples:
 
 - "Tell me about live rosin gummies"
   Result: {
-    "intent": "recommendation",
     "filters": {
       "category": "edibles",
       "subcategory": ["live-rosin-gummies"]
@@ -517,7 +579,6 @@ Examples:
 
 - "Tell me about live resin gummies"
   Result: {
-    "intent": "recommendation",
     "filters": {
       "category": "edibles",
       "subcategory": ["live-resin-gummies"]
@@ -529,7 +590,6 @@ Examples:
 
 - "Show me all-in-one vaporizers"
   Result: {
-    "intent": "recommendation",
     "filters": {
       "category": "vaporizers",
       "subcategory": ["all-in-one"]
@@ -540,7 +600,6 @@ Examples:
 
 - "I want cartridges"
   Result: {
-    "intent": "recommendation",
     "filters": {
       "category": "vaporizers",
       "subcategory": ["cartridges"]
@@ -551,7 +610,6 @@ Examples:
 
 - "Show me infused prerolls"
   Result: {
-    "intent": "recommendation",
     "filters": {
       "category": "prerolls",
       "subcategory": ["infused-prerolls", "infused-preroll-packs"]
@@ -562,7 +620,6 @@ Examples:
 
 - "I want premium flower"
   Result: {
-    "intent": "recommendation",
     "filters": {
       "category": "flower",
       "subcategory": ["premium-flower"]
@@ -573,93 +630,182 @@ Examples:
 
 - "Show me flower with 22% THC"
   Result: {
-    "intent": "recommendation",
     "filters": { "category": "flower", "thc_percentage_min": 22, "thc_percentage_max": 22 },
     "semantic_search": "flower products"
   }
 
-- "I want something strong for sleep"
-  Result: {
-    "intent": "recommendation",
-    "filters": {
-      "effects": ["sleepy"]
-    },
-    "semantic_search": "strong sleep nighttime"
-  }
-  Note: Extract effects ("sleep" → "sleepy"), but "strong" is ambiguous without category - omit THC fields
-
 - "I want strong flower for sleep"
   Result: {
-    "intent": "recommendation",
-    "filters": { 
-      "category": "flower", 
+    "filters": {
+      "category": "flower",
       "effects": ["sleepy"],
-      "thc_percentage_min": 22
+      "type": ["indica", "indica-hybrid"],
+      "thc_percentage_min": 28
     },
-    "semantic_search": "strong sleep nighttime"
+    "semantic_search": "strong flower indica sleep nighttime"
   }
   Note: Category is known, "strong" maps to min 22% using 3-category natural language classification, extract effects too
 
-Additional recommendation intent examples:
-- "Can you tell me about products for deep sleep?" → "intent": "recommendation",
-  Note: Asking about products → recommendation intent. "deep sleep" maps to "sleepy" effect.
-- "cool any pre roll or flower for deep sleep" → "intent": "recommendation",
-  Note: Asking for products ("any") → recommendation intent. Category and effects extracted.
-- "anything for deep deep sleep, like a baby?" → "intent": "recommendation",
-  Note: Asking for products ("anything for") → recommendation intent. "deep sleep" maps to "sleepy" effect.
-- Followup on existing conversation: how about effect XYZ, or how about category XYZ?
-- We should refer to the most recent request and also be able to interpet short requests like that as "recommendation" intent.
-- Tell me about cateogry or subcategory is a recommendation intent.
-- Any category? or Any subcategory? is a recommendation intent.
-
-**Product-question intent examples:**
-- "What else can you tell me about Luci Gelato?"
+- "How about some sleepy vapes very strong?"
   Result: {
-    "intent": "product-question",
-    "filters": {},
-    "semantic_search": "",
-    "product_query": "Luci Gelato"
+    "filters": {
+      "category": "vaporizers",
+      "effects": ["sleepy"],
+      "type": ["indica", "indica-hybrid"],
+      "thc_percentage_min": 90
+    },
+    "semantic_search": "sleepy vaporizers strong nighttime indica"
   }
-  Note: Asking about a SPECIFIC product by name → product-question intent.
+  Note: Category is known (vaporizers), "very strong" maps to min 90% for vaporizers. NO subcategory because user didn't mention "live-resin", "cartridges", "disposables", etc.
 
-- "Tell me more about that first one"
+- "Do you have 5mg edibles preferably less then $28"
   Result: {
-    "intent": "product-question",
-    "filters": {},
-    "semantic_search": "",
-    "product_query": "that first one"
+    "filters": {
+      "category": "edibles",
+      "thc_per_unit_mg_min": 5,
+      "thc_per_unit_mg_max": 5,
+      "price_max": 28
+    },
+    "semantic_search": "edibles 5mg"
   }
-  Note: Reference to a specific product shown before → product-question intent.
+  Note: "5mg" is exact value → use BOTH min AND max with same value. "less than $28" → price_max: 28
 
-- "What are the effects of that sleepy indica you showed me?"
+- "What are your most potent prerolls?"
   Result: {
-    "intent": "product-question",
-    "filters": {},
-    "semantic_search": "",
-    "product_query": "that sleepy indica"
+    "filters": {
+      "category": "prerolls",
+      "thc_percentage_min": 28
+    },
+    "semantic_search": "most potent prerolls"
   }
-  Note: Reference to a specific product by description → product-question intent.
+  Note: "most potent" is superlative → thc_percentage_min: 28 for prerolls. NO subcategory.
 
-- "How strong is that Granddaddy Purple?"
+- "I am looking for potent flower and fruity drinks with THC"
   Result: {
-    "intent": "product-question",
-    "filters": {},
-    "semantic_search": "",
-    "product_query": "Granddaddy Purple"
+    "filters": {
+      "category": ["flower", "edibles"],
+      "subcategory": ["drinks"],
+      "flavor": ["fruity"],
+      "thc_percentage_min": 28
+    },
+    "semantic_search": "potent flower fruity drinks THC"
   }
-  Note: Asking about specific product's THC/potency → product-question intent.
+  Note: "fruity drinks" → subcategory: ["drinks"], flavor: ["fruity"] (NOT compound subcategory "fruity drinks"). "potent" applies to flower only (thc_percentage_min: 22).
 
-- "What are your hours?"
+- "Tell me about sleepy concentrates and fruity thc drinks?"
   Result: {
-    "intent": "general",
-    "filters": {},
-    "semantic_search": "",
-    "product_query": null
+    "filters": {
+      "category": ["concentrates", "edibles"],
+      "subcategory": ["drinks"],
+      "effects": ["sleepy"],
+      "flavor": ["fruity"]
+    },
+    "semantic_search": "sleepy concentrates fruity drinks THC"
   }
+  Note: Two categories mentioned. "fruity" is flavor, NOT part of subcategory.
+
+- "Can you recommend some uplifting edibles and flower?"
+  Result: {
+    "filters": {
+      "category": ["edibles", "flower"],
+      "type": ["sativa"],
+      "effects": ["uplifted"],
+    },
+    "semantic_search": "uplifting edibles flower daytime sativa"
+  }
+  Note: "uplifting" is an EFFECT, NOT potency. Do NOT extract THC fields!
+
+- "Can you recommend some infused pre rolls?" (then user says "Uplifting")
+  Result: {
+    "filters": {
+      "category": ["prerolls"],
+      "subcategory": ["infused-prerolls", "infused-preroll-packs"],
+      "type": ["sativa", "sativa-hybrid"],
+      "effects": ["uplifted"]
+    },
+    "semantic_search": "uplifting infused prerolls sativa"
+  }
+  Note: "uplifting" is an EFFECT, NOT potency. Do NOT extract THC! "infused prerolls" mentioned → extract subcategory.
+
+- "What are some milder vapes you got?"
+  Result: {
+    "filters": {
+      "category": ["vaporizers"],
+      "thc_percentage_max": 66
+    },
+    "semantic_search": "milder vapes"
+  }
+  Note: "milder" is potency → thc_percentage_max: 66 for vaporizers. NO effects mentioned.
+
+- "Tell me about some daytime gummies"
+  Result: {
+    "filters": {
+      "category": ["edibles"],
+      "type": ["sativa", "sativa-hybrid"],
+      "subcategory": ["gummies"],
+      "effects": ["uplifted", "energetic"]
+    },
+    "semantic_search": "daytime energetic uplifting sativa gummies"
+  }
+  Note: "daytime" implies uplifting/energetic effects. "gummies" is subcategory.
+
+- "Tell me about pre roll that is bit of a downer and vape that is upper?"
+  Result: {
+    "filters": {
+      "category": ["prerolls", "vaporizers"],
+      "effects": ["relaxed", "sleepy", "energetic", "uplifted"]
+    },
+    "semantic_search": "downer preroll upper vape relaxing energizing"
+  }
+  Note: "downer" = effects (relaxed, sleepy), "upper" = effects (energetic, uplifted). NO subcategory (user didn't say "infused" or "all-in-one"). NO THC (user didn't mention potency!)
+
+- "What are some very mild flower and pre roll options, sativa preferred?"
+  Result: {
+    "filters": {
+      "category": ["flower", "prerolls"],
+      "type": ["sativa"],
+      "thc_percentage_max": 13
+    },
+    "semantic_search": "very mild flower preroll sativa"
+  }
+  Note: "very mild" is potency → thc_percentage_max: 13 for flower/prerolls.
+
+🚨 **CRITICAL EXAMPLE - HYDE TYPE INFERENCE:**
+
+- "What are your best happy and joyful concentrates and drinks?"
+  Result: {
+    "filters": {
+      "category": ["concentrates", "edibles"],
+      "subcategory": ["drinks"],
+      "type": ["sativa", "sativa-hybrid"],
+      "effects": ["happy", "joyful"]
+    },
+    "semantic_search": "happy joyful sativa sativa hybrid concentrates drinks"
+  }
+  Note: "happy" and "joyful" imply sativa → AUTOMATICALLY add type: ["sativa"]. "drinks" is subcategory.
 
 ${conversationHistory ? `Conversation history:\n${conversationHistory}\n\n` : ""}
 
 Latest user message: "${lastMessage}"
+
+Return ONLY valid JSON with these fields:
+{
+  "filters": {
+    "category": (string | string[] | null),
+    "type": (string | string[] | null),
+    "subcategory": (string | string[] | null),
+    "effects": (string[] | null),
+    "flavor": (string[] | null),
+    "brand": (string | null),
+    "thc_percentage_min": (number | null),
+    "thc_percentage_max": (number | null),
+    "thc_per_unit_mg_min": (number | null),
+    "thc_per_unit_mg_max": (number | null),
+    "price_min": (number | null),
+    "price_max": (number | null)
+  },
+  "semantic_search": "3-5 keywords for semantic search"
+}
 
 Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
 
@@ -733,14 +879,11 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
     }
 
     const parsed = JSON.parse(cleanedText);
-    
-    // Validate and normalize response structure
-    const validIntents = ["recommendation", "product-question", "general"];
+
+    // Response structure (intent is already determined by CODEX detection)
     const response = {
-      intent: validIntents.includes(parsed.intent) ? parsed.intent : "general",
       filters: parsed.filters || {},
-      semantic_search: parsed.semantic_search || "",
-      product_query: parsed.product_query || null
+      semantic_search: parsed.semantic_search || ""
     };
 
     // Validate and normalize filters
@@ -944,19 +1087,19 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
           receivedFilters: response.filters,
           suggestion: "One of the filter fields (category, type, etc.) may be in an unexpected format. Check if arrays are handled correctly."
         },
-        // Return the parsed intent/semantic_search but with empty filters
-        intent: response.intent,
+        // Return recommendation intent with empty filters
+        intent: "recommendation",
         filters: {},
         semantic_search: response.semantic_search || "",
-        product_query: response.product_query || null
+        product_query: null
       }, 400);
     }
 
     return c.json({
-      intent: response.intent,
+      intent: "recommendation", // Intent is always "recommendation" when LLM is called (CODEX:RECOMMEND detected)
       filters: normalizedFilters,
       semantic_search: response.semantic_search,
-      product_query: response.product_query,
+      product_query: null, // Product queries are handled separately by CODEX:PRODUCT_LOOKUP
       ...(tokenUsage ? { tokenUsage } : {})
     });
   } catch (err) {
@@ -969,18 +1112,18 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
       rawResponse: text
     });
 
-    // Return detailed error response (400 Bad Request) instead of silently defaulting to "general"
+    // Return detailed error response (400 Bad Request)
     return c.json({
-      error: "Intent parsing failed",
-      errorType: "INTENT_PARSE_ERROR",
+      error: "Filter extraction failed",
+      errorType: "FILTER_PARSE_ERROR",
       errorMessage: errorMessage,
       details: {
-        parseError: "Failed to parse or normalize the intent response from LLM",
+        parseError: "Failed to parse or normalize the filter extraction response from LLM",
         rawResponse: text ? text.substring(0, 500) : "(empty)", // Truncate for safety
         suggestion: "This is likely a normalization bug in the backend. Check server logs for full details."
       },
-      // Fallback values for graceful degradation
-      intent: "general",
+      // Fallback values - intent is "recommendation" since we only call LLM when CODEX:RECOMMEND detected
+      intent: "recommendation",
       filters: {},
       semantic_search: "",
       product_query: null
@@ -1254,9 +1397,18 @@ You are a Master Budtender with deep domain expertise. Your goal is to rank cann
 ### RANKING PRIORITIES (in order of importance):
 
 1. **EFFECTS MATCH** (CRITICAL - highest priority):
-   - If user requests effects like "energized", "uplifting", "focused", "creative", "energetic" → STRONGLY prefer Sativa products (rank Sativa highest)
-   - If user requests effects like "sleepy", "sedated", "calm", "relaxed", "sleep", "rest" → STRONGLY prefer Indica products (rank Indica highest)
+   - If user requests effects like "energized", "uplifting", "uplifted", "focused", "creative", "energetic", "daytime", "upper" → STRONGLY prefer Sativa/Sativa-Hybrid products (rank Sativa highest, EXCLUDE pure Indica unless it has matching stimulating effects)
+   - If user requests effects like "sleepy", "sedated", "calm", "relaxed", "sleep", "rest", "nighttime", "downer" → STRONGLY prefer Indica/Indica-Hybrid products (rank Indica highest, EXCLUDE pure Sativa unless it has matching relaxing effects)
    - Effects matching is MORE important than category diversity - don't sacrifice effect quality for variety
+
+   🚨 **CRITICAL TYPE EXCLUSIONS (strict type filtering when effects clearly indicate type):**
+   - If user requests "energizing/uplifting/uplifted/energetic/focused/creative/daytime" effects:
+     - EXCLUDE pure Indica products UNLESS they have at least 2 matching stimulating effects in their effects array
+     - STRONGLY prefer Sativa > Sativa-Hybrid > Hybrid > Indica-Hybrid
+   - If user requests "sleepy/sedated/relaxing/relaxed/nighttime/downer" effects:
+     - EXCLUDE pure Sativa products UNLESS they have at least 2 matching relaxing effects in their effects array
+     - STRONGLY prefer Indica > Indica-Hybrid > Hybrid > Sativa-Hybrid
+
    - CRITICAL EXCLUSION: If user requests stimulating effects (energized, uplifting, focused, creative) and a product has ONLY relaxing effects (sleepy, sedated, calm, relaxed) with NO stimulating effects, EXCLUDE it from ranking entirely
    - CRITICAL EXCLUSION: If user requests relaxing effects (sleepy, calm, relaxed) and a product has ONLY stimulating effects with NO relaxing effects, EXCLUDE it from ranking entirely
    - Only include products that have AT LEAST ONE effect matching or compatible with the user's request
@@ -1273,7 +1425,9 @@ You are a Master Budtender with deep domain expertise. Your goal is to rank cann
 
 4. **Type Match** (Sativa/Indica/Hybrid):
    - Rank products matching requested type highest
-   - If effects suggest a type (energized → Sativa, sleepy → Indica), prioritize that type even if not explicitly mentioned
+   - If effects suggest a type (energized/uplifting/focused/creative → Sativa, sleepy/relaxed/calm → Indica), prioritize that type even if not explicitly mentioned
+   - 🚨 CRITICAL: For "most uplifting energized" queries, ONLY return Sativa/Sativa-Hybrid products (EXCLUDE Indica entirely)
+   - 🚨 CRITICAL: For "most sedating sleepy" queries, ONLY return Indica/Indica-Hybrid products (EXCLUDE Sativa entirely)
 
 5. **THC/Potency Match**:
    - Consider THC percentage or mg ranges when specified

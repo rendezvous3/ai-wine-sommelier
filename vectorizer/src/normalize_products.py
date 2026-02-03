@@ -4,8 +4,8 @@ from typing import Dict, Any, Optional, List
 
 # Load schema at module level (can be overridden)
 try:
-    with open("schema.json", "r") as f:
-        schema = json.load(f)
+with open("schema.json", "r") as f:
+    schema = json.load(f)
 except FileNotFoundError:
     schema = {}
 
@@ -1217,7 +1217,7 @@ def normalize_product(product: Dict[str, Any], brands_lookup: Optional[Dict[str,
         product["category"] = normalize_category(product["category"])
     if "type" in product and product["type"]:
         product["type"] = normalize_strain_type(product["type"])
-
+    
     # Step 2: Assign subcategory (already returns lowercase kebab-case)
     subcategory = assign_subcategory(product, schema_to_use)
     if subcategory:
