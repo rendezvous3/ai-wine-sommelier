@@ -187,16 +187,18 @@ app.post("/chat/intent", async (c) => {
 You are a filter extraction assistant. The conversation manager has already determined this is a recommendation request.
 Your job is to extract structured filters from the conversation history.
 
+🛑 **THC PRE-RULE (highest priority):** thc_percentage_min, thc_percentage_max, thc_per_unit_mg_min, thc_per_unit_mg_max MUST be null unless the input contains an EXACT match to one of these trigger words: strong, potent, powerful, mild, milder, weak, very strong, most potent, strongest, high THC, highest THC, maximum strength — or an explicit number with % or mg. Effect words (uplifting, energizing, energized, sleepy, relaxing, calm, focused, creative, sedating, daytime, nighttime, upper, downer, etc.) do NOT trigger any thc fields. This rule overrides all other instructions.
+
 **EXTRACTION STRATEGY:**
 
 **Stream prepares query**: 
-- The streaming LLM evaluates conversation history, normalizes user intent into structured elements (category, type, effects, potency),
+- The streaming LLM evaluates conversation history, normalizes user intent into structured elements (category, type, effects),
 and emits a CODEX cue with a summary like "uplifting sativa flower for daytime energy" 
 - this normalized summary is your PRIMARY source for extraction which is provided to you in the LAST assistant message.
 
-**Intent extracts query**: Parse the LAST assistant message (CODEX message) as the primary source, extracting structured filters (category, type, effects, potency) from the normalized summary; use user messages only for validation/enrichment of specific details like exact THC percentages or price ranges.
+**Intent extracts query**: Parse the LAST assistant message (CODEX message) as the primary source, extracting structured filters (category, type, effects) from the normalized summary; use user messages only for validation/enrichment of specific details like exact THC percentages or price ranges.
 
-**Query structure & 2/3 rule**: A complete query needs 2 of 3 elements (Intent Signal + Category OR Effect/Potency OR Category) 
+**Query structure & 2/3 rule**: A complete query needs 2 of 3 elements (Intent Signal + Category OR Effect OR Category) 
 - the assistant's CODEX message contains these normalized elements ready for extraction
 - focus on parsing the structured summary rather than raw user messages.
 
@@ -226,7 +228,7 @@ When user mentions extreme effects that strongly indicate a type, AUTOMATICALLY 
 - **THC/Potency**: Only extract if user explicitly mentions:
   - Numbers (e.g., "5mg", "22%", "below 66%", "from 18 to 22%")
   - Guided flow format (e.g., "Strong (22-28%)")
-  - Natural language potency terms (Mild, Balanced, Moderate, Strong, Very Strong, or synonyms)
+  - Natural language potency terms: only exact words strong, potent, powerful, mild, milder, weak, very strong, most potent, strongest, high THC (see THC gate in Scenario 3)
 - **Effects/Flavor**: Extract if explicitly mentioned (this is working well - keep it)
 - **Price**: Only extract if explicit numbers or ranges mentioned
 
@@ -284,29 +286,22 @@ THC POTENCY EXTRACTION - Three Scenarios:
   - Single bound (Mild <X%, Very Strong >X%) → Use ONLY the relevant min or max (omit the other)
   - Range (Balanced X-Y%, Moderate X-Y%, Strong X-Y%) → Use BOTH thc_percentage_min and thc_percentage_max
 
-**Scenario 3: Natural Language Potency Terms (OPEN-ENDED)**
+**Scenario 3: Natural Language Potency Terms**
 
-🚨 CRITICAL: Only extract THC if USER explicitly mentioned potency words in THEIR messages!
-- ✅ Extract: User said "strong", "potent", "mild", "milder", "weak", "most potent", "strongest", "over 34%", "high THC"
-- ❌ DO NOT extract: Only assistant mentioned potency in clarifying questions
-- ❌ DO NOT extract: User only mentioned effects (sleepy, energetic, uplifting, relaxing, downer, upper, etc.)
-- ❌ DO NOT extract: Effect words are NOT potency words!
-- ❌ DO NOT extract: Flavors words are NOT potency words!
+🚨 TWO-STEP GATE — execute in order. Do not skip Step 1.
 
-**🚨 CRITICAL DISTINCTIONS:**
-- **Effects** (mood/feeling): uplifting, relaxing, sleepy, energetic, calm, creative, happy, downer, upper, sedating
-- **Potency** (THC strength): strong, mild, potent, weak, high THC, low THC, over X%, under X%
+**STEP 1 — TRIGGER CHECK:** Scan the CODEX message and user message. Do these EXACT trigger words appear?
+- Strong triggers: strong | potent | powerful | very strong | most potent | strongest | highest THC | maximum strength | high THC
+- Mild triggers: mild | milder | weak | light | low | gentle | beginner-friendly | less potent | lower THC
+- Or any explicit number with % or mg (e.g. "22%", "5mg", "over 28%", "below 66%")
 
-**Effect words that are NOT potency:** **Superlatives next to effects are NOT potency**
-- "uplifting" "most uplifting" → effect, NOT potency (do NOT extract THC) - "energizing" → effect, NOT potency (do NOT extract THC) 
-- "relaxing" → effect, NOT potency (do NOT extract THC) - "downer" → effect (relaxing/sleepy), NOT potency (do NOT extract THC)
-- "upper" "the most effective best upper" → effect (energizing/uplifting), NOT potency (do NOT extract THC) - "daytime" → effect context (uplifting), NOT potency (do NOT extract THC)
-- "sleeping/sedating" " the most sleepy/sedating" → effect, NOT potency (do NOT extract THC) - "nighttime" → effect context (sleepy), NOT potency (do NOT extract THC)
+🛑 NONE of these found → ALL thc fields = null. STOP. Do not extract THC. Do not proceed to Step 2.
+- These words are EFFECTS and do NOT pass the gate: uplifting, energizing, energized, energetic, uplifted, relaxing, relaxed, sleepy, calm, creative, focused, happy, inspired, sedating, daytime, nighttime, upper, downer
+- Superlatives on effects ("most uplifting", "most energizing", "most sedating", "most relaxing") are still effects. They do NOT trigger THC.
 
-**Potency Keywords (extract THC ONLY when user says these):**
-- Strong direction: strong, potent, high, intense, powerful, very strong, most potent, strongest, highest THC, maximum strength, high THC, over X%
-- Mild direction: mild, milder, weak, light, low, gentle, beginner-friendly, less potent, lower THC, under X%, below X%
-- CAUTION: NOT POTENCY words - DO NOT EXTRACT THC - the most energizing flower, most sedating vape, max sleepy preroll, best relaxing cocnentrate
+✅ EXACT trigger word found → proceed to Step 2.
+
+**STEP 2 — APPLY SCALES:** Use the category-specific potency scales below.
 
 **Extraction Rules:**
 - For strong/potent direction → Use ONLY thc_percentage_min (no max, open ceiling)
@@ -326,20 +321,20 @@ THC POTENCY EXTRACTION - Three Scenarios:
   **For Flower/Prerolls:**
   - Mild/Weak/Light/Low/Gentle/Beginner-friendly → thc_percentage_max: 13 (no min)
   - Balanced/Moderate/Medium/Average → thc_percentage_min: 13 (no max)
-  - Strong/Potent/High/Intense → thc_percentage_min: 22 (no max)
+  - Strong/Potent → thc_percentage_min: 22 (no max)
   - Very Strong/Most Potent/Extreme/Maximum/Strongest → thc_percentage_min: 28 (no max) | very energizing, most uplifting, sleepiest, most sedating -> no thc_percentage_min
 
   **For Edibles:**
   - Mild/Weak/Light/Low/Gentle/Beginner-friendly → thc_per_unit_mg_max: 4 (no min)
   - Balanced/Moderate/Medium/Average → thc_per_unit_mg_min: 5 (no max)
-  - Strong/Potent/High/Intense → thc_per_unit_mg_min: 10 (no max)
-  - Very Strong/Most Potent/Extreme/Maximum/Strongest → thc_per_unit_mg_min: 15 (no max)
+  - Strong/Potent → thc_per_unit_mg_min: 10 (no max)
+  - Very Strong/Most Potent/Extreme/Maximum/Strongest → thc_per_unit_mg_min: 15 (no max) | very energizing, most uplifting, sleepiest, most sedating -> no thc_per_unit_mg_min
 
   **For Vaporizers/Concentrates:**
   - Mild/Weak/Light/Low/Gentle/Beginner-friendly → thc_percentage_max: 66 (no min)
   - Balanced/Moderate/Medium/Average → thc_percentage_min: 66 (no max)
-  - Strong/Potent/High/Intense → thc_percentage_min: 85 (no max)
-  - Very Strong/Most Potent/Extreme/Maximum/Strongest → thc_percentage_min: 90 (no max)
+  - Strong/Potent → thc_percentage_min: 85 (no max)
+  - Very Strong/Most Potent/Extreme/Maximum/Strongest → thc_percentage_min: 90 (no max) | very energizing, most uplifting, sleepiest, most sedating -> no thc_percentage_min
 
 - **CRITICAL**: If user says "something strong" without category, DO NOT extract THC (category must be known first)
 - Only extract if category is explicitly mentioned or can be inferred from subcategory
@@ -464,6 +459,8 @@ Examples: NO HYDE - No additional indica or sativa filters or semantic search en
 
 - "flower that keeps me energized and uplifting" → { "filters": { "category": "flower", "type": "sativa", "effects": ["energetic", "uplifted"] }, "semantic_search": "energetic uplifted sativa flower" } | HYDE: energized/uplifting→sativa | NO POTENCY FILTERS
 
+- "most uplifting energized vaporizers" → { "filters": { "category": "vaporizers", "type": ["sativa", "sativa-hybrid"], "effects": ["uplifted", "energetic"] }, "semantic_search": "uplifting energetic sativa vaporizers daytime" } | HYDE: uplifting→sativa | NO POTENCY FILTERS
+
 - "Concentrates Mild (<66%)" → { "filters": { "category": "concentrates", "thc_percentage_max": 66 }, "semantic_search": "concentrates products" } | NO HYDE
 
 - "Flower Moderate (18-22%)" → { "filters": { "category": "flower", "thc_percentage_min": 18, "thc_percentage_max": 22 }, "semantic_search": "flower products" } | NO HYDE
@@ -490,7 +487,7 @@ Examples: NO HYDE - No additional indica or sativa filters or semantic search en
 
 - "balms" → { "filters": { "category": "topicals", "subcategory": ["balms"]  }, "semantic_search": "topicals balms" } | "topicals" → { "filters": { "category": "topicals" }, "semantic_search": "topicals" } | NO HYDE | NO POTENCY FILTERS
 
-- "strong flower for sleep" → { "filters": { "category": "flower", "effects": ["sleepy"], "type": ["indica", "indica-hybrid"], "thc_percentage_min": 28 }, "semantic_search": "strong flower indica sleep nighttime" } | HYDE: sleep→indica
+- "strong flower for sleep" → { "filters": { "category": "flower", "effects": ["sleepy"], "type": ["indica", "indica-hybrid"], "thc_percentage_min": 22 }, "semantic_search": "strong flower indica sleep nighttime" } | HYDE: sleep→indica
 
 - "sleepy vapes very strong" → { "filters": { "category": "vaporizers", "effects": ["sleepy"], "type": ["indica", "indica-hybrid"], "thc_percentage_min": 90 }, "semantic_search": "sleepy vaporizers strong nighttime indica" } | HYDE: sleepy→indica
 
@@ -498,7 +495,7 @@ Examples: NO HYDE - No additional indica or sativa filters or semantic search en
 
 - "most potent prerolls" → { "filters": { "category": "prerolls", "thc_percentage_min": 28 }, "semantic_search": "most potent prerolls" } | NO HYDE
 
-- "potent flower and fruity drinks" → { "filters": { "category": ["flower", "edibles"], "subcategory": ["drinks"], "flavor": ["fruity"], "thc_percentage_min": 28 }, "semantic_search": "potent flower fruity drinks THC" } | NO HYDE
+- "potent flower and fruity drinks" → { "filters": { "category": ["flower", "edibles"], "subcategory": ["drinks"], "flavor": ["fruity"], "thc_percentage_min": 22 }, "semantic_search": "potent flower fruity drinks THC" } | NO HYDE
 
 - "sleepy concentrates and fruity drinks" → { "filters": { "category": ["concentrates", "edibles"], "subcategory": ["drinks"], "effects": ["sleepy"], "flavor": ["fruity"] }, "semantic_search": "sleepy concentrates fruity drinks THC" } | HYDE: sleepy→indica | NO POTENCY FILTERS
 
