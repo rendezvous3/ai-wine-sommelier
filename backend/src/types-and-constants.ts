@@ -29,7 +29,7 @@ const GROQ_MODELS = {
 } as const;
 
 const CEREBRAS_MODELS = {
-  INTENT: "llama3.1-8b",
+  INTENT: "llama-3.3-70b",
   STREAM: "llama-3.3-70b",
   RECOMMEND: "qwen-3-32b",
 } as const;
