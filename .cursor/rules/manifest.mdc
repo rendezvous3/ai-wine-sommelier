@@ -15,7 +15,7 @@ Production-grade embeddable AI shopping assistant widget for cannabis dispensari
 - **Backend**: Hono, Cloudflare Workers, LangChain → Serverless API
 - **Vector DB**: Cloudflare Vectorize (1024-dim, cosine similarity)
 - **Embeddings**: Cloudflare Workers AI (`@cf/baai/bge-large-en-v1.5`)
-- **LLM**: Groq (Llama 3.3 70B for recommendations, 3.1 8B for streaming)
+- **LLM**: Groq Llama 3.3 70B (stream) / Cerebras qwen-3-32b (intent, rerank)
 - **Persistence**: localStorage (client-side conversation state)
 
 ## API Execution Flow
@@ -25,10 +25,11 @@ Production-grade embeddable AI shopping assistant widget for cannabis dispensari
 **User Query** → `/chat/intent` → **UI Decision** → `/chat/recommendations` OR `/chat/stream`
 
 **1. Intent Classification** (`POST /chat/intent`):
-- Analyzes last 7 messages
+- Triggered by CODEX cue from stream (not polled on every message)
+- Parses CODEX summary (strict field-order: `[Potency] [Effects] [Type] [Category] [Subcategory] [, Flavor]`)
+- Applies HYDE type inference (effect words → strain type) and Two-Step Potency Gate (potency words → THC range, scoped by category)
 - Classifies: `recommendation` | `product-question` | `general`
-- Extracts structured filters: `category`, `type`, `effects`, `thc_percentage_min/max`, etc.
-- Generates semantic search query (3-5 effect keywords)
+- Extracts structured filters: `category`, `type`, `effects`, `thc_percentage_min/max`, `thc_per_unit_mg_min/max`, etc.
 - Returns: `{ intent, filters, semantic_search, product_query }`
 
 **2. UI Decision**:
@@ -39,13 +40,30 @@ Production-grade embeddable AI shopping assistant widget for cannabis dispensari
 **3. Hybrid RAG** (`POST /chat/recommendations`):
 - **Metadata Filtering**: category, type, subcategory, brand, price, thc_percentage, inStock
 - **Semantic Search**: Embedding similarity with semantic_search query
-- **LLM Re-ranking**: Groq evaluates top 10 for effects match, contradictions, relevance
+- **LLM Re-ranking**: Cerebras qwen-3-32b evaluates top 10 for effects match, contradictions, relevance
 - Returns: Top 3-5 ranked products
 
 **4. Stream** (`POST /chat/stream`):
-- Streams conversation with Maitre D role
+- Streams conversation with Maitre D role (Groq Llama 3.3 70B)
 - Handles general questions, product context, clarifications
 - Uses SSE for zero first-token cutoffs
+- Emits CODEX cues when recommendation intent detected (trigger phrase + structured summary)
+
+### CODEX + HYDE + Potency Gate
+
+**CODEX Cue System**: Stream (70B) emits a trigger phrase + structured summary when it detects a complete recommendation query. Frontend detects the phrase and fires `/chat/intent`. The summary follows strict field-order — only mentioned fields included, type never inferred in stream.
+
+**Summary format:** `[Potency word] [Effect words] [Type] [Category] [Subcategory] [, Flavor flavor]`
+
+**HYDE Type Inference** (intent model only): Effect words automatically add strain type:
+- Sativa effects (`uplifting`, `energizing`, `creative`, `focused`, `clear-mind`, `inspired`, `alert`, `daytime`) → `type: ["sativa","sativa-hybrid"]`
+- Indica effects (`relaxing`, `sleepy`, `calm`, `heavy`, `sedative`) → `type: ["indica","indica-hybrid"]`
+- Potency words (`strong`, `potent`, `mild`) are explicitly excluded — they never trigger type inference
+
+**Two-Step Potency Gate** (intent model only):
+- **Step 1:** Exact potency word or number must be present. Effect words and superlatives on effects ("most uplifting") do NOT pass.
+- **Step 2:** Category-specific scale maps word to THC range. No category = no THC filter.
+- The two gates are orthogonal: `"strong sleepy indica"` triggers both; `"very potent prerolls"` triggers only potency; `"most uplifting vapes"` triggers only HYDE.
 
 ## Schema System
 
@@ -155,7 +173,12 @@ python manage_indexes.py --list
 - `index.ts` - API routes (intent, stream, recommendations, product-lookup)
 - `schema.ts` / `schema.json` - Canonical categories, subcategories, potency scales
 - `utils.ts` - Filter validation, Vectorize query builder
-- `prompt.ts` - LLM prompts (Maitre D, re-ranking)
+- `prompt.ts` - Thin dispatcher (routes to prompts/)
+- `prompts/stream.ts` - Stream prompt (Groq 70B, Maitre D + CODEX cues)
+- `prompts/intentWithCue.ts` - Intent prompt (Cerebras 32B, HYDE + Potency Gate)
+- `prompts/intentNoCue.ts` - Intent backup (verbatim rollback)
+- `prompts/rerank.ts` - Re-ranking prompt (Cerebras 32B)
+- `prompts/recommend.ts` - Legacy recommendation prompts (reference)
 
 **Frontend** (`client/src/`):
 - `Widget.svelte` - Main widget

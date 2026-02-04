@@ -377,9 +377,10 @@ The vectorizer transforms raw Dutchie API data into vector-ready documents throu
 - **Technology**: TypeScript + Hono + Cloudflare Workers
 - **Purpose**: Serverless API handling all business logic
 - **Routes**:
-  - `/chat/intent`: Structured intent extractor that classifies intent and extracts filters + semantic search query
-  - `/chat/stream`: Streaming conversational agent (Maitre D role) using Groq Llama 3.3 70B
-  - `/chat/recommendations`: Hybrid RAG-powered recommendation engine using Cloudflare Vectorize metadata filtering + semantic search + LLM re-ranking
+  - `/chat/intent`: Structured intent extractor (Cerebras qwen-3-32b) — classifies intent, extracts filters via HYDE + Potency Gate
+  - `/chat/stream`: Streaming conversational agent (Maitre D, Groq Llama 3.3 70B) — emits CODEX cues to trigger intent
+  - `/chat/recommendations`: Hybrid RAG recommendation engine — Vectorize metadata filtering + semantic search + LLM re-ranking (Cerebras qwen-3-32b)
+  - `/chat/product-lookup`: Semantic product search for product-question intent (confidence-based)
 - **Key Features**:
   - Zero first-token cutoffs (robust buffered SSE parsing)
   - Full context memory (remembers and references past recommendations)
@@ -388,6 +389,18 @@ The vectorizer transforms raw Dutchie API data into vector-ready documents throu
   - Hybrid filtering approach: metadata filters for exact matches, semantic search + re-ranking for nuanced fields
   - CORS enabled for widget embedding
 - **Status**: Production-ready, no streaming bugs, full context awareness, metadata filtering operational
+
+#### Prompt Architecture (`backend/src/prompts/`)
+
+All LLM prompts live in dedicated files under `backend/src/prompts/`. `prompt.ts` is a thin dispatcher. `index.ts` imports only what it needs.
+
+| File | Export | Model | Role |
+|------|--------|-------|------|
+| `stream.ts` | `generateStreamPrompt` | Groq Llama 3.3 70B | Conversational stream + CODEX cues |
+| `intentWithCue.ts` | `generateIntentWithCuePrompt` | Cerebras qwen-3-32b | Active intent extraction (HYDE, Potency Gate, all bug fixes) |
+| `intentNoCue.ts` | `generateIntentNoCuePrompt` | — | Verbatim backup / rollback of original intent prompt |
+| `rerank.ts` | `generateReRankPrompt` | Cerebras qwen-3-32b | Product re-ranking |
+| `recommend.ts` | `generateRecommendPromptV1/V2` | — | Legacy recommendation prompts (reference) |
 
 #### API Endpoint Details
 
@@ -413,6 +426,8 @@ The vectorizer transforms raw Dutchie API data into vector-ready documents throu
     "type": "indica" | "sativa" | "hybrid" | null,
     "thc_percentage_min": number | null,
     "thc_percentage_max": number | null,
+    "thc_per_unit_mg_min": number | null,
+    "thc_per_unit_mg_max": number | null,
     "subcategory": string | null,
     "effects": string[] | null,
     "flavor": string[] | null,
@@ -431,10 +446,11 @@ The vectorizer transforms raw Dutchie API data into vector-ready documents throu
 - `"general"` - General questions about store, hours, policies (streams directly)
 
 **Key Features**:
-- Uses last 7 messages for context
-- Extracts structured filters from conversation history
-- Generates semantic search query for nuanced preferences (mood, effects, flavors)
-- Returns filters even when intent is "recommendation" (used by `/recommendations` endpoint)
+- Triggered by CODEX cue detection from stream — only fires when stream emits a recommendation-intent phrase
+- Parses CODEX summary (strict field-order format) as primary extraction source
+- Applies HYDE type inference: effect words automatically add strain type to filters
+- Two-Step Potency Gate: potency words trigger THC range only when a category is present; effect words and effect superlatives never trigger THC
+- Extracts structured filters including category, type, effects, THC ranges, subcategory, flavor, brand, price
 - Robust JSON parsing with markdown stripping and fallback handling
 
 ##### `/chat/product-lookup` - Product Semantic Search
@@ -489,7 +505,7 @@ The vectorizer transforms raw Dutchie API data into vector-ready documents throu
 
 2. **Semantic Search** (Vectorize): Uses `semantic_search` query (or falls back to `user_message`) to find semantically similar products based on embeddings.
 
-3. **LLM Re-ranking**: Takes top 10 search results and re-ranks them using Groq Llama 3.3 70B for best overall match. The re-ranker evaluates:
+3. **LLM Re-ranking**: Takes top 10 search results and re-ranks them using Cerebras qwen-3-32b for best overall match. The re-ranker evaluates:
    - Overall semantic match quality with user request
    - Product category, type, subcategory alignment
    - Product description relevance
@@ -545,9 +561,15 @@ The vectorizer transforms raw Dutchie API data into vector-ready documents throu
 - When `clarificationContext` is provided: LLM asks the follow-up question naturally
 - When neither is provided: Normal general conversation flow
 
+**CODEX Cue System**: When the stream detects a complete recommendation query, it emits a trigger phrase ("I completely understand what you're looking for...") followed by a structured summary. The frontend detects this phrase and fires `/chat/intent`. The summary follows a strict field-order format:
+
+`[Potency word] [Effect words] [Type] [Category] [Subcategory] [, Flavor flavor]`
+
+Only fields the user actually mentioned are included. Type is never inferred in the stream — that is HYDE's job in intent. This makes the summary deterministic and parseable left-to-right by the intent model.
+
 #### RAG Architecture Flow & Debugging
 
-**Flow:** `/intent` → UI → `/recommendations` → `validateAndExpandFilters` → Vector Search → Re-ranker → Results
+**Flow:** `/chat/stream` → CODEX cue → `/chat/intent` (HYDE + Potency Gate) → UI → `/chat/recommendations` → `validateAndExpandFilters` → Vector Search → Re-ranker → Results
 
 **Practical Flow Example:**
 
@@ -689,6 +711,34 @@ The system uses **category-specific THC potency scales** to standardize THC perc
 
 **Conversion Logic**: The `transformSelectionsToMetadata` function in `Svelte-Component-Library/src/lib/custom/GuidedFlow/utils.ts` uses the `potencyToTHCRange` utility from `thcScales.ts` to convert potency selections to min/max ranges based on the selected category.
 
+#### HYDE Type Inference & Two-Step Potency Gate
+
+The intent model applies two independent, orthogonal systems when extracting filters:
+
+**HYDE (Hypothetical Document Expansion) — Type Inference**
+
+Effect words automatically infer strain type. This runs ONLY on effect words:
+- Sativa-indicating: `uplifting`, `energizing`, `energized`, `creative`, `focused`, `clear-mind`, `inspired`, `alert`, `daytime` → adds `type: ["sativa", "sativa-hybrid"]`
+- Indica-indicating: `relaxing`, `sleepy`, `calm`, `sedative`, `heavy`, `couch-lock` → adds `type: ["indica", "indica-hybrid"]`
+
+**Potency words are explicitly excluded from HYDE.** "Very potent prerolls" does NOT trigger type inference — `potent` is a potency descriptor, not an effect. An explicit exclusion block in the prompt prevents this hallucination.
+
+**Two-Step Potency Gate — THC Range Extraction**
+
+Potency words trigger THC range filters, but only when a category is present to scope the scale:
+- **Step 1 (Hard Trigger):** Exact potency words (`strong`, `potent`, `very strong`, `most potent`, `mild`, etc.) or numeric values (`28%`, `5mg`) must be present. Effect words like "uplifting" and superlatives on effects ("most uplifting") do NOT pass this gate.
+- **Step 2 (Scale Application):** Category-specific potency scale maps the word to min/max values. `"strong flower"` → `thc_percentage_min: 22`. `"strong edibles"` → `thc_per_unit_mg_min: 10`. Without a category, no THC filter is emitted.
+
+**The two gates are orthogonal:**
+
+| Query | HYDE fires? | Potency Gate fires? | Result |
+|-------|-------------|---------------------|--------|
+| `strong sleepy indica concentrates` | Yes (sleepy) | Yes (strong) | type + THC + effects |
+| `very potent prerolls` | No | Yes (very potent) | THC only |
+| `most uplifting vapes` | Yes (uplifting) | No (superlative on effect) | type + effects, no THC |
+| `energizing flower` | Yes (energizing) | No | type + effects, no THC |
+| `5mg gummies` | No | Yes (5mg) | THC only |
+
 ### 3. **Frontend Widget (`client/src/Widget.svelte`)**
 - **Technology**: Svelte 5 (runes) + TypeScript + Vite
 - **Purpose**: Lightweight, embeddable chat widget
@@ -780,7 +830,7 @@ When the intent is `"product-question"`, the widget uses a two-phase lookup:
 | Backend         | Hono + Cloudflare Workers        | Edge-fast, free tier, seamless with Vectorize |
 | Vector DB       | Cloudflare Vectorize             | Zero-ops, integrated with Workers AI |
 | Embeddings      | Cloudflare Workers AI            | Free, fast, no external calls |
-| LLM             | Groq (Llama 3.3 70B + 8B)         | Best speed/quality for streaming |
+| LLM             | Groq Llama 3.3 70B (stream) / Cerebras qwen-3-32b (intent, rerank) | Multi-provider: streaming speed + structured extraction reliability |
 | Persistence     | localStorage                     | Simple, private, offline-safe |
 
 ## Development Rules
