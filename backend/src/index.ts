@@ -254,6 +254,7 @@ SUBCATEGORY → Category Mapping:
 - important for infused, if infused prerolls are mentioned add both ["infused-prerolls", "infused-preroll-packs"]
 - flower subcategories (premium-flower, whole-flower, small-buds, etc.) → category: "flower"
 - concentrates subcategories (badder, hash, live-resin, live-rosin, tinctures) → category: "concentrates"
+- cbd subcategories (default) → category: "cbd"
 - accessories subcategories (batteries, glassware, grinders, lighters, papers-rolling-supplies) → category: "accessories"
 - topicals subcategories (balms) → category: "topicals"
 
@@ -268,8 +269,7 @@ THC POTENCY EXTRACTION - Three Scenarios:
 - User mentions specific numbers: "5mg", "22%", "below 66%", "above 28%", "from 18 to 22%"
 - For EXACT values ("5mg", "10mg THC", "22% THC"):
   - Use BOTH min AND max with the SAME value
-  - "5mg edibles" → thc_per_unit_mg_min: 5, thc_per_unit_mg_max: 5
-  - "22% flower" → thc_percentage_min: 22, thc_percentage_max: 22
+  - "5mg edibles" → thc_per_unit_mg_min: 5, thc_per_unit_mg_max: 5 | "22% flower" → thc_percentage_min: 22, thc_percentage_max: 22
 - For ranges ("from 18 to 22%", "between 5 and 10mg"):
   - Use different min and max values
 - For bounds ("below 66%", "above 28%", "at least 10mg"):
@@ -297,19 +297,16 @@ THC POTENCY EXTRACTION - Three Scenarios:
 - **Effects** (mood/feeling): uplifting, relaxing, sleepy, energetic, calm, creative, happy, downer, upper, sedating
 - **Potency** (THC strength): strong, mild, potent, weak, high THC, low THC, over X%, under X%
 
-**Effect words that are NOT potency:**
-- "uplifting" → effect, NOT potency (do NOT extract THC)
-- "energizing" → effect, NOT potency (do NOT extract THC)
-- "relaxing" → effect, NOT potency (do NOT extract THC)
-- "downer" → effect (relaxing/sleepy), NOT potency (do NOT extract THC)
-- "upper" → effect (energizing/uplifting), NOT potency (do NOT extract THC)
-- "sedating" → effect, NOT potency (do NOT extract THC)
-- "daytime" → effect context (uplifting), NOT potency (do NOT extract THC)
-- "nighttime" → effect context (sleepy), NOT potency (do NOT extract THC)
+**Effect words that are NOT potency:** **Superlatives next to effects are NOT potency**
+- "uplifting" "most uplifting" → effect, NOT potency (do NOT extract THC) - "energizing" → effect, NOT potency (do NOT extract THC) 
+- "relaxing" → effect, NOT potency (do NOT extract THC) - "downer" → effect (relaxing/sleepy), NOT potency (do NOT extract THC)
+- "upper" "the most effective best upper" → effect (energizing/uplifting), NOT potency (do NOT extract THC) - "daytime" → effect context (uplifting), NOT potency (do NOT extract THC)
+- "sleeping/sedating" " the most sleepy/sedating" → effect, NOT potency (do NOT extract THC) - "nighttime" → effect context (sleepy), NOT potency (do NOT extract THC)
 
 **Potency Keywords (extract THC ONLY when user says these):**
 - Strong direction: strong, potent, high, intense, powerful, very strong, most potent, strongest, highest THC, maximum strength, high THC, over X%
 - Mild direction: mild, milder, weak, light, low, gentle, beginner-friendly, less potent, lower THC, under X%, below X%
+- CAUTION: NOT POTENCY words - DO NOT EXTRACT THC - the most energizing flower, most sedating vape, max sleepy preroll, best relaxing cocnentrate
 
 **Extraction Rules:**
 - For strong/potent direction → Use ONLY thc_percentage_min (no max, open ceiling)
@@ -318,12 +315,11 @@ THC POTENCY EXTRACTION - Three Scenarios:
   1. Guided Flow format with range: "Strong (85-90%)", "Moderate (18-22%)"
   2. Explicit numeric range: "from 72 to 95%", "between 75 and 90"
 
-**SUPERLATIVES ("most potent", "strongest", "highest THC", "maximum strength"):**
-- ALWAYS use ONLY minimum, NEVER maximum
-- "most potent vapes" → thc_percentage_min: 90 (NO max)
-- "strongest flower" → thc_percentage_min: 28 (NO max)
-- "What are your most potent vapes?" → thc_percentage_min: 90
-- Superlatives imply "the highest available" - no upper bound
+**POTENCY SUPERLATIVES ("most potent", "strongest", "highest THC", "maximum strength"):** 
+- ALWAYS use ONLY minimum, NEVER maximum | **CRITICA Difference** Do not apply potency instructions to superlatives related to extreme effects unless specifically requested.
+- "most potent vapes" → thc_percentage_min: 90 (NO max) | "strongest flower" → thc_percentage_min: 28 (NO max) | "most energizing flower" -> NO thc_percentage_min
+- "What are your most potent vapes?" → thc_percentage_min: 90 | Superlatives imply "the highest available" - no upper bound | "the most uplifting vapes" | NO THC FILTERS
+- "The most sleepy sedating preroll" → no thc_percentage_min - "The STRONGEST most sleepy sedating prerolls" -> thc_percentage_min: 28 | Superlatives imply "the highest available" - no upper bound
 
 **Category-Specific Potency Scales:**
 
@@ -331,7 +327,7 @@ THC POTENCY EXTRACTION - Three Scenarios:
   - Mild/Weak/Light/Low/Gentle/Beginner-friendly → thc_percentage_max: 13 (no min)
   - Balanced/Moderate/Medium/Average → thc_percentage_min: 13 (no max)
   - Strong/Potent/High/Intense → thc_percentage_min: 22 (no max)
-  - Very Strong/Most Potent/Extreme/Maximum/Strongest → thc_percentage_min: 28 (no max)
+  - Very Strong/Most Potent/Extreme/Maximum/Strongest → thc_percentage_min: 28 (no max) | very energizing, most uplifting, sleepiest, most sedating -> no thc_percentage_min
 
   **For Edibles:**
   - Mild/Weak/Light/Low/Gentle/Beginner-friendly → thc_per_unit_mg_max: 4 (no min)
@@ -349,10 +345,8 @@ THC POTENCY EXTRACTION - Three Scenarios:
 - Only extract if category is explicitly mentioned or can be inferred from subcategory
 
 **Examples:**
-- "What are your most potent vapes?" → category: "vaporizers", thc_percentage_min: 90
-- "Strong flower" → category: "flower", thc_percentage_min: 22
-- "Any flower you can recommend?" → category: "flower", NO THC (user didn't mention potency!)
-- "sleepy vapes very strong" → category: "vaporizers", effects: ["sleepy"], thc_percentage_min: 90
+- "What are your most potent vapes?" → category: "vaporizers", thc_percentage_min: 90 - "Strong flower" → category: "flower", thc_percentage_min: 22
+- "Any flower you can recommend?" → category: "flower", NO THC (user didn't mention potency!) - "sleepy vapes very strong" → category: "vaporizers", effects: ["sleepy"], thc_percentage_min: 90
 
 When extracting THC preferences:
 - If category is "flower" or "prerolls", use Flower/Prerolls scale with thc_percentage_min/max
@@ -403,10 +397,7 @@ When extracting THC preferences:
 **Rule 5: Subcategory can be single value or array**
 - "gummies" → ["gummies"]. "gummies and chocolates" → ["gummies", "chocolates"]
 
-**Rule 6: CRITICAL DISTINCTION - live-resin vs live-rosin**
-- "live resin" (with 'e') ≠ "live rosin" (with 'o')
-- These are completely different extraction methods
-- Pay close attention to spelling
+**Rule 6: CRITICAL DISTINCTION - live-resin vs live-rosin** - "live resin" (with 'e') ≠ "live rosin" (with 'o') - These are completely different extraction methods - Pay close attention to spelling
 
 **Examples:**
 - "fruity drinks with thc" → category: "edibles", subcategory: ["drinks"], flavor: ["fruity"]
@@ -457,11 +448,8 @@ Semantic Search Generation Guidelines:
 - We want to enhance semantic search query when SUPERLATIVES or Extreme effects are mentioned.
 - Extreme effects are: uplfiting, energizing -> Sativa, sleepy, sedated, relaxed -> Indica.
 - This ensures vector search finds products matching the intended strain type
-- Examples:
-  - "uplifting flower" → semantic_search: "uplifting energetic sativa flower"
-  - "energizing edibles" → semantic_search: "energizing energetic uplifting sativa daytime"
-  - "sleepy vapes" → semantic_search: "sleepy sedated indica nighttime bedtime"
-  - "partying pre rolls" → semantic_search: "partying social setting sativa energetic uplifting pre rolls"
+- Examples: - "uplifting flower" → semantic_search: "uplifting energetic sativa flower" - "energizing edibles" → semantic_search: "energizing energetic uplifting sativa daytime"
+  - "sleepy vapes" → semantic_search: "sleepy sedated indica nighttime bedtime" - "partying pre rolls" → semantic_search: "partying social setting sativa energetic uplifting pre rolls"
 - Good: "energetic uplifting focused creative sativa daytime" (effect-vocabulary focused + type)
 - Bad: "energizing flower edibles" (category-blended, doesn't match embeddings)
 Note: In other instances where SUPERLATIVES or Extreme effects are not mentioned, do not hyde the semantic search nor add filters.
@@ -472,7 +460,7 @@ Examples: NO HYDE - No additional indica or sativa filters or semantic search en
 
 - "Indica hybrid" → { "filters": { "type": "indica-hybrid" }, "semantic_search": "indica hybrid" } | NO HYDE | NO POTENCY FILTERS
 
-- "energizing flower and edibles" → { "filters": { "category": ["flower", "edibles"], "effects": ["energetic"] }, "semantic_search": "energetic uplifting focused creative sativa daytime boost" } | HYDE: energizing→sativa
+- "energizing flower and edibles" → { "filters": { "category": ["flower", "edibles"], "effects": ["energetic"] }, "semantic_search": "energetic uplifting focused creative sativa daytime boost" } | HYDE: energizing→sativa | no thc_percentage_min
 
 - "flower that keeps me energized and uplifting" → { "filters": { "category": "flower", "type": "sativa", "effects": ["energetic", "uplifted"] }, "semantic_search": "energetic uplifted sativa flower" } | HYDE: energized/uplifting→sativa | NO POTENCY FILTERS
 
@@ -495,6 +483,12 @@ Examples: NO HYDE - No additional indica or sativa filters or semantic search en
 - "premium flower" → { "filters": { "category": "flower", "subcategory": ["premium-flower"] }, "semantic_search": "premium flower" } | NO HYDE | | NO POTENCY FILTERS
 
 - "flower 22% THC" → { "filters": { "category": "flower", "thc_percentage_min": 22, "thc_percentage_max": 22 }, "semantic_search": "flower products" } | NO HYDE
+
+- "CBD products" → { "filters": { "category": "cbd"  }, "semantic_search": "cbd products" } | NO HYDE | NO POTENCY FILTERS
+
+- "accessories" → { "filters": { "category": "accessories"  }, "semantic_search": "accessories" } | "accessories glassware" → { "filters": { "category": "accessories", "subcategory": ["glassware"] }, "semantic_search": "accessories glassware" }  | NO HYDE | NO POTENCY FILTERS
+
+- "balms" → { "filters": { "category": "topicals", "subcategory": ["balms"]  }, "semantic_search": "topicals balms" } | "topicals" → { "filters": { "category": "topicals" }, "semantic_search": "topicals" } | NO HYDE | NO POTENCY FILTERS
 
 - "strong flower for sleep" → { "filters": { "category": "flower", "effects": ["sleepy"], "type": ["indica", "indica-hybrid"], "thc_percentage_min": 28 }, "semantic_search": "strong flower indica sleep nighttime" } | HYDE: sleep→indica
 
@@ -751,7 +745,12 @@ Return ONLY valid JSON. Do not wrap in markdown code blocks.`;
     if (response.filters.price_max !== null && response.filters.price_max !== undefined) {
       normalizedFilters.price_max = Number(response.filters.price_max);
     }
-    
+
+    // Strip subcategory if category is CBD (Dutchie data doesn't support CBD subcategories for filtering)
+    if (normalizedFilters.category === 'cbd' && normalizedFilters.subcategory) {
+      delete normalizedFilters.subcategory;
+    }
+
     // Validate THC fields based on category
     const category = normalizedFilters.category;
     if (category) {

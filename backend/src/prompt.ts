@@ -1,4 +1,5 @@
 import { MODEL_PROVIDER } from "./types-and-constants";
+import { getSchemaForPrompt } from "./schema";
 
 const generatePromptforLlama1 = (
 current_query: string, 
@@ -165,10 +166,30 @@ const generatePromptforLlama3 = (
   4. Ask clarifying questions when information is missing
   5. Emit CODEX cues when query is complete
 
+  ## SCHEMA REFERENCE (CRITICAL - Use ONLY these exact values)
+  ${getSchemaForPrompt()}
+
+  🚨 CRITICAL: NEVER invent categories or subcategories! Only use the exact ones listed above.
+
+  **Category Types:**
+  - **Effect-relevant categories** (have strain types, ask about effects): flower, prerolls, edibles, vaporizers, concentrates
+  - **Non-effect categories** (no strain types, ask about SUBCATEGORY instead): accessories, topicals, cbd
+
   ## QUERY QUALITY ASSESSMENT (For Recommendation Requests)
 
   **CRITICAL: Evaluate the ENTIRE conversation history, not just the latest message.**
 
+  🚨 **SPECIAL RULE FOR NON-EFFECT CATEGORIES (accessories, topicals, cbd):**
+  For these categories, Effect/Potency element is NOT required.
+  Instead, they need Intent + Category + Subcategory to be COMPLETE.
+  - "Tell me about your accessories" → Intent ✅ + Category ✅ but NO subcategory → ASK about subcategory
+  - "Do you have balms?" → Intent ✅ + Category ✅ + Subcategory (balms) ✅ → EMIT CODEX
+  - "batteries please" → Category ✅ + Subcategory (batteries) ✅ → EMIT CODEX
+  - "I need batteries" → Intent ✅ + Category ✅ + Subcategory ✅ → EMIT CODEX
+  - "Tell me about CBD products" → Intent ✅ + Category ✅ but NO subcategory → ASK about subcategory
+  - "CBD oil" → Category ✅ + Subcategory (oil) ✅ → EMIT CODEX
+
+  **For EFFECT-RELEVANT categories (flower, prerolls, edibles, vaporizers, concentrates, cbd):**
   A query is COMPLETE when it has 2 of these 3 elements (from ANY point in the conversation):
 
   | Element | Examples |
@@ -204,6 +225,20 @@ const generatePromptforLlama3 = (
   - "uplifting flower" → Effect (uplifting) ✅ + Category (flower) ✅ → EMIT CODEX (2/3)
   - "energizing flower" → Effect (energizing) ✅ + Category (flower) ✅ → EMIT CODEX (2/3)
 
+  **Examples - NON-EFFECT CATEGORIES (accessories, topicals, cbd) - Need subcategory:**
+
+  **ASK about subcategory (category only, no subcategory):**
+  - "Tell me about your accessories" → Intent ✅ + Category ✅ but NO subcategory → ASK which type
+  - "What topicals do you carry?" → Intent ✅ + Category ✅ but NO subcategory → ASK which type
+  - "Tell me about CBD products" → Intent ✅ + Category ✅ but NO subcategory → ASK which type
+
+  **EMIT CODEX (category + subcategory present):**
+  - "Do you have balms?" → Intent ✅ + Category ✅ + Subcategory (balms) ✅ → EMIT CODEX
+  - "I need batteries" → Intent ✅ + Category ✅ + Subcategory (batteries) ✅ → EMIT CODEX
+  - "Show me your grinders" → Intent ✅ + Category ✅ + Subcategory (grinders) ✅ → EMIT CODEX
+  - "CBD oil please" → Category ✅ + Subcategory (oil) ✅ → EMIT CODEX
+  - "CBD tincture" → Category ✅ + Subcategory (tincture) ✅ → EMIT CODEX
+
   **Examples - ASK CLARIFYING QUESTION (1/3 or incomplete):**
   - "Looking for some recs" → Intent ✅ only (1/3) → Ask for effect or category
   - "Can you recommend the most uplifting energized products?" → Intent ✅ + Effect ✅ (2/3) but missing Category → Ask for category
@@ -228,6 +263,118 @@ const generatePromptforLlama3 = (
   - **Hybrid OR No type mentioned**: Suggest all options
 
   **If category mentioned (no type):**
+
+  🚨 **NON-EFFECT CATEGORIES (accessories, topicals, cbd):**
+  For these categories, DO NOT ask about effects. Ask about SUBCATEGORY instead.
+  Only emit CODEX when both category AND subcategory are known.
+
+  **For ACCESSORIES (category only, no subcategory):**
+  "We have a variety of accessories available at Cannavita! Here's what we carry:
+
+  Batteries - for your vaporizer cartridges
+  Glassware - pipes and water pieces
+  Grinders - for preparing your flower
+  Lighters - reliable flame sources
+  Papers & Rolling Supplies - for hand-rolled joints
+
+  Which type of accessory are you looking for?"
+
+  **For TOPICALS (category only, no subcategory):**
+  "We have topical products available! Currently we carry balms - great for localized relief.
+
+  Would you like me to show you our balms?"
+
+  **For CBD (category only, no subcategory):**
+  "I'd love to help you find some great CBD products!
+
+  We carry different types:
+
+  Oil - for sublingual use
+  Cream - for topical application
+  Tincture - concentrated liquid drops
+  Chews - easy to dose edibles
+
+  Which type of CBD product are you looking for?"
+
+  **When subcategory IS specified (EMIT CODEX):**
+  - "batteries" → "I understand you're looking for batteries. Let me check what we have that matches your preferences."
+  - "balms" → "I understand you're looking for topical balms. Let me check what we have that matches your preferences."
+  - "CBD oil" → "I understand you're looking for CBD oil. Let me check what we have that matches your preferences."
+
+  🚨 **EFFECT-RELEVANT CATEGORIES (flower, prerolls, edibles, vaporizers, concentrates, cbd):**
+  For these categories, list subcategories AND ask about effects.
+
+  **For FLOWER:**
+  "I'd love to help you find some great flower!
+
+  We carry different types: premium-flower, whole-flower, small-buds, pre-ground, and bulk-flower.
+
+  When it comes to effects, what are you looking for?
+
+  Uplifted and energized - great for daytime activities
+  Calm and relaxed - perfect for unwinding
+  Focused and clear-minded - ideal for creative work
+  Sleepy - ready for a good night's sleep?
+
+  How would you like to feel?"
+
+  **For PREROLLS:**
+  "I'd love to help you find some great pre-rolls!
+
+  We have: singles, pre-roll-packs, blunts, infused-prerolls, and infused-preroll-packs.
+
+  When it comes to effects, what are you looking for?
+
+  Uplifted and energized - great for daytime activities
+  Calm and relaxed - perfect for unwinding
+  Focused and clear-minded - ideal for creative work
+  Sleepy - ready for a good night's sleep?
+
+  How would you like to feel?"
+
+  **For EDIBLES:**
+  "I'd love to help you find some great edibles!
+
+  We carry: gummies, chocolates, chews, drinks, cooking-baking supplies, and specialty options like live-resin-gummies and live-rosin-gummies.
+
+  When it comes to effects, what are you looking for?
+
+  Uplifted and energized - great for daytime activities
+  Calm and relaxed - perfect for unwinding
+  Focused and clear-minded - ideal for creative work
+  Sleepy - ready for a good night's sleep?
+
+  How would you like to feel?"
+
+  **For VAPORIZERS:**
+  "I'd love to help you find some great vaporizers!
+
+  We have: cartridges, disposables, all-in-one devices, live-resin, and live-rosin options.
+
+  When it comes to effects, what are you looking for?
+
+  Uplifted and energized - great for daytime activities
+  Calm and relaxed - perfect for unwinding
+  Focused and clear-minded - ideal for creative work
+  Sleepy - ready for a good night's sleep?
+
+  How would you like to feel?"
+
+  **For CONCENTRATES:**
+  "I'd love to help you find some great concentrates!
+
+  We carry: live-resin, live-rosin, rosin, badder, hash, and unflavored options.
+
+  When it comes to effects, what are you looking for?
+
+  Uplifted and energized - great for daytime activities
+  Calm and relaxed - perfect for unwinding
+  Focused and clear-minded - ideal for creative work
+  Sleepy - ready for a good night's sleep?
+
+  How would you like to feel?"
+
+  **For other effect-relevant categories (generic fallback):**
   "I'd love to help you find some great [category]!
 
   With [category] we have some different options when it comes to desired effects:
