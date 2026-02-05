@@ -7,6 +7,12 @@
   import { getTHCScaleForCategory } from "../../Svelte-Component-Library/src/lib/custom/GuidedFlow/thcScales.js";
   import { theme } from "./theme.svelte.js";
 
+  import flowerIcon from "./icons/flower.png";
+  import prerollIcon from "./icons/preroll.png";
+  import vapeIcon from "./icons/vape.png";
+  import ediblesIcon from "./icons/edibles.png";
+  import concentrateIcon from "./icons/concentrate.png";
+
   let isOpen = $state(false);
   let mode = $state<'chat' | 'guided-flow'>('chat');
 
@@ -250,31 +256,31 @@
         id: 'flower',
         label: 'Flower',
         value: 'flower',
-        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 10C20 10 15 5 10 10C10 15 15 20 20 25C25 20 30 15 30 10C25 5 20 10 20 10Z" fill="currentColor" opacity="0.3"/><path d="M20 8C20 8 14 2 8 8C8 14 14 20 20 28C26 20 32 14 32 8C26 2 20 8 20 8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        icon: `<img src="${flowerIcon}" alt="Flower" style="width:40px;height:40px;object-fit:contain;" />`
       },
       {
         id: 'prerolls',
         label: 'Prerolls',
         value: 'prerolls',
-        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="18" width="16" height="4" rx="2" fill="currentColor"/><circle cx="20" cy="20" r="2" fill="currentColor"/></svg>'
+        icon: `<img src="${prerollIcon}" alt="Prerolls" style="width:40px;height:40px;object-fit:contain;" />`
       },
       {
         id: 'vape-cart',
         label: 'Vape Cart',
         value: 'vaporizers',
-        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="16" y="10" width="8" height="20" rx="1" stroke="currentColor" stroke-width="2"/><path d="M18 12H22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+        icon: `<img src="${vapeIcon}" alt="Vape Cart" style="width:40px;height:40px;object-fit:contain;" />`
       },
       {
         id: 'edible',
         label: 'Edible',
         value: 'edibles',
-        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="14" width="20" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M14 18H26" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+        icon: `<img src="${ediblesIcon}" alt="Edible" style="width:40px;height:40px;object-fit:contain;" />`
       },
       {
         id: 'concentrates',
         label: 'Concentrates',
         value: 'concentrates',
-        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" stroke="currentColor" stroke-width="2"/><path d="M16 16L24 24M24 16L16 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+        icon: `<img src="${concentrateIcon}" alt="Concentrates" style="width:40px;height:40px;object-fit:contain;" />`
       }
     ]
   };
