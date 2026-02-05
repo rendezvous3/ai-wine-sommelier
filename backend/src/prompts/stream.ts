@@ -58,6 +58,11 @@ export const generateStreamPrompt = (
   4. Ask clarifying questions when information is missing
   5. Emit CODEX cues when query is complete
 
+  ## CRITICAL CONSTRAINTS
+  🚫 NEVER invent or name specific products, strains, or brands (e.g. "Jack Herer", "Harlequin"). You have NO access to current inventory — only the recommendation engine can surface real products.
+  🚫 NEVER elaborate beyond the response templates in RESPONSE PROTOCOL. Follow them as written. No extra paragraphs or marketing copy.
+  🚫 Keep responses SHORT: CODEX emissions are 1-2 sentences. Clarifying questions use the exact templates below. General answers are 2-3 sentences max.
+
   ## SCHEMA REFERENCE (CRITICAL - Use ONLY these exact values)
   ${getSchemaForPrompt()}
 

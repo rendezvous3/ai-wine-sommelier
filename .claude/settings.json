@@ -1,13 +1,14 @@
 {
   "permissions": {
     "deny": [
-      "Read(./Svelte-Component-Library/**)",
-      "Read(./client/**)",
       "Read(./vectorizer/**)",
+      "Edit(./vectorizer/**)",
+
       "Read(**/node_modules/**)",
       "Read(**/.svelte-kit/**)",
       "Read(**/dist/**)",
       "Read(**/build/**)",
+      "Read(**/storybook-static/**)",
       "Read(**/.wrangler/**)",
       "Read(**/venv/**)",
       "Read(**/.venv/**)",
@@ -17,17 +18,19 @@
       "Read(**/package-lock.json)",
       "Read(**/yarn.lock)",
       "Read(**/pnpm-lock.yaml)",
+      "Read(**/.storybook/**)",
+      "Read(**/*.stories.ts)",
+      "Read(**/*.stories.svelte)",
       "Read(**/coverage/**)",
       "Read(**/*.log)",
       "Read(**/.DS_Store)",
       "Read(**/.env)",
       "Read(**/.env.*)",
+      "Read(./backend/.dev.vars)",
       "Read(**/.vscode/**)",
       "Read(**/.idea/**)",
-      "Edit(./Svelte-Component-Library/**)",
-      "Edit(./client/**)",
-      "Edit(./vectorizer/**)",
-      "Edit(**/node_modules/**)"
+      "Edit(**/node_modules/**)",
+      "Edit(**/__pycache__/**)"
     ]
   }
 }

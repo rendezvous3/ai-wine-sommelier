@@ -149,7 +149,44 @@
         "Edit(**/node_modules/**)",
         "Edit(**/__pycache__/**)"
       ]
-    }
+    },
+
+    "ui_and_backend": {
+      "description": "UI + Backend (Client, Component Library, and Backend API)",
+      "instructions": "Use this when working across the frontend widget and backend API together.",
+      "deny": [
+        "Read(./vectorizer/**)",
+        "Edit(./vectorizer/**)",
+
+        "Read(**/node_modules/**)",
+        "Read(**/.svelte-kit/**)",
+        "Read(**/dist/**)",
+        "Read(**/build/**)",
+        "Read(**/storybook-static/**)",
+        "Read(**/.wrangler/**)",
+        "Read(**/venv/**)",
+        "Read(**/.venv/**)",
+        "Read(**/__pycache__/**)",
+        "Read(**/.cache/**)",
+        "Read(**/.vite/**)",
+        "Read(**/package-lock.json)",
+        "Read(**/yarn.lock)",
+        "Read(**/pnpm-lock.yaml)",
+        "Read(**/.storybook/**)",
+        "Read(**/*.stories.ts)",
+        "Read(**/*.stories.svelte)",
+        "Read(**/coverage/**)",
+        "Read(**/*.log)",
+        "Read(**/.DS_Store)",
+        "Read(**/.env)",
+        "Read(**/.env.*)",
+        "Read(./backend/.dev.vars)",
+        "Read(**/.vscode/**)",
+        "Read(**/.idea/**)",
+        "Edit(**/node_modules/**)",
+        "Edit(**/__pycache__/**)"
+      ]
+    },
 
     "full_access": {
       "description": "Access all areas (use sparingly - increases context usage)",

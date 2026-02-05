@@ -1,6 +1,6 @@
 <script lang="ts">
   import Button from '../Button/Button.svelte';
-  import { formatTHCLabel } from '../ProductRecommendation/thcFormatter.js';
+  import { formatTHCLabel, formatCBDLabel, formatWeightLabel } from '../ProductRecommendation/thcFormatter.js';
 
   interface ProductCardProps {
     image: string;
@@ -17,6 +17,10 @@
     thc_percentage?: number;
     thc_per_unit_mg?: number;
     thc_total_mg?: number;
+    cbd_percentage?: number;
+    cbd_per_unit_mg?: number;
+    cbd_total_mg?: number;
+    total_weight_ounce?: number;
     pack_count?: number;
     onAddToCart?: () => void;
   }
@@ -36,6 +40,10 @@
     thc_percentage,
     thc_per_unit_mg,
     thc_total_mg,
+    cbd_percentage,
+    cbd_per_unit_mg,
+    cbd_total_mg,
+    total_weight_ounce,
     pack_count,
     onAddToCart
   }: ProductCardProps = $props();
@@ -65,6 +73,14 @@
 
   function getTHCLabel() {
     return formatTHCLabel({ category, subcategory, title, thc_percentage, thc_per_unit_mg, thc_total_mg });
+  }
+
+  function getCBDLabel() {
+    return formatCBDLabel({ category, cbd_percentage, cbd_per_unit_mg, cbd_total_mg });
+  }
+
+  function getWeightLabel() {
+    return formatWeightLabel({ category, total_weight_ounce, thc_total_mg, thc_per_unit_mg, pack_count });
   }
 </script>
 
@@ -111,18 +127,40 @@
           <span class="product-card__original-price">{formatPrice(originalPrice)}</span>
         {/if}
       </div>
-      {#if getTHCLabel()}
-        {@const thcLabel = getTHCLabel()!}
-        <div class="product-card__thc-badge">
-          <div class="product-card__thc-label">THC</div>
-          <div class="product-card__thc-value">{thcLabel.value}</div>
-          {#if thcLabel.label}
-            <div class="product-card__thc-sublabel">{thcLabel.label}</div>
-          {/if}
-        </div>
-      {/if}
+      <div class="product-card__badges">
+        {#if getTHCLabel()}
+          {@const thcLabel = getTHCLabel()!}
+          <div class="product-card__thc-badge">
+            <div class="product-card__thc-label">THC</div>
+            <div class="product-card__thc-value">{thcLabel.value}</div>
+            {#if thcLabel.label}
+              <div class="product-card__thc-sublabel">{thcLabel.label}</div>
+            {/if}
+          </div>
+        {/if}
+        {#if getCBDLabel()}
+          {@const cbdLabel = getCBDLabel()!}
+          <div class="product-card__thc-badge">
+            <div class="product-card__thc-label">{cbdLabel.topLabel}</div>
+            <div class="product-card__thc-value">{cbdLabel.value}</div>
+            {#if cbdLabel.sublabel}
+              <div class="product-card__thc-sublabel">{cbdLabel.sublabel}</div>
+            {/if}
+          </div>
+        {/if}
+        {#if getWeightLabel()}
+          {@const weightLabel = getWeightLabel()!}
+          <div class="product-card__thc-badge">
+            <div class="product-card__thc-label">{weightLabel.topLabel}</div>
+            <div class="product-card__thc-value">{weightLabel.value}</div>
+            {#if weightLabel.sublabel}
+              <div class="product-card__thc-sublabel">{weightLabel.sublabel}</div>
+            {/if}
+          </div>
+        {/if}
+      </div>
       {#if pack_count && (category === 'prerolls' || category === 'edibles')}
-        <span class="product-card__pack-badge">{pack_count} pack</span>
+        <span class="product-card__pack-badge">{category === 'prerolls' ? (pack_count === 1 ? 'Single' : `${pack_count} pack`) : `${pack_count} ${pack_count === 1 ? 'piece' : 'pieces'}`}</span>
       {/if}
     </div>
     
@@ -276,16 +314,21 @@
     flex: 1;
   }
 
+  .product-card__badges {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
   .product-card__thc-badge {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 6px 8px;
+    padding: 6px 7px;
     background: #f5f5dc;
     border-radius: 6px;
-    min-width: 60px;
-    width: 60px;
+    min-width: 48px;
     flex-shrink: 0;
   }
 

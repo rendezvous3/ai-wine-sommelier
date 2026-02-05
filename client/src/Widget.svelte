@@ -38,6 +38,10 @@
     thc_percentage?: number;
     thc_per_unit_mg?: number;
     thc_total_mg?: number;
+    cbd_percentage?: number;
+    cbd_per_unit_mg?: number;
+    cbd_total_mg?: number;
+    total_weight_ounce?: number;
     pack_count?: number;
   }
 
@@ -183,6 +187,10 @@
       thc_percentage: rec.thc_percentage,
       thc_per_unit_mg: rec.thc_per_unit_mg,
       thc_total_mg: rec.thc_total_mg,
+      cbd_percentage: rec.cbd_percentage,
+      cbd_per_unit_mg: rec.cbd_per_unit_mg,
+      cbd_total_mg: rec.cbd_total_mg,
+      total_weight_ounce: rec.total_weight_ounce,
       pack_count: rec.pack_count
     }));
   }
@@ -763,6 +771,10 @@
           thc_percentage: product.thc_percentage,
           thc_per_unit_mg: product.thc_per_unit_mg,
           thc_total_mg: product.thc_total_mg,
+          cbd_percentage: product.cbd_percentage,
+          cbd_per_unit_mg: product.cbd_per_unit_mg,
+          cbd_total_mg: product.cbd_total_mg,
+          total_weight_ounce: product.total_weight_ounce,
           pack_count: product.pack_count
         };
 

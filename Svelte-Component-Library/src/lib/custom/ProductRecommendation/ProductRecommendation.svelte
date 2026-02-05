@@ -3,7 +3,7 @@
   import ProductCard from '../ProductCard/ProductCard.svelte';
   import ProductList from '../ProductList/ProductList.svelte';
   import ProductGrid from '../ProductGrid/ProductGrid.svelte';
-  import { formatTHCLabel } from './thcFormatter.js';
+  import { formatTHCLabel, formatCBDLabel, formatWeightLabel } from './thcFormatter.js';
 
   interface Product {
     image: string;
@@ -20,6 +20,10 @@
     thc_percentage?: number;
     thc_per_unit_mg?: number;
     thc_total_mg?: number;
+    cbd_percentage?: number;
+    cbd_per_unit_mg?: number;
+    cbd_total_mg?: number;
+    total_weight_ounce?: number;
     pack_count?: number;
   }
 
@@ -87,6 +91,14 @@
   function getTHCLabel(product: Product) {
     return formatTHCLabel(product);
   }
+
+  function getCBDLabel(product: Product) {
+    return formatCBDLabel(product);
+  }
+
+  function getWeightLabel(product: Product) {
+    return formatWeightLabel(product);
+  }
 </script>
 
 <div 
@@ -135,7 +147,7 @@
                   <span class="product-recommendation__compact-badge">{product.type}</span>
                 {/if}
                 {#if product.pack_count && (product.category === 'prerolls' || product.category === 'edibles')}
-                  <span class="product-recommendation__compact-badge">{product.pack_count} pack</span>
+                  <span class="product-recommendation__compact-badge">{product.category === 'prerolls' ? (product.pack_count === 1 ? 'Single' : `${product.pack_count} pack`) : `${product.pack_count} ${product.pack_count === 1 ? 'piece' : 'pieces'}`}</span>
                 {/if}
               </div>
               <div class="product-recommendation__compact-footer">
@@ -153,6 +165,26 @@
                       <div class="product-recommendation__compact-thc-value">{thcLabel.value}</div>
                       {#if thcLabel.label}
                         <div class="product-recommendation__compact-thc-sublabel">{thcLabel.label}</div>
+                      {/if}
+                    </div>
+                  {/if}
+                  {#if getCBDLabel(product)}
+                    {@const cbdLabel = getCBDLabel(product)!}
+                    <div class="product-recommendation__compact-thc-badge">
+                      <div class="product-recommendation__compact-thc-label">{cbdLabel.topLabel}</div>
+                      <div class="product-recommendation__compact-thc-value">{cbdLabel.value}</div>
+                      {#if cbdLabel.sublabel}
+                        <div class="product-recommendation__compact-thc-sublabel">{cbdLabel.sublabel}</div>
+                      {/if}
+                    </div>
+                  {/if}
+                  {#if getWeightLabel(product)}
+                    {@const weightLabel = getWeightLabel(product)!}
+                    <div class="product-recommendation__compact-thc-badge">
+                      <div class="product-recommendation__compact-thc-label">{weightLabel.topLabel}</div>
+                      <div class="product-recommendation__compact-thc-value">{weightLabel.value}</div>
+                      {#if weightLabel.sublabel}
+                        <div class="product-recommendation__compact-thc-sublabel">{weightLabel.sublabel}</div>
                       {/if}
                     </div>
                   {/if}
@@ -207,7 +239,7 @@
                   <span class="product-recommendation__compact-grid-badge">{product.type}</span>
                 {/if}
                 {#if product.pack_count && (product.category === 'prerolls' || product.category === 'edibles')}
-                  <span class="product-recommendation__compact-grid-badge">{product.pack_count} pack</span>
+                  <span class="product-recommendation__compact-grid-badge">{product.category === 'prerolls' ? (product.pack_count === 1 ? 'Single' : `${product.pack_count} pack`) : `${product.pack_count} ${product.pack_count === 1 ? 'piece' : 'pieces'}`}</span>
                 {/if}
               </div>
               <div class="product-recommendation__compact-grid-footer">
@@ -224,6 +256,26 @@
                     <div class="product-recommendation__compact-grid-thc-value">{thcLabel.value}</div>
                     {#if thcLabel.label}
                       <div class="product-recommendation__compact-grid-thc-sublabel">{thcLabel.label}</div>
+                    {/if}
+                  </div>
+                {/if}
+                {#if getCBDLabel(product)}
+                  {@const cbdLabel = getCBDLabel(product)!}
+                  <div class="product-recommendation__compact-grid-thc">
+                    <div class="product-recommendation__compact-grid-thc-label">{cbdLabel.topLabel}</div>
+                    <div class="product-recommendation__compact-grid-thc-value">{cbdLabel.value}</div>
+                    {#if cbdLabel.sublabel}
+                      <div class="product-recommendation__compact-grid-thc-sublabel">{cbdLabel.sublabel}</div>
+                    {/if}
+                  </div>
+                {/if}
+                {#if getWeightLabel(product)}
+                  {@const weightLabel = getWeightLabel(product)!}
+                  <div class="product-recommendation__compact-grid-thc">
+                    <div class="product-recommendation__compact-grid-thc-label">{weightLabel.topLabel}</div>
+                    <div class="product-recommendation__compact-grid-thc-value">{weightLabel.value}</div>
+                    {#if weightLabel.sublabel}
+                      <div class="product-recommendation__compact-grid-thc-sublabel">{weightLabel.sublabel}</div>
                     {/if}
                   </div>
                 {/if}
@@ -268,6 +320,10 @@
             thc_percentage={product.thc_percentage}
             thc_per_unit_mg={product.thc_per_unit_mg}
             thc_total_mg={product.thc_total_mg}
+            cbd_percentage={product.cbd_percentage}
+            cbd_per_unit_mg={product.cbd_per_unit_mg}
+            cbd_total_mg={product.cbd_total_mg}
+            total_weight_ounce={product.total_weight_ounce}
             pack_count={product.pack_count}
             onAddToCart={() => handleAddToCart(product)}
             actionType={actionType}
@@ -420,9 +476,10 @@
   .product-recommendation__compact-footer-left {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
     flex: 1;
     min-width: 0;
+    flex-wrap: wrap;
   }
 
   .product-recommendation__compact-price {
@@ -442,7 +499,7 @@
     padding: 5px 8px;
     background: #f5f5dc;
     border-radius: 6px;
-    min-width: 55px;
+    min-width: 42px;
     flex-shrink: 0;
   }
 
@@ -614,7 +671,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: 6px;
+    flex-wrap: wrap;
     margin-top: auto;
   }
 
@@ -634,7 +692,7 @@
     padding: 4px 6px;
     background: #f5f5dc;
     border-radius: 6px;
-    min-width: 50px;
+    min-width: 42px;
     flex-shrink: 0;
   }
 
@@ -745,8 +803,8 @@
     }
 
     .product-recommendation__compact-thc-badge {
-      padding: 4px 6px;
-      min-width: 50px;
+      padding: 4px 5px;
+      min-width: 38px;
     }
 
     .product-recommendation__compact-thc-value {
