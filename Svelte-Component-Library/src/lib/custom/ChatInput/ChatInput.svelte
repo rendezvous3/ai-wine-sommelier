@@ -1592,6 +1592,12 @@
       padding: 6px 8px;
     }
 
+    /* 16px minimum prevents iOS Safari auto-zoom on input focus */
+    .chat-input__field,
+    .chat-input__field--two-line {
+      font-size: 16px;
+    }
+
     .chat-input__button {
       width: 32px;
       height: 32px;

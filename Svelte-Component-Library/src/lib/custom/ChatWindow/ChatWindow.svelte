@@ -446,6 +446,7 @@
     gap: 0;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     background: #f9fafa;
   }
 
@@ -713,6 +714,10 @@
 
     .chat-window__messages {
       padding: 16px;
+    }
+
+    .chat-window__expand-button {
+      display: none;
     }
 
     .chat-window__scroll-button {

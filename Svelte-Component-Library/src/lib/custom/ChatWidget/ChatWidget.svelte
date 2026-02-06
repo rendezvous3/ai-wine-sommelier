@@ -444,42 +444,7 @@
   }
 
   @media (max-width: 640px) {
-    /* When open on mobile: true fullscreen, every pixel */
-    .chat-widget--open .chat-widget__window {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      width: 100vw;
-      height: 100vh;
-      max-width: 100vw;
-      max-height: 100vh;
-      border-radius: 0;
-      animation: none;
-    }
-
-    /* Hide floating bubble when widget is open on mobile */
-    .chat-widget--open .chat-widget__button {
-      display: none;
-    }
-
-    /* Expanded state on mobile: same fullscreen treatment */
-    .chat-widget--expanded .chat-widget__window {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      width: 100vw;
-      height: 100vh;
-      max-width: 100vw;
-      max-height: 100vh;
-      border-radius: 0;
-      transform: none;
-    }
-
-    /* When widget is NOT open: keep button accessible */
+    /* Button positioning when widget is NOT open */
     .chat-widget--bottom-right,
     .chat-widget--bottom-left {
       bottom: 10px;
@@ -490,6 +455,58 @@
     .chat-widget--bottom-left {
       left: 10px;
       right: auto;
+    }
+
+    /* When open: parent covers full viewport as backdrop (must come AFTER position rules to win specificity) */
+    .chat-widget--open {
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #000;
+    }
+
+    .chat-widget--dark.chat-widget--open {
+      background: #1e1e1e;
+    }
+
+    /* Child fills parent (absolute, not fixed — avoids nested fixed positioning issues on iOS) */
+    .chat-widget--open .chat-widget__window {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: auto;
+      height: auto;
+      max-width: none;
+      max-height: none;
+      border-radius: 0;
+      border: none;
+      animation: none;
+      overscroll-behavior: none;
+    }
+
+    /* Hide floating bubble when widget is open on mobile */
+    .chat-widget--open .chat-widget__button {
+      display: none;
+    }
+
+    /* Expanded state on mobile: same fullscreen treatment */
+    .chat-widget--expanded .chat-widget__window {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: auto;
+      height: auto;
+      max-width: none;
+      max-height: none;
+      border-radius: 0;
+      border: none;
+      transform: none;
+      overscroll-behavior: none;
     }
   }
 </style>
