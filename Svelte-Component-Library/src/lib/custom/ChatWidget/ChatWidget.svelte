@@ -46,6 +46,7 @@
     guidedFlowConfig?: import('../GuidedFlow/types.js').GuidedFlowConfig;
     messagesCount?: number;
     noAssistantBubble?: boolean;
+    iconSrc?: string;
   }
 
   let {
@@ -79,7 +80,8 @@
     modeTogglePosition = 'upper-left',
     guidedFlowConfig,
     messagesCount = 0,
-    noAssistantBubble = false
+    noAssistantBubble = false,
+    iconSrc
   }: ChatWidgetProps = $props();
 
   // Provide themeBackgroundColor to child components via context
@@ -176,6 +178,7 @@
         onMenuItemClick={onMenuItemClick}
         headerBackgroundColor={headerBackgroundColor ?? themeBackgroundColor}
         height="lg"
+        {iconSrc}
       />
       
       <ChatWindow

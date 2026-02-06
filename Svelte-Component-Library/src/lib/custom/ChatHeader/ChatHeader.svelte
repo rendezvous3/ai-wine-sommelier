@@ -22,6 +22,7 @@
     height?: 'sm' | 'md' | 'lg';
     showIcon?: boolean;
     headerBackgroundColor?: string;
+    iconSrc?: string;
   }
 
   let {
@@ -36,7 +37,8 @@
     menuMode = 'dropdown',
     height = 'md',
     showIcon = true,
-    headerBackgroundColor
+    headerBackgroundColor,
+    iconSrc
   }: ChatHeaderProps = $props();
 
   let menuOpen = $state(false);
@@ -234,7 +236,11 @@
   
   <div class={contentClasses}>
     {#if showIcon}
-      <WidgetIcon type="message-bubble" size="md" color={iconColor} />
+      {#if iconSrc}
+        <img src={iconSrc} alt={title} class="chat-header__custom-icon" />
+      {:else}
+        <WidgetIcon type="message-bubble" size="md" color={iconColor} />
+      {/if}
     {/if}
     <span class="chat-header__title">{title}</span>
   </div>
@@ -407,6 +413,13 @@
     justify-content: flex-end;
   }
 
+  .chat-header__custom-icon {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
+
   .chat-header__title {
     font-size: 16px;
     font-weight: 600;
@@ -549,11 +562,15 @@
   }
 
   /* Header Style: Minimal */
+  /* Alt gradient (purple) — saved for future use:
+     border-image: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%) 1;
+     ::after background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%);
+     ::after box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3); */
   .chat-header--minimal {
     background: linear-gradient(to bottom, #ffffff 0%, #f9fafb 100%);
     color: #1f2937;
     border-bottom: 4px solid transparent;
-    border-image: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%) 1;
+    border-image: linear-gradient(90deg, #16a34a 0%, #4ade80 50%, #86efac 100%) 1;
     position: relative;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   }
@@ -565,9 +582,9 @@
     left: 0;
     width: 80px;
     height: 4px;
-    background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%);
+    background: linear-gradient(90deg, #16a34a 0%, #4ade80 100%);
     border-radius: 0 4px 0 0;
-    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 2px 8px rgba(22, 163, 74, 0.3);
   }
 
   .chat-header--minimal .chat-header__close {

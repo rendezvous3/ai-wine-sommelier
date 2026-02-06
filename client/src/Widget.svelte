@@ -7,11 +7,23 @@
   import { getTHCScaleForCategory } from "../../Svelte-Component-Library/src/lib/custom/GuidedFlow/thcScales.js";
   import { theme } from "./theme.svelte.js";
 
-  import flowerIcon from "./icons/flower.png";
-  import prerollIcon from "./icons/preroll.png";
-  import vapeIcon from "./icons/vape.png";
-  import ediblesIcon from "./icons/edibles.png";
-  import concentrateIcon from "./icons/concentrate.png";
+  import flowerIcon from "./icons/categories/flower.png";
+  import prerollIcon from "./icons/categories/preroll.png";
+  import vapeIcon from "./icons/categories/vape.png";
+  import ediblesIcon from "./icons/categories/edibles.png";
+  import concentrateIcon from "./icons/categories/concentrate.png";
+  import chatIcon from "./icons/assistant/chat.png";
+
+  import calmIcon from "./icons/effects/calm.png";
+  import creativeIcon from "./icons/effects/creative.png";
+  import energizedIcon from "./icons/effects/energized.png";
+  import euphoricIcon from "./icons/effects/euphoric.png";
+  import focusedIcon from "./icons/effects/focused.png";
+  import relaxedIcon from "./icons/effects/relaxed.png";
+  import sedatedIcon from "./icons/effects/sedated.png";
+  import sleepyIcon from "./icons/effects/sleepy.png";
+  import stimulatedIcon from "./icons/effects/stimulated.png";
+  import upliftedIcon from "./icons/effects/uplifted.png";
 
   let isOpen = $state(false);
   let mode = $state<'chat' | 'guided-flow'>('chat');
@@ -298,64 +310,64 @@
         id: 'calm',
         label: 'Calm',
         value: 'calm',
-        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" stroke="currentColor" stroke-width="2"/><path d="M16 20H24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+        icon: `<img src="${calmIcon}" alt="Calm" style="width:40px;height:40px;object-fit:contain;" />`
       },
       {
         id: 'creative',
         label: 'Creative',
         value: 'creative',
-        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" stroke="currentColor" stroke-width="2"/><path d="M20 12V16M20 24V28M12 20H16M24 20H28" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+        icon: `<img src="${creativeIcon}" alt="Creative" style="width:40px;height:40px;object-fit:contain;" />`
       },
       {
         id: 'energized',
         label: 'Energized',
         value: 'energized',
         conflictsWith: ['sedated', 'sleepy'],
-        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 8L24 16L32 18L26 24L28 32L20 28L12 32L14 24L8 18L16 16L20 8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        icon: `<img src="${energizedIcon}" alt="Energized" style="width:40px;height:40px;object-fit:contain;" />`
       },
       {
         id: 'focused',
         label: 'Focused',
         value: 'focused',
-        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="10" stroke="currentColor" stroke-width="2"/><circle cx="20" cy="20" r="4" fill="currentColor"/></svg>'
+        icon: `<img src="${focusedIcon}" alt="Focused" style="width:40px;height:40px;object-fit:contain;" />`
       },
       {
         id: 'relaxed',
         label: 'Relaxed',
         value: 'relaxed',
-        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 24C12 24 16 20 20 24C24 20 28 24 28 24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="20" cy="20" r="8" stroke="currentColor" stroke-width="2"/></svg>'
+        icon: `<img src="${relaxedIcon}" alt="Relaxed" style="width:40px;height:40px;object-fit:contain;" />`
       },
       {
         id: 'euphoric',
         label: 'Euphoric',
         value: 'euphoric',
-        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" stroke="currentColor" stroke-width="2"/><path d="M20 12L22 18L28 20L22 22L20 28L18 22L12 20L18 18L20 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        icon: `<img src="${euphoricIcon}" alt="Euphoric" style="width:40px;height:40px;object-fit:contain;" />`
       },
       {
         id: 'sedated',
         label: 'Sedated',
         value: 'sedated',
         conflictsWith: ['energized'],
-        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" stroke="currentColor" stroke-width="2"/><path d="M14 20H26" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+        icon: `<img src="${sedatedIcon}" alt="Sedated" style="width:40px;height:40px;object-fit:contain;" />`
       },
       {
         id: 'sleepy',
         label: 'Sleepy',
         value: 'sleepy',
         conflictsWith: ['energized'],
-        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" stroke="currentColor" stroke-width="2"/><path d="M16 20C16 20 18 22 20 22C22 22 24 20 24 20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M14 16L16 18M24 16L26 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+        icon: `<img src="${sleepyIcon}" alt="Sleepy" style="width:40px;height:40px;object-fit:contain;" />`
       },
       {
         id: 'stimulated',
         label: 'Stimulated',
         value: 'stimulated',
-        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" stroke="currentColor" stroke-width="2"/><path d="M20 12V16M20 24V28M12 20H16M24 20H28" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+        icon: `<img src="${stimulatedIcon}" alt="Stimulated" style="width:40px;height:40px;object-fit:contain;" />`
       },
       {
         id: 'uplifted',
         label: 'Uplifted',
         value: 'uplifted',
-        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 12L24 20L32 22L26 28L28 36L20 32L12 36L14 28L8 22L16 20L20 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        icon: `<img src="${upliftedIcon}" alt="Uplifted" style="width:40px;height:40px;object-fit:contain;" />`
       }
     ]
   };
@@ -1121,6 +1133,9 @@
 
 <!-- Replace UI with ChatWidget from Component Library -->
 <!-- background colors: "#0dcc218f" "#14c3268f" "#15685E" #F4C37D #6ed39f80 "#8aff5ec9" "#50ff5a8f "#1ba4298f" "#1e8e298f" "#14c3268f" -->
+ <!-- First one is beautiful #70CCC1 #61CE70  -->
+ <!-- Cannavita Colors - green hints: #70CCC1 #15685E #033D36 #03302B #022622 -->
+  <!-- Cannavita Colors - gold Hints: #FAE4C4 #F8D9AC #F4C37D #BD9760 #A38253 #F4C37  -->
 <ChatWidget
   isOpen={isOpen}
   onToggle={() => (isOpen = !isOpen)}
@@ -1134,6 +1149,7 @@
   onMenuItemClick={handleMenuItemClick}
   title="Cannavita Budtender"
   themeBackgroundColor="#F4C37D"
+  iconSrc={chatIcon}
   showBadge={false}
   onClearChat={handleClearChat}
   hasMessages={messages.length > 0}
