@@ -312,6 +312,11 @@
     subtitle: '(Up to 2)',
     type: 'multi-select' as const,
     maxSelections: 2,
+    gridColumns: 4,
+    customStyles: {
+      padding: '24px 10px',
+      fontSize: '13px'
+    },
     required: true,
     options: [
       {
@@ -445,6 +450,12 @@
       subtitle: '(Select up to 2)',
       type: 'multi-select' as const,
       maxSelections: 2,
+      gridColumns: 3,
+      cardSize: 'small' as const,
+      customStyles: {
+        padding: '30px 10px',
+        minHeight: '70px'
+      },
       required: true,
       options: [
         {

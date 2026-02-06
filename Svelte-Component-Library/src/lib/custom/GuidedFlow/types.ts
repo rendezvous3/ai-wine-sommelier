@@ -15,6 +15,15 @@ export interface FlowStep {
   maxSelections?: number; // for multi-select
   options: FlowOption[];
   required?: boolean;
+  gridColumns?: number; // Number of columns for grid layout (default: auto-fit)
+  cardSize?: 'normal' | 'small'; // Card size for compact grid layouts
+  customStyles?: {
+    padding?: string;
+    fontSize?: string;
+    iconSize?: string;
+    minHeight?: string;
+    [key: string]: string | undefined; // Allow any CSS property
+  };
 }
 
 import type { TransformedMetadata } from './utils.js';

@@ -651,9 +651,19 @@
     background: #1e1e1e;
   }
 
+  :global(.dark) .chat-window__messages::-webkit-scrollbar-track,
+  :global([data-theme="dark"]) .chat-window__messages::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
   :global(.dark) .chat-window__messages::-webkit-scrollbar-thumb,
   :global([data-theme="dark"]) .chat-window__messages::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  :global(.dark) .chat-window__messages::-webkit-scrollbar-thumb:hover,
+  :global([data-theme="dark"]) .chat-window__messages::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.4);
   }
 
   :global(.dark) .chat-window__input-wrapper,

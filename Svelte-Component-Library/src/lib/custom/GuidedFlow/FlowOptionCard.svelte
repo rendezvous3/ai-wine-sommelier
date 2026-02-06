@@ -7,6 +7,7 @@
     selected?: boolean;
     disabled?: boolean;
     compact?: boolean;
+    cardSize?: 'normal' | 'small';
     onclick?: () => void;
   }
 
@@ -15,6 +16,7 @@
     selected = false,
     disabled = false,
     compact = false,
+    cardSize = 'normal',
     onclick
   }: FlowOptionCardProps = $props();
 
@@ -22,6 +24,7 @@
     [
       'flow-option-card',
       compact && 'flow-option-card--compact',
+      compact && cardSize === 'small' && 'flow-option-card--small',
       selected && 'flow-option-card--selected',
       disabled && 'flow-option-card--disabled'
     ]
@@ -68,7 +71,7 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 16px;
+    padding: var(--card-padding, 12px);
     background: #ffffff;
     border: 2px solid #e5e7eb;
     border-radius: 12px;
@@ -103,31 +106,56 @@
     align-items: center;
     justify-content: center;
     text-align: center;
-    padding: 16px 12px;
-    min-height: auto;
-    aspect-ratio: 1;
+    padding: var(--card-padding, 30px 10px);
+    min-height: var(--card-min-height, 90px);
   }
 
   .flow-option-card--compact .flow-option-card__icon {
-    width: 32px;
-    height: 32px;
-    margin-bottom: 8px;
+    width: var(--card-icon-size, 28px);
+    height: var(--card-icon-size, 28px);
+    margin-bottom: 2px;
   }
 
   .flow-option-card--compact .flow-option-card__content {
+    flex: none;
     align-items: center;
     gap: 0;
+    overflow: hidden;
   }
 
   .flow-option-card--compact .flow-option-card__label {
-    font-size: 14px;
+    font-size: var(--card-font-size, 13px);
     text-align: center;
+    line-height: 1.2;
+    word-break: break-word;
   }
 
   .flow-option-card--compact .flow-option-card__checkmark {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+  }
+
+  .flow-option-card--compact .flow-option-card__checkmark svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Small variant for even more compact cards */
+  .flow-option-card--small {
+    min-height: var(--card-min-height, 70px);
+  }
+
+  .flow-option-card--small .flow-option-card__icon {
+    width: var(--card-icon-size, 26px);
+    height: var(--card-icon-size, 26px);
+    margin-bottom: 2px;
+  }
+
+  .flow-option-card--small .flow-option-card__label {
+    font-size: var(--card-font-size, 12px);
   }
 
   .flow-option-card__icon {
