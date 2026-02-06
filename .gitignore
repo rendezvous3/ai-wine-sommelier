@@ -14,6 +14,7 @@ client/dist/
 client/static/widget.js
 client/.svelte-kit/
 client/build/
+client/.env.*
 
 # Local environment variables (never commit real keys!)
 .env
