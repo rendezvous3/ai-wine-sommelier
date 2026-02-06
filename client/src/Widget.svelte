@@ -25,6 +25,14 @@
   import stimulatedIcon from "./icons/effects/stimulated.png";
   import upliftedIcon from "./icons/effects/uplifted.png";
 
+  import chewsIcon from "./icons/edible_subcategories/chews.png";
+  import chocolatesIcon from "./icons/edible_subcategories/chocolates.png";
+  import cookingBakingIcon from "./icons/edible_subcategories/cooking_baking.png";
+  import drinksIcon from "./icons/edible_subcategories/drinks.png";
+  import gummiesIcon from "./icons/edible_subcategories/gummies.png";
+  import liveResinGummiesIcon from "./icons/edible_subcategories/live_resin_gummies.png";
+  import liveRosinGummiesIcon from "./icons/edible_subcategories/live_rosin_gummies.png";
+
   let isOpen = $state(false);
   let mode = $state<'chat' | 'guided-flow'>('chat');
 
@@ -443,43 +451,43 @@
           id: 'chews',
           label: 'Chews',
           value: 'chews',
-          icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="16" width="16" height="8" rx="2" stroke="currentColor" stroke-width="2"/><path d="M16 20H24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+          icon: `<img src="${chewsIcon}" alt="Chews" style="width:40px;height:40px;object-fit:contain;" />`
         },
         {
           id: 'chocolates',
           label: 'Chocolates',
           value: 'chocolates',
-          icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="14" width="20" height="12" rx="2" stroke="currentColor" stroke-width="2"/><path d="M14 18H26M14 22H26" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+          icon: `<img src="${chocolatesIcon}" alt="Chocolates" style="width:40px;height:40px;object-fit:contain;" />`
         },
         {
           id: 'cooking-baking',
           label: 'Cooking/Baking',
           value: 'cooking-baking',
-          icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="12" width="16" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M16 16H24M16 20H24M16 24H20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+          icon: `<img src="${cookingBakingIcon}" alt="Cooking/Baking" style="width:40px;height:40px;object-fit:contain;" />`
         },
         {
           id: 'drinks',
           label: 'Drinks',
           value: 'drinks',
-          icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 10C16 10 18 8 20 8C22 8 24 10 24 10V28C24 30 22 32 20 32C18 32 16 30 16 28V10Z" stroke="currentColor" stroke-width="2"/><path d="M18 14H22M18 18H22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+          icon: `<img src="${drinksIcon}" alt="Drinks" style="width:40px;height:40px;object-fit:contain;" />`
         },
         {
           id: 'gummies',
           label: 'Gummies',
           value: 'gummies',
-          icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="4" fill="currentColor" opacity="0.3"/><circle cx="24" cy="16" r="4" fill="currentColor" opacity="0.3"/><circle cx="16" cy="24" r="4" fill="currentColor" opacity="0.3"/><circle cx="24" cy="24" r="4" fill="currentColor" opacity="0.3"/><circle cx="16" cy="16" r="4" stroke="currentColor" stroke-width="2"/><circle cx="24" cy="16" r="4" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="24" r="4" stroke="currentColor" stroke-width="2"/><circle cx="24" cy="24" r="4" stroke="currentColor" stroke-width="2"/></svg>'
+          icon: `<img src="${gummiesIcon}" alt="Gummies" style="width:40px;height:40px;object-fit:contain;" />`
         },
         {
           id: 'live-resin-gummies',
           label: 'Live Resin Gummies',
           value: 'live-resin-gummies',
-          icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="4" fill="currentColor" opacity="0.3"/><circle cx="24" cy="16" r="4" fill="currentColor" opacity="0.3"/><circle cx="16" cy="24" r="4" fill="currentColor" opacity="0.3"/><circle cx="24" cy="24" r="4" fill="currentColor" opacity="0.3"/><circle cx="16" cy="16" r="4" stroke="currentColor" stroke-width="2"/><circle cx="24" cy="16" r="4" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="24" r="4" stroke="currentColor" stroke-width="2"/><circle cx="24" cy="24" r="4" stroke="currentColor" stroke-width="2"/><path d="M20 12V28" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+          icon: `<img src="${liveResinGummiesIcon}" alt="Live Resin Gummies" style="width:40px;height:40px;object-fit:contain;" />`
         },
         {
           id: 'live-rosin-gummies',
           label: 'Live Rosin Gummies',
           value: 'live-rosin-gummies',
-          icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="16" cy="16" r="4" fill="currentColor" opacity="0.3"/><circle cx="24" cy="16" r="4" fill="currentColor" opacity="0.3"/><circle cx="16" cy="24" r="4" fill="currentColor" opacity="0.3"/><circle cx="24" cy="24" r="4" fill="currentColor" opacity="0.3"/><circle cx="16" cy="16" r="4" stroke="currentColor" stroke-width="2"/><circle cx="24" cy="16" r="4" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="24" r="4" stroke="currentColor" stroke-width="2"/><circle cx="24" cy="24" r="4" stroke="currentColor" stroke-width="2"/><path d="M12 20H28" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+          icon: `<img src="${liveRosinGummiesIcon}" alt="Live Rosin Gummies" style="width:40px;height:40px;object-fit:contain;" />`
         }
       ]
     },
