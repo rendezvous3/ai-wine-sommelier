@@ -104,8 +104,8 @@
 
   .controls h3 {
     margin: 0 0 15px 0;
-    font-size: 18px;
-    font-weight: 600;
+    font-size: 16px;
+    font-weight: 400;
     color: #1f2937;
   }
 

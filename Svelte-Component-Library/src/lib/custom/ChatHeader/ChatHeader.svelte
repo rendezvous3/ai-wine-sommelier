@@ -395,7 +395,7 @@
   }
 
   .chat-header--lg .chat-header__title {
-    font-size: 18px;
+    font-size: 16px;
   }
 
   .chat-header__content {
@@ -422,7 +422,7 @@
 
   .chat-header__title {
     font-size: 16px;
-    font-weight: 600;
+    font-weight: 400;
   }
 
   .chat-header__actions {

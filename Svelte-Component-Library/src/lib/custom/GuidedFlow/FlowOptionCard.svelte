@@ -153,8 +153,8 @@
   }
 
   .flow-option-card__label {
-    font-size: 16px;
-    font-weight: 500;
+    font-size: 14px;
+    font-weight: 400;
     color: #111827;
   }
 
