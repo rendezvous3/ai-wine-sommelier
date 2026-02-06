@@ -41,6 +41,8 @@
 
   let isInitialized = $state(false);
 
+  const persistChat = false; // Set to true to re-enable localStorage persistence
+
   const STORAGE_KEY = `widget_chat_${storeName}`;
   interface Message {
     role: "user" | "assistant";
@@ -175,12 +177,14 @@
 
 
   onMount(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        messages = JSON.parse(saved);
-      } catch {
-        localStorage.removeItem(STORAGE_KEY);
+    if (persistChat) {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          messages = JSON.parse(saved);
+        } catch {
+          localStorage.removeItem(STORAGE_KEY);
+        }
       }
     }
 
@@ -191,9 +195,28 @@
   });
 
   $effect(() => {
-    if (isInitialized) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
-  }
+    if (isInitialized && persistChat) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    }
+  });
+
+  // Body scroll lock for mobile fullscreen
+  $effect(() => {
+    const isMobile = window.innerWidth <= 640;
+    if (isOpen && isMobile) {
+      const scrollY = window.scrollY;
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      return () => {
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
   });
 
   // Convert Recommendation to Product format for ChatMessage
@@ -1158,6 +1181,7 @@
 <ChatWidget
   isOpen={isOpen}
   onToggle={() => (isOpen = !isOpen)}
+  onClose={() => (isOpen = false)}
   onSend={handleSend}
   position="bottom-right"
   expandIcon="dots"
@@ -1206,7 +1230,7 @@
           recommendationTitle={msg.role === 'assistant' && msg.recommendations && msg.recommendations.length > 0 ? "Cannavita Budtender recommendations" : undefined}
           recommendationLayout="compact-list"
           productsInBubble={true}
-          showHoverActions={msg.role === 'assistant' && msg.recommendations && msg.recommendations.length > 0}
+          showHoverActions={false}
           actionType="link"
         />
       {/if}

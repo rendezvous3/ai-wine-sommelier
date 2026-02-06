@@ -444,39 +444,52 @@
   }
 
   @media (max-width: 640px) {
-    .chat-widget__window {
-      width: calc(100vw - 20px);
-      height: calc(100vh - 100px);
-      max-height: calc(100vh - 100px);
+    /* When open on mobile: true fullscreen, every pixel */
+    .chat-widget--open .chat-widget__window {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100vw;
+      height: 100vh;
+      max-width: 100vw;
+      max-height: 100vh;
+      border-radius: 0;
+      animation: none;
     }
 
+    /* Hide floating bubble when widget is open on mobile */
+    .chat-widget--open .chat-widget__button {
+      display: none;
+    }
+
+    /* Expanded state on mobile: same fullscreen treatment */
+    .chat-widget--expanded .chat-widget__window {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100vw;
+      height: 100vh;
+      max-width: 100vw;
+      max-height: 100vh;
+      border-radius: 0;
+      transform: none;
+    }
+
+    /* When widget is NOT open: keep button accessible */
     .chat-widget--bottom-right,
     .chat-widget--bottom-left {
       bottom: 10px;
       right: 10px;
+      left: auto;
+    }
+
+    .chat-widget--bottom-left {
       left: 10px;
-    }
-
-    .chat-widget--bottom-right .chat-widget__window,
-    .chat-widget--bottom-left .chat-widget__window {
-      bottom: 70px;
-      left: 0;
-      right: 0;
-    }
-
-    .chat-widget--expanded .chat-widget__window {
-      width: 100vw;
-      height: 100vh;
-      border-radius: 0;
-      bottom: 0;
-      right: 0;
-      transform: none;
-    }
-
-    .chat-widget--bottom-left.chat-widget--expanded .chat-widget__window,
-    .chat-widget--top-right.chat-widget--expanded .chat-widget__window,
-    .chat-widget--top-left.chat-widget--expanded .chat-widget__window {
-      transform: none;
+      right: auto;
     }
   }
 </style>

@@ -467,7 +467,8 @@
   }
 
   .chat-window__messages-end {
-    height: 1px;
+    height: 12px;
+    flex-shrink: 0;
   }
 
   .chat-window__guided-flow {

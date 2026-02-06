@@ -36,6 +36,7 @@
     onViewDetails?: (product: Product) => void;
     actionType?: 'add-to-cart' | 'link';
     themeBackgroundColor?: string;
+    maxVisible?: number;
   }
 
   let {
@@ -46,8 +47,17 @@
     onAddToCart,
     onViewDetails,
     actionType = 'add-to-cart',
-    themeBackgroundColor
+    themeBackgroundColor,
+    maxVisible = 3
   }: ProductRecommendationProps = $props();
+
+  // Expandable list state (compact-list layout only)
+  let isExpanded = $state(false);
+  let visibleProducts = $derived(
+    isExpanded || products.length <= maxVisible ? products : products.slice(0, maxVisible)
+  );
+  let hasMore = $derived(products.length > maxVisible);
+  let hiddenCount = $derived(products.length - maxVisible);
 
   // Get themeBackgroundColor from context (provided by ChatWidget) as fallback
   let contextThemeStore = getContext<{ value: string | undefined } | undefined>('themeBackgroundColor');
@@ -119,11 +129,11 @@
       />
     {:else if layout === 'compact-list'}
       <div class="product-recommendation__compact">
-        {#each products as product (product.title)}
+        {#each visibleProducts as product (product.title)}
           <div class="product-recommendation__compact-item">
-            <img 
-              src={hasValidImage(product.image) ? product.image : getPlaceholderImage(product.title)} 
-              alt={product.title} 
+            <img
+              src={hasValidImage(product.image) ? product.image : getPlaceholderImage(product.title)}
+              alt={product.title}
               class="product-recommendation__compact-image"
               onerror={(e) => {
                 const target = e.target as HTMLImageElement;
@@ -152,7 +162,7 @@
               </div>
               <div class="product-recommendation__compact-footer">
                 <div class="product-recommendation__compact-footer-left">
-                  <div 
+                  <div
                     class="product-recommendation__compact-price"
                     style="{effectiveThemeColor ? `color: ${effectiveThemeColor};` : ''}"
                   >
@@ -210,6 +220,26 @@
             </div>
           </div>
         {/each}
+        {#if hasMore}
+          <button
+            class="product-recommendation__expand-button"
+            onclick={() => (isExpanded = !isExpanded)}
+            type="button"
+            style="{effectiveThemeColor ? `color: ${effectiveThemeColor};` : ''}"
+          >
+            <span>{isExpanded ? 'Show less' : `Show ${hiddenCount} more`}</span>
+            <svg
+              class="product-recommendation__expand-chevron"
+              class:product-recommendation__expand-chevron--rotated={isExpanded}
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+            >
+              <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        {/if}
       </div>
     {:else if layout === 'compact-grid'}
       <div class="product-recommendation__compact-grid">
@@ -572,6 +602,48 @@
     transform: scale(1.05);
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
     filter: brightness(1.1);
+  }
+
+  /* Expand/collapse button for compact-list */
+  .product-recommendation__expand-button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 16px;
+    background: transparent;
+    border: none;
+    border-radius: 10px;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease-out;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  }
+
+  .product-recommendation__expand-button:hover {
+    background: rgba(107, 114, 128, 0.05);
+  }
+
+  .product-recommendation__expand-chevron {
+    transition: transform 0.25s ease-out;
+    flex-shrink: 0;
+  }
+
+  .product-recommendation__expand-chevron--rotated {
+    transform: rotate(180deg);
+  }
+
+  :global(.dark) .product-recommendation__expand-button,
+  :global([data-theme="dark"]) .product-recommendation__expand-button {
+    color: #858585;
+  }
+
+  :global(.dark) .product-recommendation__expand-button:hover,
+  :global([data-theme="dark"]) .product-recommendation__expand-button:hover {
+    background: rgba(255, 255, 255, 0.05);
   }
 
   /* Compact grid layout - Layout 2: 1 column default, 2 columns when widget is expanded */
