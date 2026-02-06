@@ -37,7 +37,7 @@ const CEREBRAS_MODELS = {
 // Type for environment bindings (minimal interface for API keys)
 interface EnvBindings {
   GROQ_API_KEY?: string;
-  CEREBRAS_API_KEY: string;
+  CEREBRAS_API_KEY_PROD: string;
 }
 
 // Provider configuration
@@ -50,7 +50,7 @@ const PROVIDER_CONFIG = {
   [LLM_PROVIDER.CEREBRAS]: {
     models: CEREBRAS_MODELS,
     baseUrl: "https://api.cerebras.ai/v1",
-    getApiKey: (env: EnvBindings) => env.CEREBRAS_API_KEY,
+    getApiKey: (env: EnvBindings) => env.CEREBRAS_API_KEY_PROD,
   },
 } as const;
 

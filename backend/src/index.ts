@@ -31,7 +31,7 @@ import {
 } from "./schema";
 
 interface Bindings {
-  CEREBRAS_API_KEY: string;
+  CEREBRAS_API_KEY_PROD: string;
   GROQ_API_KEY?: string;     // optional
   VECTORIZE_INDEX: VectorizeIndex;
   AI: Ai<AiModels>;

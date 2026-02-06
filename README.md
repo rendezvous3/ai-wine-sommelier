@@ -277,40 +277,322 @@ binding = "VECTORIZE_INDEX"
 index_name = "products-prod"  # Update to your index name
 ```
 
-## Backend Workflow (API)
-The backend handles intent classification, streaming chat, and recommendations.
+## Development & Deployment
 
-Run Locally:
+### Environment Configuration
 
+The project uses environment-specific configuration files to manage API URLs and settings across local development and production environments.
+
+#### Environment Files Structure
+
+**Client** (`client/`):
+- `.env.development` - Local development (points to localhost:8787)
+- `.env.production` - Production deployment (points to deployed Cloudflare Worker)
+
+```bash
+# client/.env.development
+VITE_API_URL=http://localhost:8787/chat
+VITE_STORE_NAME=cannavita
+
+# client/.env.production
+VITE_API_URL=https://ecom-chat-backend.andresmeona.workers.dev/chat
+VITE_STORE_NAME=cannavita
+```
+
+**Backend** (`backend/`):
+- `.env` - Local secrets (API keys, tokens)
+- `wrangler.toml` - Cloudflare Workers configuration
+
+**Important**: All `.env.*` files are gitignored and not committed to the repository.
+
+#### How Environment Variables Work
+
+**Vite automatically switches .env files based on command**:
+
+| Command | Mode | .env File Used | Result |
+|---------|------|----------------|--------|
+| `npm run dev` | development | `.env.development` | Uses localhost API |
+| `npm run build` | production | `.env.production` | Bakes production API URL into `widget.js` |
+
+**API URL Resolution Order** (in `client/src/main.ts`):
+1. **Runtime override**: `data-api` attribute on script tag (highest priority)
+2. **Compile-time**: `import.meta.env.VITE_API_URL` from .env file (baked into build)
+3. **Fallback**: `http://localhost:8787/chat` (hardcoded default)
+
+**Example - Runtime Override**:
+```html
+<!-- Override baked-in URL at embed time -->
+<script
+  type="module"
+  src="/widget.js"
+  data-api="https://custom-api.com/chat"
+  data-store="my-store">
+</script>
+```
+
+---
+
+### Local Development
+
+#### Development Setup
+
+**Important**: The client's `index.html` points to `/dist/widget.js` (built file), not source files. This means:
+- ❌ **No Hot Module Replacement (HMR)** - changes require manual rebuild
+- ✅ **Production-like testing** - tests the exact widget that will be deployed
+- ⚡ **Workflow**: Edit source → Build → Refresh browser
+
+#### Full Local Development Workflow
+
+Run backend and frontend together for complete local testing:
+
+**Terminal 1 - Backend API**:
 ```bash
 cd backend
 npx wrangler dev --remote
 ```
+**→ Runs backend on `http://localhost:8787`**
+**→ Uses remote Cloudflare resources (Vectorize, Workers AI)**
 
-## Client Workflow (Svelte App compiled into JS script widget)
+**Terminal 2 - Frontend Widget**:
+```bash
+cd client
 
-The client compiles Svelte app into JavaScript Widget placed in html.
+# Build widget after making changes
+npm run build
 
-Run Locally:
+# Start dev server (serves built widget)
+npm run dev
+```
+**→ Builds source to `dist/widget.js` (uses `.env.development`)**
+**→ Runs Vite dev server on `http://localhost:5173`**
+**→ Serves `index.html` which loads `dist/widget.js`**
+
+**Development Loop**:
+1. Edit files in `client/src/` (Widget.svelte, etc.)
+2. Run `npm run build` in Terminal 2
+3. Refresh browser at `http://localhost:5173`
+4. Repeat
+
+**Why `--remote` flag?**
+The `--remote` flag runs your Worker code remotely on Cloudflare's infrastructure while keeping the dev server local. This gives you:
+- Access to production Vectorize indexes
+- Access to Cloudflare Workers AI models
+- Faster cold starts (no local emulation overhead)
+- Same behavior as production
+
+---
+
+### Deployment
+
+#### Production Deployment Workflow
+
+Deploy both backend and frontend to Cloudflare:
+
+#### 1. Deploy Backend API (Cloudflare Workers)
+
+```bash
+cd backend
+npx wrangler deploy
+```
+
+**What happens**:
+- Deploys backend to Cloudflare Workers
+- Creates/updates Worker at `https://ecom-chat-backend.andresmeona.workers.dev`
+- Binds to Vectorize index specified in `wrangler.toml`
+- Uses environment variables from `backend/.env` and `wrangler.toml`
+
+**Configuration** (`backend/wrangler.toml`):
+```toml
+name = "ecom-chat-backend"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[[vectorize]]
+binding = "VECTORIZE_INDEX"
+index_name = "products-prod"
+
+[vars]
+# Public environment variables
+```
+
+**Deployed API URL**: `https://ecom-chat-backend.andresmeona.workers.dev/chat`
+
+---
+
+#### 2. Deploy Frontend Widget (Cloudflare Pages)
 
 ```bash
 cd client
-# after changes
+
+# Step 1: Build for production (uses .env.production)
 npm run build
-npm run dev
+
+# Step 2: Deploy to Cloudflare Pages
+npx wrangler pages deploy dist --project-name=cannavita-widget
 ```
 
+**What happens**:
+- **Step 1**: Vite builds widget using `.env.production`
+  - API URL `https://ecom-chat-backend.andresmeona.workers.dev/chat` is baked into `widget.js`
+  - Outputs to `client/dist/`:
+    - `dist/widget.js` - Compiled widget (IIFE format)
+    - `dist/index.html` - Demo page for testing
+    - `dist/assets/*` - Images, icons, other assets
+- **Step 2**: Wrangler uploads entire `dist/` folder to Cloudflare Pages
+  - Creates/updates Pages project `cannavita-widget`
+  - Assigns URL: `https://cannavita-widget.pages.dev`
+
+**Build Configuration** (`client/vite.config.ts`):
+```typescript
+build: {
+  outDir: 'dist',
+  emptyOutDir: true,  // Clears dist/ before each build
+  lib: {
+    entry: 'src/main.ts',
+    name: 'EcomWidget',
+    fileName: 'widget',
+    formats: ['iife']
+  }
+}
+```
+
+---
+
+#### Embedding the Production Widget
+
+Once deployed, embed the widget on any website:
+
+**Option 1: Use Deployed Widget (Recommended)**
 ```html
+<script
+  id="ecom-widget-script"
+  type="module"
+  src="https://cannavita-widget.pages.dev/widget.js"
+  data-api="https://ecom-chat-backend.andresmeona.workers.dev/chat"
+  data-store="cannavita">
+</script>
+```
+
+**Option 2: Use CDN (for faster global delivery)**
+```html
+<!-- Host widget.js on a CDN and reference it -->
 <script
   type="module"
   src="https://your-cdn.com/widget.js"
-  data-api="https://your-api.com/chat"
-  data-store="cannavita"
-></script>
+  data-api="https://ecom-chat-backend.andresmeona.workers.dev/chat"
+  data-store="cannavita">
+</script>
 ```
 
-Compiles everything to static files in dist/.
-The key file is dist/widget.js (plus CSS if any).
+**Option 3: Baked-in API URL (no data-api attribute needed)**
+```html
+<!-- API URL already baked into widget.js during build -->
+<script
+  type="module"
+  src="https://cannavita-widget.pages.dev/widget.js">
+</script>
+```
+
+---
+
+### Environment Summary
+
+| Environment | Backend | Frontend | Widget API URL |
+|-------------|---------|----------|----------------|
+| **Local Dev** | `wrangler dev --remote` (localhost:8787) | `npm run build` + `npm run dev` (localhost:5173) | `http://localhost:8787/chat` |
+| **Production** | `wrangler deploy` (Workers) | `wrangler pages deploy dist` (Pages) | `https://ecom-chat-backend.andresmeona.workers.dev/chat` |
+
+---
+
+### Deployment URLs
+
+**Backend API**:
+- Local: `http://localhost:8787/chat`
+- Production: `https://ecom-chat-backend.andresmeona.workers.dev/chat`
+
+**Frontend Widget**:
+- Local: `http://localhost:5173` (dev server)
+- Production: `https://cannavita-widget.pages.dev`
+
+**API Endpoints** (append to base URL):
+- `/chat/stream` - Streaming conversational agent
+- `/chat/intent` - Intent extraction
+- `/chat/recommendations` - Product recommendations
+- `/chat/product-lookup` - Semantic product search
+
+---
+
+### Quick Reference: All Commands
+
+**Local Development**:
+```bash
+# Terminal 1 - Backend
+cd backend
+npx wrangler dev --remote
+
+# Terminal 2 - Frontend
+cd client
+npm run build  # After making changes
+npm run dev    # Start dev server
+```
+
+**Production Deployment**:
+```bash
+# Deploy Backend
+cd backend
+npx wrangler deploy
+
+# Deploy Frontend
+cd client
+npm run build
+npx wrangler pages deploy dist --project-name=cannavita-widget
+```
+
+**Build Only** (without deploying):
+```bash
+cd client
+npm run build  # Outputs to dist/
+```
+
+---
+
+### Development vs Production: Key Differences
+
+| Aspect | Local Development | Production |
+|--------|-------------------|------------|
+| **Backend** | `wrangler dev --remote` (localhost:8787) | `wrangler deploy` (Cloudflare Workers) |
+| **Frontend** | Built widget served by Vite dev server | Static widget.js hosted on Cloudflare Pages |
+| **Widget Behavior** | Identical (tests production build) | Same as local (no surprises) |
+| **API URL** | `http://localhost:8787/chat` | `https://ecom-chat-backend.andresmeona.workers.dev/chat` |
+| **Environment File** | `.env.development` | `.env.production` |
+| **Hot Reload** | ❌ No (requires `npm run build`) | ❌ No (static build) |
+| **CORS** | Relaxed (same origin) | Configured in backend |
+| **Vectorize** | Remote (production data) | Remote (production data) |
+| **Workers AI** | Remote (Cloudflare models) | Remote (Cloudflare models) |
+
+---
+
+### Important Notes
+
+1. **`dist/` folder is for deployment only**:
+   - Created by `npm run build`
+   - Contains production-ready files
+   - Ignored by git (in `.gitignore`)
+   - Cleared on each build (`emptyOutDir: true`)
+
+2. **Widget loads built file even in dev mode**:
+   - `index.html` points to `/dist/widget.js` (not source)
+   - This tests production behavior locally
+   - Requires manual rebuild after changes (no HMR)
+
+3. **Environment variables are baked into build**:
+   - `VITE_API_URL` from `.env.production` is compiled into `widget.js`
+   - Can still override at runtime via `data-api` attribute
+
+4. **Backend always uses remote resources**:
+   - `--remote` flag connects to production Vectorize and Workers AI
+   - Ensures consistent behavior between dev and production
+   - No need to mock or emulate Cloudflare services locally
 
 ## Theme Configuration
 

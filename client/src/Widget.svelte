@@ -36,7 +36,7 @@
   let isOpen = $state(false);
   let mode = $state<'chat' | 'guided-flow'>('chat');
 
-  const BASE_URL = import.meta.env.VITE_BASE_API_URL;
+  const BASE_URL = import.meta.env.VITE_API_URL;
   const storeName = import.meta.env.VITE_STORE_NAME;
 
   let isInitialized = $state(false);
