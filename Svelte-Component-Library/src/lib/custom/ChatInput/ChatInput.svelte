@@ -1262,7 +1262,6 @@
     padding: 8px 12px 8px 0;
     overflow-y: auto;
     box-sizing: border-box;
-    vertical-align: middle;
     width: 100%;
   }
 
@@ -1596,6 +1595,10 @@
     .chat-input__field,
     .chat-input__field--two-line {
       font-size: 16px;
+      /* Explicit line-height in px fixes Safari cursor misalignment on single-row textareas */
+      line-height: 24px;
+      padding-top: 6px;
+      padding-bottom: 6px;
     }
 
     .chat-input__button {

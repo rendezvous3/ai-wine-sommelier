@@ -85,22 +85,12 @@
   }
 
   function scrollToBottom(instant = false) {
-    if (messagesContainerRef) {
-      // Use direct scrollTop manipulation for more reliable scrolling
-      // This ensures we scroll to the absolute bottom
-      if (instant) {
-        messagesContainerRef.scrollTop = messagesContainerRef.scrollHeight;
-      } else {
-        // Use requestAnimationFrame to ensure DOM is updated before scrolling
-        requestAnimationFrame(() => {
-          if (messagesContainerRef) {
-            messagesContainerRef.scrollTop = messagesContainerRef.scrollHeight;
-          }
-        });
-      }
-    } else {
-      // Fallback to scrollIntoView if container ref is not available
-      messagesEndRef?.scrollIntoView({ behavior: instant ? 'auto' : 'smooth' });
+    // Prefer scrollIntoView on the sentinel element — more reliable than scrollTop
+    // across browsers (especially Safari where scrollTop + smooth CSS can conflict)
+    if (messagesEndRef) {
+      messagesEndRef.scrollIntoView({ behavior: instant ? 'auto' : 'smooth', block: 'end' });
+    } else if (messagesContainerRef) {
+      messagesContainerRef.scrollTop = messagesContainerRef.scrollHeight;
     }
   }
 
@@ -124,15 +114,12 @@
   // Auto-scroll to bottom when new messages arrive
   // Watch messagesCount to detect when messages are added (including recommendations)
   $effect(() => {
-    if (messagesCount > 0 && messagesContainerRef && messagesEndRef && mode === 'chat') {
-      // Use requestAnimationFrame twice to ensure DOM is fully updated
-      // First frame: DOM updates
-      // Second frame: Scroll happens after layout
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          scrollToBottom(true); // Use instant scroll for auto-scroll
-        });
-      });
+    if (messagesCount > 0 && messagesEndRef && mode === 'chat') {
+      // Immediate attempt
+      scrollToBottom(true);
+      // Safari fallback — layout may not be complete on the first pass,
+      // so retry after a short delay to guarantee the new message is visible
+      setTimeout(() => scrollToBottom(true), 80);
     }
   });
 </script>
@@ -444,7 +431,6 @@
     display: flex;
     flex-direction: column;
     gap: 0;
-    scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     background: #f9fafa;
