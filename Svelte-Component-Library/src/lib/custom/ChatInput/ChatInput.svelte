@@ -66,8 +66,9 @@
   let textareaRef: HTMLTextAreaElement | null = $state(null);
   let textareaTwoLineRef: HTMLTextAreaElement | null = $state(null);
   let isExpanded = $state(false);
-  // When true, the focus-restore effect skips re-focusing (so blur after send sticks)
-  let skipFocusRestore = $state(false);
+  // When true, the next textareaRef rebind triggers focus restore (layout swap while typing).
+  // Set to false after send on mobile so the blur sticks.
+  let pendingFocusRestore = $state(false);
 
   let selectedAgent = $state('composer');
   let selectedModel = $state('gpt-4');
@@ -95,17 +96,14 @@
 
   function shouldExpand(charCount: number): boolean {
     const screenWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
-    // let threshold = 80; // Default for large screens
+
     let threshold = 20;
-    
     if (screenWidth < 640) {
-      // threshold = 40; // Small screens
-      threshold = 10; // Small screens
+      threshold = 10;
     } else if (screenWidth < 1024) {
-      // threshold = 60; // Medium screens
-      threshold = 15; // Medium screens
+      threshold = 15;
     }
-    
+
     // Add hysteresis: expand at threshold, collapse slightly below to prevent flickering
     if (isExpanded) {
       return charCount > threshold - 5; // Stay expanded until 5 chars below threshold
@@ -131,6 +129,8 @@
     // Update expansion state based on character count
     const shouldBeExpanded = shouldExpand(inputValue.length);
     if (isExpanded !== shouldBeExpanded) {
+      // Layout swap coming — request focus restore after the new textarea binds
+      pendingFocusRestore = true;
       isExpanded = shouldBeExpanded;
     }
     // Auto-resize the textarea for visual height adjustment only
@@ -149,9 +149,8 @@
       oninput?.('');
       // Reset textarea height and expansion state after sending.
       const isMobile = typeof window !== 'undefined' && window.innerWidth <= 640;
-      // On mobile, skip focus-restore so the blur sticks.
-      // On desktop, leave it false so the focus-restore effect keeps the cursor in the textarea.
-      skipFocusRestore = isMobile;
+      // On desktop: restore focus after layout collapse. On mobile: skip so blur sticks.
+      pendingFocusRestore = !isMobile;
       isExpanded = false;
       // On mobile, blur the textarea to dismiss the keyboard so the user
       // sees the full response. Desktop keeps focus for continuous typing.
@@ -189,26 +188,17 @@
   // Remove auto-resize effects - they cause infinite loops
   // Resizing only happens in handleInput when user types
 
-  // Restore focus when layout changes (expand ↔ collapse while typing).
-  // Skipped after send so the mobile blur is not undone.
-  let previousExpandedState = $state(false);
+  // Restore focus after layout swap (expand ↔ collapse).
+  // Watches textareaRef directly: when Svelte rebinds it to the new textarea
+  // after a {#if}/{:else} DOM swap, this effect fires and focuses if pending.
   $effect(() => {
-    const expanded = isExpanded;
-    if (expanded !== previousExpandedState) {
-      if (!skipFocusRestore) {
-        // rAF fires after the next paint — by then the new textarea from the
-        // layout swap is in the DOM and textareaRef is updated.
-        requestAnimationFrame(() => {
-          if (textareaRef) {
-            textareaRef.focus();
-            const len = inputValue.length;
-            textareaRef.setSelectionRange(len, len);
-          }
-        });
-      }
-      skipFocusRestore = false;
+    const ref = textareaRef;
+    if (ref && pendingFocusRestore) {
+      pendingFocusRestore = false;
+      ref.focus();
+      const len = inputValue.length;
+      ref.setSelectionRange(len, len);
     }
-    previousExpandedState = expanded;
   });
 
   // Close dropdowns when clicking outside
@@ -1612,10 +1602,6 @@
     .chat-input__field,
     .chat-input__field--two-line {
       font-size: 16px;
-      /* Explicit line-height in px fixes Safari cursor misalignment on single-row textareas */
-      line-height: 24px;
-      padding-top: 6px;
-      padding-bottom: 6px;
     }
 
     .chat-input__button {
