@@ -112,14 +112,12 @@
   });
 
   // Auto-scroll to bottom when new messages arrive
-  // Watch messagesCount to detect when messages are added (including recommendations)
+  // $effect runs after DOM update; rAF ensures layout is complete before scrolling
   $effect(() => {
     if (messagesCount > 0 && messagesEndRef && mode === 'chat') {
-      // Immediate attempt
-      scrollToBottom(true);
-      // Safari fallback — layout may not be complete on the first pass,
-      // so retry after a short delay to guarantee the new message is visible
-      setTimeout(() => scrollToBottom(true), 80);
+      requestAnimationFrame(() => {
+        scrollToBottom(true);
+      });
     }
   });
 </script>

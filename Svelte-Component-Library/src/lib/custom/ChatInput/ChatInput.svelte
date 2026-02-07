@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getContext, tick } from 'svelte';
+  import { getContext } from 'svelte';
 
   interface ChatInputProps {
     placeholder?: string;
@@ -66,7 +66,9 @@
   let textareaRef: HTMLTextAreaElement | null = $state(null);
   let textareaTwoLineRef: HTMLTextAreaElement | null = $state(null);
   let isExpanded = $state(false);
-  
+  // When true, the focus-restore effect skips re-focusing (so blur after send sticks)
+  let skipFocusRestore = $state(false);
+
   let selectedAgent = $state('composer');
   let selectedModel = $state('gpt-4');
   let selectedTemperature = $state('balanced');
@@ -145,9 +147,18 @@
       });
       inputValue = '';
       oninput?.('');
-      // Reset textarea height and expansion state after sending
-      // Expansion state will be reset automatically since inputValue.length is now 0
+      // Reset textarea height and expansion state after sending.
+      const isMobile = typeof window !== 'undefined' && window.innerWidth <= 640;
+      // On mobile, skip focus-restore so the blur sticks.
+      // On desktop, leave it false so the focus-restore effect keeps the cursor in the textarea.
+      skipFocusRestore = isMobile;
       isExpanded = false;
+      // On mobile, blur the textarea to dismiss the keyboard so the user
+      // sees the full response. Desktop keeps focus for continuous typing.
+      if (isMobile) {
+        textareaRef?.blur();
+        textareaTwoLineRef?.blur();
+      }
       if (textareaRef) {
         textareaRef.style.height = 'auto';
       }
@@ -178,22 +189,24 @@
   // Remove auto-resize effects - they cause infinite loops
   // Resizing only happens in handleInput when user types
 
-  // Restore focus when layout changes (both expand and collapse)
+  // Restore focus when layout changes (expand ↔ collapse while typing).
+  // Skipped after send so the mobile blur is not undone.
   let previousExpandedState = $state(false);
   $effect(() => {
-    // Track isExpanded changes
     const expanded = isExpanded;
-    // Restore focus when layout state changes (either direction)
-    if (expanded !== previousExpandedState && textareaRef) {
-      // Use tick to ensure DOM has updated after layout change
-      tick().then(() => {
-        if (textareaRef) {
-          textareaRef.focus();
-          // Restore cursor position to end
-          const len = inputValue.length;
-          textareaRef.setSelectionRange(len, len);
-        }
-      });
+    if (expanded !== previousExpandedState) {
+      if (!skipFocusRestore) {
+        // rAF fires after the next paint — by then the new textarea from the
+        // layout swap is in the DOM and textareaRef is updated.
+        requestAnimationFrame(() => {
+          if (textareaRef) {
+            textareaRef.focus();
+            const len = inputValue.length;
+            textareaRef.setSelectionRange(len, len);
+          }
+        });
+      }
+      skipFocusRestore = false;
     }
     previousExpandedState = expanded;
   });
@@ -221,6 +234,10 @@
       return () => window.removeEventListener('click', handleClickOutside);
     }
   });
+
+  function handleFocus() {
+    isFocused = true;
+  }
 
   function handleKeyDown(e: KeyboardEvent) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -302,7 +319,7 @@
             value={inputValue}
             oninput={handleInput}
             onkeydown={handleKeyDown}
-            onfocus={() => isFocused = true}
+            onfocus={handleFocus}
             onblur={() => isFocused = false}
             {disabled}
             maxlength={maxLength}
@@ -583,7 +600,7 @@
               value={inputValue}
               oninput={handleInput}
               onkeydown={handleKeyDown}
-              onfocus={() => isFocused = true}
+              onfocus={handleFocus}
               onblur={() => isFocused = false}
               {disabled}
               maxlength={maxLength}
@@ -665,7 +682,7 @@
               value={inputValue}
               oninput={handleInput}
               onkeydown={handleKeyDown}
-              onfocus={() => isFocused = true}
+              onfocus={handleFocus}
               onblur={() => isFocused = false}
               {disabled}
               maxlength={maxLength}

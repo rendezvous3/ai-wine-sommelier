@@ -836,6 +836,8 @@ When the intent is `"product-question"`, the widget uses a two-phase lookup:
 ## Development Rules
 
 ### Critical Rules
+- **Never use `setTimeout` for UI logic** — No setTimeout for scroll, layout, focus, or animation timing. It is a hack that papers over root-cause issues. Use `requestAnimationFrame` (frame-sync), reactive `$effect`, or CSS transitions instead. The only acceptable use of setTimeout is inside network/retry logic.
+- **Never use `Promise` for UI logic** — Promises are for API fetching only. Do not wrap UI operations (scroll, focus, DOM reads) in Promises or async/await.
 - **Never break streaming** — always use buffer-based SSE parsing with `split("\n\n")` and incomplete chunk handling
 - **Never send `recommendations` array to LLM** — always strip the `recommendations` field from messages before sending to Groq/OpenAI (it breaks the API)
 - **Never recommend products in general chat** — product recommendations are only triggered when intent = "recommendation"

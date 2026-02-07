@@ -200,14 +200,17 @@
     }
   });
 
-  // Body scroll lock for mobile fullscreen
-  // position:fixed on body prevents iOS visual viewport scrolling when keyboard opens
-  // (safe now that input font-size is 16px — no more iOS auto-zoom)
+  // Body scroll lock for mobile fullscreen.
+  // position:fixed on body prevents iOS Safari from scrolling the page behind the widget.
+  // overflow:hidden alone is not enough — iOS Safari can bypass it for momentum scrolling.
+  // We also set the html background to match the widget so the purple page never peeks through.
   $effect(() => {
     const isMobile = window.innerWidth <= 640;
     if (isOpen && isMobile) {
       const scrollY = window.scrollY;
+      const prevHtmlBg = document.documentElement.style.background;
       document.documentElement.style.overflow = 'hidden';
+      document.documentElement.style.background = '#1e1e1e';
       document.body.style.overflow = 'hidden';
       document.body.style.position = 'fixed';
       document.body.style.top = `-${scrollY}px`;
@@ -215,6 +218,7 @@
       document.body.style.right = '0';
       return () => {
         document.documentElement.style.overflow = '';
+        document.documentElement.style.background = prevHtmlBg;
         document.body.style.overflow = '';
         document.body.style.position = '';
         document.body.style.top = '';
