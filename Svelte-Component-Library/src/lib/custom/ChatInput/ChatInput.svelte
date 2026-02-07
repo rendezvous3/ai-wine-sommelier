@@ -1595,7 +1595,7 @@
   /* Responsive */
   @media (max-width: 640px) {
     .chat-input__container {
-      padding: 6px 8px;
+      padding: 8px 12px;
     }
 
     /* 16px minimum prevents iOS Safari auto-zoom on input focus */
