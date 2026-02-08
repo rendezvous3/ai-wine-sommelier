@@ -64,6 +64,7 @@
   let speedDropdownOpen = $state(false);
   let fileInputRef: HTMLInputElement | null = $state(null);
   let textareaRef: HTMLTextAreaElement | null = $state(null);
+  let inputRef: HTMLInputElement | null = $state(null);
   let textareaTwoLineRef: HTMLTextAreaElement | null = $state(null);
   let isExpanded = $state(false);
   // When true, the next textareaRef rebind triggers focus restore (layout swap while typing).
@@ -134,7 +135,7 @@
       isExpanded = shouldBeExpanded;
     }
     // Auto-resize the textarea for visual height adjustment only
-    autoResizeTextarea(target);
+    // autoResizeTextarea(target);
   }
 
   function handleSend() {
@@ -152,9 +153,10 @@
       // On desktop: restore focus after layout collapse. On mobile: skip so blur sticks.
       pendingFocusRestore = !isMobile;
       isExpanded = false;
-      // On mobile, blur the textarea to dismiss the keyboard so the user
+      // On mobile, blur the input/textarea to dismiss the keyboard so the user
       // sees the full response. Desktop keeps focus for continuous typing.
       if (isMobile) {
+        inputRef?.blur();
         textareaRef?.blur();
         textareaTwoLineRef?.blur();
       }
@@ -189,10 +191,10 @@
   // Resizing only happens in handleInput when user types
 
   // Restore focus after layout swap (expand ↔ collapse).
-  // Watches textareaRef directly: when Svelte rebinds it to the new textarea
-  // after a {#if}/{:else} DOM swap, this effect fires and focuses if pending.
+  // Watches both inputRef and textareaRef: when Svelte rebinds after a {#if}/{:else}
+  // DOM swap (input → textarea or vice versa), this effect fires and focuses if pending.
   $effect(() => {
-    const ref = textareaRef;
+    const ref = isExpanded ? textareaRef : inputRef;
     if (ref && pendingFocusRestore) {
       pendingFocusRestore = false;
       ref.focus();
@@ -583,9 +585,10 @@
           {/if}
 
           <div class="chat-input__textarea-wrapper">
-            <textarea
-              bind:this={textareaRef}
-              class="chat-input__field"
+            <input
+              bind:this={inputRef}
+              type="text"
+              class="chat-input__field chat-input__field--input"
               {placeholder}
               value={inputValue}
               oninput={handleInput}
@@ -594,10 +597,9 @@
               onblur={() => isFocused = false}
               {disabled}
               maxlength={maxLength}
-              rows="1"
               aria-label="Message input"
-            ></textarea>
-            
+            />
+
             {#if maxLength && characterCount > maxLength * 0.8}
               <span class="chat-input__counter">
                 {characterCount}{maxLength ? `/${maxLength}` : ''}
@@ -815,23 +817,26 @@
   .chat-input {
     position: relative;
     width: 100%;
+    z-index: 1;
+    isolation: isolate;
   }
 
   .chat-input__container {
     display: flex;
     flex-direction: row;
-    align-items: flex-end;
+    align-items: center;
     gap: 8px;
     background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
     border: 1px solid rgba(0, 0, 0, 0.1);
     border-radius: 24px;
     padding: 8px 12px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     overflow: visible;
     min-width: 0;
+    /* Mobile optimization - ensure immediate interactivity */
+    pointer-events: auto;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 
   /* Expanded container - column layout */
@@ -1235,6 +1240,14 @@
     overflow: visible;
     min-width: 0;
     max-width: 100%;
+    /* Ensure wrapper doesn't block input interaction */
+    pointer-events: none;
+  }
+
+  /* But the input/textarea itself must receive events */
+  .chat-input__textarea-wrapper > input,
+  .chat-input__textarea-wrapper > textarea {
+    pointer-events: auto;
   }
 
   /* Expanded textarea wrapper (Layout 2) */
@@ -1270,6 +1283,25 @@
     overflow-y: auto;
     box-sizing: border-box;
     width: 100%;
+  }
+
+  /* Input field variant (single-line mode) */
+  .chat-input__field--input {
+    min-height: auto;
+    max-height: none;
+    overflow: visible;
+    height: auto;
+    padding: 10px 12px 10px 0;
+    line-height: 1.5;
+    /* Critical mobile fixes */
+    pointer-events: auto !important;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: text;
+    user-select: text;
+    /* Ensure no rendering delays */
+    will-change: auto;
+    transform: none;
   }
 
   /* Expanded textarea field (Layout 2) */
@@ -1600,6 +1632,7 @@
 
     /* 16px minimum prevents iOS Safari auto-zoom on input focus */
     .chat-input__field,
+    .chat-input__field--input,
     .chat-input__field--two-line {
       font-size: 16px;
     }
