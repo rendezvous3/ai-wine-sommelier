@@ -418,8 +418,17 @@
     .chat-bubble {
       max-width: 90%;
       min-width: 180px;
-      padding: 12px 16px;
       font-size: 14px;
+    }
+
+    /* No padding for assistant messages (full edge-to-edge) */
+    .chat-bubble--assistant {
+      padding: 0;
+    }
+
+    /* Standard padding for user messages */
+    .chat-bubble--user {
+      padding: 12px 16px;
     }
 
     .chat-bubble__expand-toggle {

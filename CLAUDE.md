@@ -811,6 +811,86 @@ When the intent is `"product-question"`, the widget uses a two-phase lookup:
 - **Repository**: Separate git repository (nested), managed independently
 - **Status**: Ready for integration into client widget
 
+#### ⚠️ **CRITICAL: ChatInput Mobile Fix - DO NOT MODIFY**
+
+**The Problem We Solved:**
+The ChatInput component had a persistent bug on mobile where the input field wouldn't respond to the first tap when the chat widget initially opened. This required multiple taps or typing attempts before becoming interactive.
+
+**Root Causes (Multiple Issues Combined):**
+1. **Backdrop-filter GPU Delay** - `backdrop-filter: blur(20px)` caused mobile browsers to delay GPU compositing, making the element unresponsive during initial render
+2. **Wrong Input Element** - Using `<textarea>` for single-line input added unnecessary mobile rendering complexity
+3. **Pointer Events Blocking** - Parent wrapper inadvertently blocked touch events from reaching the input
+4. **Vertical Alignment** - `align-items: flex-end` pushed text to bottom edge instead of centering
+5. **Missing Touch Optimization** - No `touch-action: manipulation` allowed double-tap zoom delays
+
+**The Solution (All Required - Don't Change Any):**
+
+1. **Use `<input type="text">` for single-line, `<textarea>` only when expanded:**
+```svelte
+{#if !isExpanded}
+  <input bind:this={inputRef} type="text" class="chat-input__field chat-input__field--input" ... />
+{:else}
+  <textarea bind:this={textareaRef} class="chat-input__field chat-input__field--expanded" ... />
+{/if}
+```
+
+2. **NO backdrop-filter on container** (removed completely):
+```css
+.chat-input__container {
+  /* ❌ NO backdrop-filter: blur(20px); */
+  /* ❌ NO -webkit-backdrop-filter: blur(20px); */
+}
+```
+
+3. **Pointer-events cascade** (critical for mobile touch):
+```css
+.chat-input__textarea-wrapper {
+  pointer-events: none; /* Wrapper doesn't block */
+}
+
+.chat-input__textarea-wrapper > input,
+.chat-input__textarea-wrapper > textarea {
+  pointer-events: auto; /* Input receives all events */
+}
+```
+
+4. **Vertical centering**:
+```css
+.chat-input__container {
+  align-items: center; /* NOT flex-end */
+}
+```
+
+5. **Mobile touch optimizations** (all required):
+```css
+.chat-input__field--input {
+  touch-action: manipulation;
+  pointer-events: auto !important;
+  -webkit-tap-highlight-color: transparent;
+  padding: 10px 12px 10px 0;
+}
+
+.chat-input__container {
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.chat-input {
+  z-index: 1;
+  isolation: isolate;
+}
+```
+
+**⚠️ WARNING:**
+- **DO NOT add backdrop-filter back** - it breaks mobile tap detection
+- **DO NOT change pointer-events** - the cascade is intentional and critical
+- **DO NOT switch back to textarea-only** - input element is required for mobile
+- **DO NOT modify touch-action** - prevents double-tap zoom delays
+- **DO NOT change align-items to flex-end** - breaks vertical centering
+
+This fix took multiple attempts to solve. Respect the solution and don't modify these specific CSS properties and HTML structure without extensive mobile testing.
+
 ## Current Project State
 
 - **Streaming**: Good — no cutoffs, instant first token

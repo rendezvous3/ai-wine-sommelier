@@ -457,6 +457,11 @@
       min-width: 100%;
     }
 
+    .product-card__content {
+      padding: 12px;
+      gap: 6px;
+    }
+
     .product-card__title {
       font-size: 15px;
     }

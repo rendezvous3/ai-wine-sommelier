@@ -167,6 +167,31 @@ python manage_indexes.py --list
 - **NEVER use `!important`** - Fix specificity properly
 - Use CSS variables, proper specificity, `color: inherit`
 
+### ⚠️ ChatInput Mobile Fix - DO NOT MODIFY
+
+**CRITICAL BUG FIX** - Mobile initial tap issue (`Svelte-Component-Library/src/lib/custom/ChatInput/ChatInput.svelte`)
+
+**The bug**: Input wouldn't respond to first tap on mobile when chat opens. Required multiple taps to become interactive.
+
+**The fix (ALL REQUIRED - DO NOT CHANGE):**
+
+1. **Use `<input>` for single-line, `<textarea>` only when expanded** (input element required for mobile)
+2. **NO backdrop-filter on container** (causes GPU compositing delays - breaks mobile tap detection)
+3. **Pointer-events cascade**: Wrapper has `pointer-events: none`, input/textarea has `pointer-events: auto` (critical for touch)
+4. **Container alignment**: `align-items: center` (NOT flex-end - breaks vertical centering)
+5. **Mobile touch CSS**: `touch-action: manipulation`, `pointer-events: auto !important`, `-webkit-tap-highlight-color: transparent`
+6. **Z-index isolation**: `.chat-input` has `z-index: 1; isolation: isolate`
+
+**DO NOT:**
+- Add backdrop-filter back to container
+- Change pointer-events cascade
+- Switch to textarea-only approach
+- Change align-items to flex-end
+- Modify touch-action properties
+- Remove z-index/isolation
+
+This took multiple debugging sessions to solve. The fix is fragile - all parts work together. Test on mobile if you modify anything.
+
 ## File Structure
 
 **Backend** (`backend/src/`):

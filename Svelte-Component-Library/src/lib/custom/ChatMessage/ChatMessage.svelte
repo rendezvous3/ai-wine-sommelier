@@ -374,6 +374,18 @@
 
   /* Responsive */
   @media (max-width: 640px) {
+    /* Minimal horizontal padding for assistant messages (edge-to-edge feel) */
+    .chat-message__content-wrapper:has(.chat-message__bubble-wrapper :global(.chat-bubble--assistant)) {
+      padding-left: 3px;
+      padding-right: 3px;
+    }
+
+    /* Standard padding for user messages */
+    .chat-message__content-wrapper:has(.chat-message__bubble-wrapper :global(.chat-bubble--user)) {
+      padding-left: 8px;
+      padding-right: 8px;
+    }
+
     .chat-message__actions {
       gap: 2px;
       padding: 2px;

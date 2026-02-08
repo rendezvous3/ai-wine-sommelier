@@ -697,7 +697,7 @@
     }
 
     .chat-window__messages {
-      padding: 16px;
+      padding: 8px;
     }
 
     .chat-window__expand-button {
