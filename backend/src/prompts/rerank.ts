@@ -119,6 +119,10 @@ ${JSON.stringify(results)}
   "ranked_names": ["Product Name 1", "Product Name 2", "Product Name 3", ...]
 }
 
-Return ONLY valid JSON. Do not wrap in markdown code blocks.
+🚨 CRITICAL OUTPUT RULES:
+- Return ONLY raw JSON (no markdown, no code blocks, no thinking tags)
+- Do NOT use <think> tags or any other XML tags
+- Do NOT include any text before or after the JSON
+- Start your response with { and end with }
 `;
 }

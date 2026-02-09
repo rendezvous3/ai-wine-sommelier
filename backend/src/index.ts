@@ -822,7 +822,7 @@ app.post("/chat/recommendations", async (c) => {
         // model: "qwen/qwen3-32b",
         messages: [{ role: "system", content: reRankPrompt }],
         temperature: 0.1,
-        max_tokens: 1200,  // Re-rank: JSON array of products (was 3000, reduced to 1200)
+        max_tokens: 2000,  // Re-rank: Increased for thinking tags + JSON output
         stream: false
       })
     });
