@@ -164,69 +164,71 @@ export const generateStreamPrompt = (
 
   ### STEP 1: EXTRACT FROM CONVERSATION HISTORY
 
-  🚨 **MANDATORY PARSING STEP - DO THIS FIRST:**
+  🚨🚨🚨 **CRITICAL: CHECK EVERY SINGLE USER MESSAGE IN THE CONVERSATION!**
 
-  Look at the user's query word-by-word. Does it contain BOTH a subcategory descriptor AND a category?
+  Go through EACH user message one by one and extract:
 
-  **Subcategory descriptors:** infused, live resin, live rosin, premium, whole, small-buds, pre-ground, bulk
-  **Category words:** prerolls, pre rolls, pre-rolls, flower, vapes, vaporizers, edibles, concentrates, gummies, chocolates, cartridges
+  **Turn 1 - User said:** [quote]
+  - Category: [found or not found]
+  - Subcategory: [found or not found]
+  - Effect: [found or not found]
+  - Potency: [found or not found]
+  - Price: [found or not found]
 
-  **If you see TWO words (subcategory + category) → Parse as 2 separate elements:**
-  - "infused prerolls" → "infused" (subcategory) + "prerolls" (category) = 2 elements ✅✅
-  - "infused pre rolls" → "infused" (subcategory) + "prerolls" (category) = 2 elements ✅✅
-  - "live resin vapes" → "live resin" (subcategory) + "vapes" (category) = 2 elements ✅✅
-  - "premium flower" → "premium" (subcategory) + "flower" (category) = 2 elements ✅✅
+  **Turn 2 - User said:** [quote]
+  - Category: [found or not found]
+  - Subcategory: [found or not found]
+  - Effect: [found or not found]
+  - Potency: [found or not found]
+  - Price: [found or not found]
 
-  **If you see ONE word only → Parse as 1 element:**
-  - "flower" → "flower" (category) = 1 element ✅
-  - "concentrates" → "concentrates" (category) = 1 element ✅
-  - "gummies" → "gummies" (subcategory, category implied: edibles) = 2 elements ✅✅
+  **[Continue for all user turns]**
 
-  🚨 **VERIFICATION CHECKPOINT:**
-  Before proceeding, explicitly state what you parsed from the user's query:
-  - Did user say a subcategory descriptor (infused, live resin, premium, etc.)? YES/NO
-  - Did user say a category word (prerolls, flower, vapes, etc.)? YES/NO
-  - If BOTH YES → You have 2 elements (Subcategory ✅ + Category ✅)
-  - If ONLY category YES → You have 1 element (Category ✅ only)
-
-  **Examples:**
-  - User: "infused pre rolls" → YES subcategory ("infused") + YES category ("pre rolls") = 2 elements
-  - User: "flower" → NO subcategory + YES category ("flower") = 1 element
-  - User: "live resin vapes" → YES subcategory ("live resin") + YES category ("vapes") = 2 elements
-
-  **After verification, list ALL mentions from ALL turns:**
-
-  Category mentions: [list main categories found]
-  Subcategory mentions: [if user said "infused prerolls", you MUST list "infused" here]
-  Effect mentions: [list effects/feelings mentioned]
-  Potency mentions: [list potency words mentioned]
-  Price mentions: [list price/budget mentioned]
-
-  **Recognition guide (for reference):**
+  **Recognition guide:**
   - **Category**: flower, edibles, prerolls, vapes/vaporizers, concentrates, accessories, topicals, cbd
-  - **Subcategory**: infused, gummies, chocolates, cartridges, live resin, live rosin, balms, batteries, grinders, disposables, all-in-one, singles, packs, blunts, premium, whole, small-buds, pre-ground, bulk
-  - **Effect**: uplifting, relaxing, sleepy, energizing, creative, focused, calm, happy, energetic, sedating, "for sleep", "for deep sleep", "deep sleep", "for anxiety", "for pain", "to relax", "to unwind", "to get me happy", "daytime", "nighttime"
+  - **Subcategory**: infused, gummies, chocolates, cartridges, live resin, live rosin, balms, batteries, grinders, premium, whole, small-buds
+  - **Effect**: uplifting, relaxing, sleepy, energizing, creative, focused, calm, happy, energetic, sedating, "for sleep", "to relax", "to get me happy", daytime, nighttime
   - **Potency**: strong, strongest, mild, potent, very strong, most potent, weak, high THC
-  - **Price**: "$X", "under $X", "less than $X", "max $X", "budget of $X", "around $X", "preferably less than $X"
+  - **Price**: "$X", "under $X", "less than $X"
 
-  **Then mark ✅ if ANY found across ALL turns:**
-  - Category: ✅ or ❌
-  - Subcategory: ✅ or ❌ [CRITICAL: If you found "infused" in parsing, mark this ✅]
-  - Effect: ✅ or ❌
-  - Potency: ✅ or ❌
-  - Price: ✅ or ❌ (optional)
+  **IMPORTANT: Compound names like "infused prerolls" = Category (prerolls) + Subcategory (infused) = 2 elements**
 
-  ### STEP 2: DECIDE (Simplified Rule)
+  **After checking ALL turns, summarize what you found TOTAL:**
+
+  Category: [YES ✅ or NO ❌] - If YES, which one: _____
+  Subcategory: [YES ✅ or NO ❌] - If YES, which one: _____
+  Effect: [YES ✅ or NO ❌] - If YES, which one(s): _____
+  Potency: [YES ✅ or NO ❌] - If YES, which one: _____
+  Price: [YES ✅ or NO ❌] - If YES, amount: _____
+
+  ### STEP 2: DECIDE
 
   **Rule: Category + (one other element) = Fire CODEX**
 
-  If Category ✅:
-    If Subcategory ✅ OR Effect ✅ OR Potency ✅:
-      → **FIRE CODEX**
-    Else (Category only):
-      → ASK for effect/potency
-  Else (No Category):
-    → ASK for category
+  Based on your summary from STEP 1:
+
+  **Decision Table:**
+
+  | Category | Effect | Subcategory | Potency | Decision |
+  |----------|--------|-------------|---------|----------|
+  | ✅ | ✅ | - | - | **FIRE CODEX** (2/3) |
+  | ✅ | - | ✅ | - | **FIRE CODEX** (2/3) |
+  | ✅ | - | - | ✅ | **FIRE CODEX** (2/3) |
+  | ✅ | ✅ | ✅ | - | **FIRE CODEX** (3/3) |
+  | ✅ | - | - | - | ASK for effect/potency (1/3) |
+  | ❌ | ✅ | - | - | ASK for category (1/3) |
+  | ❌ | - | - | ✅ | ASK for category (1/3) |
+  | ❌ | - | - | - | ASK for category (0/3) |
+
+  **Examples:**
+  - Turn 1: "uplifting products" → Effect ✅, Category ❌ → ASK for category
+  - Turn 2: "flower" → NOW Category ✅ + Effect ✅ (from turn 1) = **FIRE CODEX** (2/3)
+
+  - Turn 1: "strong stuff" → Potency ✅, Category ❌ → ASK for category
+  - Turn 2: "vapes" → NOW Category ✅ + Potency ✅ (from turn 1) = **FIRE CODEX** (2/3)
+
+  - Turn 1: "flower" → Category ✅ only → ASK for effect/potency
+  - Turn 2: "sleepy" → NOW Category ✅ + Effect ✅ = **FIRE CODEX** (2/3)
 
   ### STEP 3: EXECUTE
 

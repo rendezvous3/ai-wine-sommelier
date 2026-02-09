@@ -45,7 +45,7 @@ interface Bindings {
 // MODEL PROVIDER CONFIGURATION
 // Change this to switch between Groq and Cerebras
 // ============================================
-const ACTIVE_PROVIDER = LLM_PROVIDER.CEREBRAS; // or LLM_PROVIDER.GROQ // CEREBRAS
+const ACTIVE_PROVIDER = LLM_PROVIDER.GROQ; // Groq: Cheaper, great quality
 
 // Default tier - can be made configurable via environment variable later
 const TIER: Tier = "FREE";
@@ -203,7 +203,7 @@ app.post("/chat/intent", async (c) => {
         model: MODEL,
         messages: [{ role: "system", content: prompt }],
         temperature: 0,
-        max_tokens: 2000,
+        max_tokens: 1000,  // Intent: JSON output (sufficient)
         stream: false
       })
     });
@@ -638,7 +638,7 @@ app.post("/chat/stream", async (c) => {
   const MODEL = getModelForRole(ACTIVE_PROVIDER, "STREAM");
   const BASE_URL = getBaseUrl(ACTIVE_PROVIDER);
 
-  const lastMessages = messages.slice(-15);
+  const lastMessages = messages.slice(-10);  // Keep sufficient context for natural conversation
   const enrichedHistory = lastMessages.map(msg => {
     if (msg.recommendations?.length > 0) {
       const names = msg.recommendations.map(p => p.name).join(", ");
@@ -692,7 +692,7 @@ app.post("/chat/stream", async (c) => {
         model: MODEL,
         messages: messagesForLLM,
         temperature: 0.1,
-        max_tokens: 1200,
+        max_tokens: 900,  // Stream: Conversational responses (was 1200, reduced to 900)
         stream: true
       })
     });
@@ -822,7 +822,7 @@ app.post("/chat/recommendations", async (c) => {
         // model: "qwen/qwen3-32b",
         messages: [{ role: "system", content: reRankPrompt }],
         temperature: 0.1,
-        max_tokens: 3000,
+        max_tokens: 1200,  // Re-rank: JSON array of products (was 3000, reduced to 1200)
         stream: false
       })
     });
