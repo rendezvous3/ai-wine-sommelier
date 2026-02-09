@@ -983,12 +983,14 @@
       if (!resp.ok) {
         try {
           const errorData = await resp.json();
+          console.error("Stream error:", errorData);
           const errorMessage = errorData.error || "Our streaming service is experiencing technical difficulties. Please try again.";
           messages = [...messages, {
             role: "assistant",
             content: errorMessage
           }];
         } catch (parseErr) {
+          console.error("Failed to parse error:", parseErr);
           messages = [...messages, {
             role: "assistant",
             content: "Our streaming service is experiencing technical difficulties. Please try again."

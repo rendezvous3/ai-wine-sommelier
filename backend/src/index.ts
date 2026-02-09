@@ -15,9 +15,13 @@ import type {
 // import { groq } from '@ai-sdk/groq';
 // import { streamText } from 'ai';
 import { generatePrompt } from "./prompt";
-import { generateIntentWithCuePrompt } from "./prompts/intentWithCue";
-import { generateReRankPrompt } from "./prompts/rerank";
-import { MODEL_PROVIDER, LLM_PROVIDER, STORE_NAME, AGENT_ROLE, AGENT_ROLE_MODEL, getModelForRole, getBaseUrl, getApiKey, getTokenLimitsForModel, type Tier } from "./types-and-constants";
+import {
+  generateStreamPrompt,
+  generateStreamFireAt2Prompt,
+  generateIntentWithCuePrompt,
+  generateReRankPrompt
+} from "./prompts";
+import { MODEL_PROVIDER, LLM_PROVIDER, STORE_NAME, AGENT_ROLE, AGENT_ROLE_MODEL, USE_FIRE_AT_2_PROMPT, getModelForRole, getBaseUrl, getApiKey, getTokenLimitsForModel, type Tier } from "./types-and-constants";
 import { formatConversationHistory, validateAndExpandFilters, buildVectorizeFilters, parseRobustJSON } from "./utils";
 import {
   isValidCategory,
@@ -222,13 +226,18 @@ app.post("/chat/intent", async (c) => {
   } catch (err) {
     const formatError = `/intent api error: ${err}`;
     console.error(formatError);
-    return c.json({ 
+    return c.json({
       error: "Our AI understanding service is experiencing technical difficulties at the moment. Please try again.",
       service: "intent",
-      intent: "general", 
-      filters: {}, 
+      intent: "general",
+      filters: {},
       semantic_search: "",
-      assistantQuery: assistantQuery
+      assistantQuery: assistantQuery,
+      details: {
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+        provider: ACTIVE_PROVIDER
+      }
     }, 503);
   }
 
@@ -649,7 +658,8 @@ app.post("/chat/stream", async (c) => {
     user_message,
     conversation_history,
     productContext || "",  // Pass product context if available
-    clarificationContext || undefined  // Pass clarification context if available
+    clarificationContext || undefined,  // Pass clarification context if available
+    USE_FIRE_AT_2_PROMPT  // Pass feature flag
   );
 
   // @ts-ignore
@@ -689,19 +699,30 @@ app.post("/chat/stream", async (c) => {
 
     if (!response || !response.ok) {
       const errorText = response ? await response.text() : "Network error";
-      console.error(`Groq Stream API error (${response?.status || 'network'}):`, errorText);
-      return c.json({ 
+      console.error(`Stream API error (${response?.status || 'network'}):`, errorText);
+      return c.json({
         error: "Our streaming service is experiencing technical difficulties at the moment. Please try again.",
-        service: "stream"
+        service: "stream",
+        details: {
+          status: response?.status || null,
+          statusText: response?.statusText || "Network error",
+          errorText: errorText,
+          provider: ACTIVE_PROVIDER
+        }
       }, 503);
     }
 
   } catch (err) {
-    const formatError = `Groq Stream Error: ${err}`;
+    const formatError = `Stream Error: ${err}`;
     console.error(formatError);
-    return c.json({ 
+    return c.json({
       error: "Our streaming service is experiencing technical difficulties at the moment. Please try again.",
-      service: "stream"
+      service: "stream",
+      details: {
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+        provider: ACTIVE_PROVIDER
+      }
     }, 503);
   }
   
@@ -810,10 +831,16 @@ app.post("/chat/recommendations", async (c) => {
       const errorText = await resp.text();
       console.error(`Groq Re-ranking API error (${resp.status}):`, errorText);
       // Fallback to original search results without re-ranking
-      return c.json({ 
+      return c.json({
         recommendations: results,
         error: "Our recommendation service is experiencing technical difficulties. Showing results without AI ranking.",
-        service: "recommendations"
+        service: "recommendations",
+        details: {
+          status: resp.status,
+          statusText: resp.statusText,
+          errorText: errorText,
+          provider: ACTIVE_PROVIDER
+        }
       }, 200);
     }
 
@@ -824,10 +851,15 @@ app.post("/chat/recommendations", async (c) => {
     if (!text || text.trim().length === 0) {
       console.error("Groq Re-ranking API returned empty response:", JSON.stringify(data, null, 2));
       // Fallback to original search results
-      return c.json({ 
+      return c.json({
         recommendations: results,
         error: "Our recommendation service is experiencing technical difficulties. Showing results without AI ranking.",
         service: "recommendations",
+        details: {
+          message: "Empty response from re-ranking API",
+          responseData: data,
+          provider: ACTIVE_PROVIDER
+        },
         ...(tokenUsage ? { tokenUsage } : {})
       }, 200);
     }
@@ -878,10 +910,15 @@ app.post("/chat/recommendations", async (c) => {
   } catch (err) {
     console.error("Recommendation service error:", err);
     // Fallback to original search results
-    return c.json({ 
+    return c.json({
       recommendations: results,
       error: "Our recommendation service is experiencing technical difficulties. Showing results without AI ranking.",
-      service: "recommendations"
+      service: "recommendations",
+      details: {
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+        provider: ACTIVE_PROVIDER
+      }
     }, 200);
   }
 });

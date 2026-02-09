@@ -1,5 +1,5 @@
 import { MODEL_PROVIDER } from "./types-and-constants";
-import { generateStreamPrompt } from "./prompts/stream";
+import { generateStreamPrompt, generateStreamFireAt2Prompt } from "./prompts";
 
 const generatePrompForDeepSeek = (
     current_query: string, 
@@ -67,11 +67,16 @@ const generatePrompt = (
     current_query: string,
     conversation_history: string,
     products_context: string,
-    clarificationContext?: string) => {
+    clarificationContext?: string,
+    useFireAt2Prompt?: boolean) => {
     if(model === MODEL_PROVIDER.DEEPSEEK) {
         return generatePrompForDeepSeek(current_query, conversation_history, products_context);
     } else if (model === MODEL_PROVIDER.LLAMA) {
-        return generateStreamPrompt(current_query, conversation_history, products_context, clarificationContext);
+        // Choose prompt version based on feature flag
+        const promptFunction = useFireAt2Prompt
+            ? generateStreamFireAt2Prompt
+            : generateStreamPrompt;
+        return promptFunction(current_query, conversation_history, products_context, clarificationContext);
     }
 }
 

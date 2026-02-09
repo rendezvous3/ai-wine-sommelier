@@ -71,6 +71,9 @@ function getApiKey(provider: LLM_PROVIDER, env: EnvBindings): string | undefined
 
 const STORE_NAME = "Cannavita"
 
+// Feature flags
+const USE_FIRE_AT_2_PROMPT = false // Set to true to use streamFireAt2 (Version B), false for stream (Version A)
+
 // ---------- MODEL IDS (NEW, ADDITIVE) ----------
 const enum MODEL_ID {
   // GROQ
@@ -182,6 +185,7 @@ export {
     LLM_PROVIDER,
     AGENT_ROLE,
     STORE_NAME,
+    USE_FIRE_AT_2_PROMPT,
     AGENT_ROLE_MODEL, // Keep for backwards compatibility if needed
     GROQ_MODELS,
     CEREBRAS_MODELS,
