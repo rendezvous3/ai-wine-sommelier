@@ -8,6 +8,7 @@ const enum LLM_PROVIDER {
     GROQ = "groq",
     GOOGLE = "google",
     OPENAI = "openai",
+    GROK = "grok",  // X.AI (Elon's company, NOT Groq)
     MULTI = "multi"
 }
 
@@ -47,6 +48,12 @@ const enum OPENAI_MODEL_NAMES {
   GPT_4O = "gpt-4o",
 }
 
+const enum GROK_MODEL_NAMES {
+  GROK_4_1_FAST_NON_REASONING = "grok-4-1-fast-non-reasoning",
+  GROK_4_1_FAST_REASONING = "grok-4-1-fast-reasoning",
+  GROK_3_MINI = "grok-3-mini",
+}
+
 // ============================================
 // ROLE → MODEL MAPPINGS (using constants)
 // ============================================
@@ -74,12 +81,19 @@ const OPENAI_MODELS = {
   RECOMMEND: OPENAI_MODEL_NAMES.GPT_4O_MINI,
 } as const;
 
+const GROK_MODELS = {
+  INTENT: GROK_MODEL_NAMES.GROK_4_1_FAST_REASONING,
+  STREAM: GROK_MODEL_NAMES.GROK_4_1_FAST_NON_REASONING,
+  RECOMMEND: GROK_MODEL_NAMES.GROK_3_MINI,
+} as const;
+
 // Type for environment bindings (minimal interface for API keys)
 interface EnvBindings {
   GROQ_API_KEY?: string;
   CEREBRAS_API_KEY_PROD: string;
   GEMINI_API_KEY?: string;
   OPENAI_API_KEY?: string;
+  GROK_API_KEY?: string;
 }
 
 // Provider configuration
@@ -103,6 +117,11 @@ const PROVIDER_CONFIG = {
     models: OPENAI_MODELS,
     baseUrl: "https://api.openai.com/v1",
     getApiKey: (env: EnvBindings) => env.OPENAI_API_KEY,
+  },
+  [LLM_PROVIDER.GROK]: {
+    models: GROK_MODELS,
+    baseUrl: "https://api.x.ai/v1",
+    getApiKey: (env: EnvBindings) => env.GROK_API_KEY,
   },
 } as const;
 
@@ -134,8 +153,7 @@ const ACTIVE_PROVIDER = LLM_PROVIDER.MULTI;
 
 // Per-endpoint provider assignments (used when ACTIVE_PROVIDER = MULTI)
 const enum MULTI_ENDPOINT_PROVIDERS {
-  // STREAM = LLM_PROVIDER.OPENAI,   // GPT-4o-mini - Fast, reliable streaming
-  STREAM = LLM_PROVIDER.GROQ,   // Llama 3.3 70B
+  STREAM = LLM_PROVIDER.GROK,     // Grok 4.1 Fast Non-Reasoning - X.AI
   INTENT = LLM_PROVIDER.GROQ,     // Llama 3.3 70B - Smart for HYDE + Potency Gate
   RERANK = LLM_PROVIDER.GROQ,     // Qwen 3 32B - Good for ranking
 }
@@ -164,7 +182,12 @@ const enum MODEL_ID {
 
   // OPENAI
   OPENAI_GPT_4O_MINI = "openai_gpt_4o_mini",
-  OPENAI_GPT_4O = "openai_gpt_4o"
+  OPENAI_GPT_4O = "openai_gpt_4o",
+
+  // GROK (X.AI)
+  GROK_4_1_FAST_NON_REASONING = "grok_4_1_fast_non_reasoning",
+  GROK_4_1_FAST_REASONING = "grok_4_1_fast_reasoning",
+  GROK_3_MINI = "grok_3_mini"
 }
 
 // ---------- MODEL → ID MAP (NEW) ----------
@@ -183,6 +206,11 @@ const MODEL_ID_MAP = {
   // OpenAI
   [OPENAI_MODEL_NAMES.GPT_4O_MINI]: MODEL_ID.OPENAI_GPT_4O_MINI,
   [OPENAI_MODEL_NAMES.GPT_4O]: MODEL_ID.OPENAI_GPT_4O,
+
+  // Grok (X.AI)
+  [GROK_MODEL_NAMES.GROK_4_1_FAST_NON_REASONING]: MODEL_ID.GROK_4_1_FAST_NON_REASONING,
+  [GROK_MODEL_NAMES.GROK_4_1_FAST_REASONING]: MODEL_ID.GROK_4_1_FAST_REASONING,
+  [GROK_MODEL_NAMES.GROK_3_MINI]: MODEL_ID.GROK_3_MINI,
 } as const;
 
 // ---------- TOKEN LIMITS (NEW) ----------
@@ -255,6 +283,22 @@ const MODEL_TOKEN_LIMITS: Record<
     FREE: { contextWindow: 128_000, maxOutputTokens: 16_384 },
     PAID: { contextWindow: 128_000, maxOutputTokens: 16_384 },
   },
+
+  // ---------- GROK (X.AI) ----------
+  [MODEL_ID.GROK_4_1_FAST_NON_REASONING]: {
+    FREE: { contextWindow: 2_000_000, maxOutputTokens: 32_768 },
+    PAID: { contextWindow: 2_000_000, maxOutputTokens: 32_768 },
+  },
+
+  [MODEL_ID.GROK_4_1_FAST_REASONING]: {
+    FREE: { contextWindow: 2_000_000, maxOutputTokens: 32_768 },
+    PAID: { contextWindow: 2_000_000, maxOutputTokens: 32_768 },
+  },
+
+  [MODEL_ID.GROK_3_MINI]: {
+    FREE: { contextWindow: 131_072, maxOutputTokens: 16_384 },
+    PAID: { contextWindow: 131_072, maxOutputTokens: 16_384 },
+  },
 };
 
 // ---------- SAFE TOKEN CLAMP (NEW) ----------
@@ -308,12 +352,14 @@ export {
     CEREBRAS_MODEL_NAMES,
     GOOGLE_MODEL_NAMES,
     OPENAI_MODEL_NAMES,
+    GROK_MODEL_NAMES,
     // Model role mappings
     AGENT_ROLE_MODEL, // Keep for backwards compatibility if needed
     GROQ_MODELS,
     CEREBRAS_MODELS,
     GOOGLE_MODELS,
     OPENAI_MODELS,
+    GROK_MODELS,
     // Provider configuration
     PROVIDER_CONFIG,
     getModelForRole,
