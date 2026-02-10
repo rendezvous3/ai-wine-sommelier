@@ -84,7 +84,7 @@ const OPENAI_MODELS = {
 const GROK_MODELS = {
   INTENT: GROK_MODEL_NAMES.GROK_4_1_FAST_REASONING,
   STREAM: GROK_MODEL_NAMES.GROK_4_1_FAST_NON_REASONING,
-  RECOMMEND: GROK_MODEL_NAMES.GROK_3_MINI,
+  RECOMMEND: GROK_MODEL_NAMES.GROK_4_1_FAST_REASONING,  // Switched to fast model for speed
 } as const;
 
 // Type for environment bindings (minimal interface for API keys)
@@ -155,7 +155,7 @@ const ACTIVE_PROVIDER = LLM_PROVIDER.MULTI;
 const enum MULTI_ENDPOINT_PROVIDERS {
   STREAM = LLM_PROVIDER.GROK,     // Grok 4.1 Fast Non-Reasoning - X.AI
   INTENT = LLM_PROVIDER.GROQ,     // Llama 3.3 70B - Smart for HYDE + Potency Gate
-  RERANK = LLM_PROVIDER.GROQ,     // Qwen 3 32B - Good for ranking
+  RERANK = LLM_PROVIDER.GROK,     // Grok 3 Mini - Testing if it follows instructions better
 }
 
 // Legacy constants for backward compatibility (reference MULTI_ENDPOINT_PROVIDERS)

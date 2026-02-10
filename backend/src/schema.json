@@ -6,7 +6,7 @@
     "vaporizers": ["default", "all-in-one", "cartridges", "disposables", "live-resin", "live-rosin"],
     "prerolls": ["default", "blunts", "infused-prerolls", "infused-preroll-packs", "pre-roll-packs", "singles"],
     "flower": ["default", "bulk-flower", "pre-ground", "premium-flower", "small-buds", "whole-flower"],
-    "cbd": ["default", "oil", "cream", "tincture", "chews"],
+    "cbd": ["default", "oil", "cream", "tincture", "chews", "pet-food"],
     "concentrates": ["default", "badder", "hash", "live-resin", "live-rosin", "rosin", "unflavored"],
     "topicals": ["default", "balms"],
     "accessories": ["default", "batteries", "glassware", "grinders", "lighters", "papers-rolling-supplies"]

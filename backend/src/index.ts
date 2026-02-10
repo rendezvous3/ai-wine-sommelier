@@ -771,6 +771,8 @@ app.post("/chat/recommendations", async (c) => {
 
   const conversation_history = formatConversationHistory(enrichedHistory);
   const user_message = enrichedHistory[enrichedHistory.length - 1]?.content || "";
+  // Get last assistant message (contains CODEX cue with structured recap)
+  const lastAssistantMessage = enrichedHistory.slice(-2).find(m => m.role === 'assistant')?.content || "";
 
   let searchResults;
   let filtersToUse;
@@ -819,7 +821,9 @@ app.post("/chat/recommendations", async (c) => {
 
   let tokenUsage: ReturnType<typeof buildTokenUsageResponse> = null;
 
-  const reRankPrompt = generateReRankPrompt(user_message, filters, results);
+  // Priority: semantic_search (HYDE) > assistant CODEX message > raw user message
+  const queryForReranking = semantic_search || lastAssistantMessage || user_message;
+  const reRankPrompt = generateReRankPrompt(queryForReranking, filters, results);
 
   let text;
   try {
@@ -834,7 +838,7 @@ app.post("/chat/recommendations", async (c) => {
         // model: "qwen/qwen3-32b",
         messages: [{ role: "system", content: reRankPrompt }],
         temperature: 0.1,
-        max_tokens: 2000,  // Re-rank: Increased for thinking tags + JSON output
+        max_tokens: 2500,  // Re-rank: Increased for Grok reasoning + JSON output
         stream: false
       })
     });
