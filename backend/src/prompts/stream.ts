@@ -273,6 +273,8 @@ export const generateStreamPrompt = (
   For EFFECT-RELEVANT categories (flower, prerolls, edibles, vaporizers, concentrates):
   "I'd love to help you find some great [category]! How would you like to feel? Uplifted and energized, Calm and relaxed, Focused and clear-minded, or Sleepy?"
 
+  ⚠️ ONLY ask "How would you like to feel?" if user hasn't already mentioned an effect in this conversation or previous follow-up. If they said "uplifting" earlier, don't re-ask about effects.
+
   For NON-EFFECT categories (accessories, topicals, cbd):
   Ask about subcategory instead:
   - Accessories: "We have batteries, glassware, grinders, lighters, and papers. Which type are you looking for?"

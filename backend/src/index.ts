@@ -757,6 +757,20 @@ app.post("/chat/recommendations", async (c) => {
 
   // Validate, normalize, and expand filters
   filters = validateAndExpandFilters(filters);
+
+  // Apply default THC caps for variety (prevent always getting ultra-high THC)
+  // Only apply if user didn't specify potency (no min/max set)
+  const category = filters.category;
+  const hasNoTHCPreference = !filters.thc_percentage_min && !filters.thc_percentage_max;
+
+  if (hasNoTHCPreference) {
+    if (category === 'flower' || category === 'prerolls') {
+      filters.thc_percentage_max = 28;  // Cap at 28% for variety
+    } else if (category === 'vaporizers') {
+      filters.thc_percentage_max = 89;  // Cap at 89% for variety
+    }
+  }
+
   const lastMessages = messages.slice(-5);
   const enrichedHistory = lastMessages.map(msg => {
     if (msg.recommendations?.length > 0) {
@@ -838,7 +852,7 @@ app.post("/chat/recommendations", async (c) => {
         // model: "qwen/qwen3-32b",
         messages: [{ role: "system", content: reRankPrompt }],
         temperature: 0.1,
-        max_tokens: 2500,  // Re-rank: Increased for Grok reasoning + JSON output
+        max_tokens: 4000,  // Re-rank: Increased for Grok reasoning + JSON output
         stream: false
       })
     });

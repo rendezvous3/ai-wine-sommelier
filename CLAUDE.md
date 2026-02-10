@@ -928,6 +928,12 @@ This fix took multiple attempts to solve. Respect the solution and don't modify 
 - **Always pass filters and semantic_search from `/intent` to `/recommendations`** — The intent endpoint extracts structured filters and semantic search query that must be passed to the recommendations endpoint for optimal results
 - **Handle product-question intent correctly** — When intent is "product-question", do NOT call `/recommendations`. Instead use two-phase lookup: (1) fuzzy match in frontend conversation history, (2) fallback to `/product-lookup` semantic search. Pass full product context to `/stream` when found.
 
+### Prompt Engineering Philosophy
+- **Examine root causes, don't bloat context** — When a prompt isn't working, analyze WHY it fails before adding more text. Modify existing instructions slightly rather than adding many new examples.
+- **New examples only when absolutely necessary** — Most prompt improvements should clarify existing instructions, not add more bulk. New examples only if the issue can't be fixed by refining current text.
+- **Safety over accuracy for THC extraction** — Better to NOT extract `thc_percentage_min/max` when uncertain than to accidentally add it. Hallucinating THC filters is MORE dangerous now that we've raised potency limits (32% for "strongest" vs 28%). Recommending too-strong products is worse than omitting THC filters.
+- **Effect superlatives ≠ Potency superlatives** — "Most uplifting" = strongest EFFECT (no THC), "Most potent" = highest THC. This distinction is critical and must be preserved.
+
 ### Component Library Integration Rules
 - **Import patterns** — Always import directly from `.svelte` files (e.g., `import ChatWidget from '../Svelte-Component-Library/src/lib/custom/ChatWidget/ChatWidget.svelte'`), never import `.stories.ts` files
 - **Tree-shaking** — Vite automatically excludes Storybook files and unused components from the build, so only imported components are bundled

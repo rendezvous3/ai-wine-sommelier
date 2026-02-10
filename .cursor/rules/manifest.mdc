@@ -158,6 +158,12 @@ python manage_indexes.py --list
 - Use two-phase lookup: (1) fuzzy match frontend, (2) `/product-lookup` fallback
 - Pass full product context to `/stream`
 
+### Prompt Engineering
+- **Examine root causes, don't bloat** - Analyze WHY prompt fails before adding text. Modify existing instructions slightly vs adding bulk.
+- **New examples only when necessary** - Most improvements should clarify existing text, not add more examples.
+- **Safety over accuracy for THC** - Better to NOT extract `thc_percentage_min/max` when uncertain than to accidentally add it. Hallucinating THC is MORE dangerous now (32% limit vs 28%). Recommending too-strong products is worse than omitting THC.
+- **Effect superlatives ≠ Potency superlatives** - "Most uplifting" = strongest EFFECT (no THC), "Most potent" = highest THC. Critical distinction.
+
 ### Error Handling
 - **Always return descriptive errors** - Never silent failures
 - HTTP 400 with `errorType`, `errorMessage`, `details`, `suggestion`
