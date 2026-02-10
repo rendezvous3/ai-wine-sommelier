@@ -791,24 +791,25 @@ app.post("/chat/recommendations", async (c) => {
     filtersToUse = buildVectorizeFilters(filters);
         // return c.json({ queryString: queryString, filtersToUse: vectorizeFilters }, 200);
     
-    searchResults = await store.similaritySearch(queryString, 10, filtersToUse);
+    searchResults = await store.similaritySearchWithScore(queryString, 10, filtersToUse);
     // searchResults = await store.similaritySearch(queryString, 10, { "effects": { "$in": ["energetic", "happy"] } });
   } catch (err) {
     console.error("Vector search error:", err);
     return c.json({ recommendations: [], filtersToUse: filtersToUse, error: "Vector search error" }, 200);
   }
 
-// Transform searchResults to metadata format
-  const results = searchResults.map((doc) => {
+// Transform searchResults to metadata format with similarity scores
+  const results = searchResults.map(([doc, score]) => {
     const productId = doc.metadata?.id;
     return {
       id: productId || "", // Use metadata.id (should always be present after fix)
       ...doc.metadata,
+      similarity_score: score,  // Add similarity score (0.0-1.0, higher is better)
     };
   });
 
-  // Create product map for name-based lookup
-  const productMap = new Map(results.map((r, i) => [r.name, r]));
+  // Create product map for ID-based lookup
+  const productMap = new Map(results.map((r) => [r.id, r]));
 
   // return c.json({ recommendations: results }, 200);
 
@@ -894,11 +895,15 @@ app.post("/chat/recommendations", async (c) => {
     }
 
     const parsed = parseResult.data;
-    const rankedNames = parsed.ranked_names || [];
+    const rankedIds = parsed.ranked_ids || [];
+    const reasoning = parsed.reasoning || {};
 
-    // Map ranked names back to full product objects
-    const rankedProducts = rankedNames
-      .map((name: string) => productMap.get(name))
+    // Log reasoning for debugging
+    console.log("Re-ranking reasoning:", JSON.stringify(reasoning, null, 2));
+
+    // Map ranked IDs back to full product objects
+    const rankedProducts = rankedIds
+      .map((id: string) => productMap.get(id))
       .filter((product: any) => product !== undefined);
 
     // If re-ranking failed or returned empty, fallback to original search results
@@ -906,7 +911,7 @@ app.post("/chat/recommendations", async (c) => {
       return c.json({
         recommendations: results,
         filtersToUse: filtersToUse,
-        error: "No ranked names found - showing unranked results",
+        error: "No ranked IDs found - showing unranked results",
         ...(tokenUsage ? { tokenUsage } : {})
       }, 200);
     }
@@ -914,6 +919,7 @@ app.post("/chat/recommendations", async (c) => {
     return c.json({
       recommendations: rankedProducts,
       preRankedProducts: results,
+      reasoning: JSON.stringify(reasoning, null, 2),
       filtersToUse: filtersToUse,
       ...(tokenUsage ? { tokenUsage } : {})
     }, 200);
