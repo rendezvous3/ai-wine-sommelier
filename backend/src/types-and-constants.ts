@@ -7,6 +7,7 @@ const enum LLM_PROVIDER {
     CEREBRAS = "cerebras",
     GROQ = "groq",
     GOOGLE = "google",
+    OPENAI = "openai",
     MULTI = "multi"
 }
 
@@ -41,6 +42,11 @@ const enum GOOGLE_MODEL_NAMES {
   GEMINI_25_FLASH = "gemini-2.5-flash",
 }
 
+const enum OPENAI_MODEL_NAMES {
+  GPT_4O_MINI = "gpt-4o-mini",
+  GPT_4O = "gpt-4o",
+}
+
 // ============================================
 // ROLE → MODEL MAPPINGS (using constants)
 // ============================================
@@ -62,11 +68,18 @@ const GOOGLE_MODELS = {
   RECOMMEND: GOOGLE_MODEL_NAMES.GEMINI_25_FLASH,
 } as const;
 
+const OPENAI_MODELS = {
+  INTENT: OPENAI_MODEL_NAMES.GPT_4O,
+  STREAM: OPENAI_MODEL_NAMES.GPT_4O_MINI,
+  RECOMMEND: OPENAI_MODEL_NAMES.GPT_4O_MINI,
+} as const;
+
 // Type for environment bindings (minimal interface for API keys)
 interface EnvBindings {
   GROQ_API_KEY?: string;
   CEREBRAS_API_KEY_PROD: string;
   GEMINI_API_KEY?: string;
+  OPENAI_API_KEY?: string;
 }
 
 // Provider configuration
@@ -85,6 +98,11 @@ const PROVIDER_CONFIG = {
     models: GOOGLE_MODELS,
     baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
     getApiKey: (env: EnvBindings) => env.GEMINI_API_KEY,
+  },
+  [LLM_PROVIDER.OPENAI]: {
+    models: OPENAI_MODELS,
+    baseUrl: "https://api.openai.com/v1",
+    getApiKey: (env: EnvBindings) => env.OPENAI_API_KEY,
   },
 } as const;
 
@@ -116,7 +134,7 @@ const ACTIVE_PROVIDER = LLM_PROVIDER.MULTI;
 
 // Per-endpoint provider assignments (used when ACTIVE_PROVIDER = MULTI)
 const enum MULTI_ENDPOINT_PROVIDERS {
-  STREAM = LLM_PROVIDER.GOOGLE,   // Gemini Flash 2.0 - Cheap, good for conversation
+  STREAM = LLM_PROVIDER.OPENAI,   // GPT-4o-mini - Fast, reliable streaming
   INTENT = LLM_PROVIDER.GROQ,     // Llama 3.3 70B - Smart for HYDE + Potency Gate
   RERANK = LLM_PROVIDER.GROQ,     // Qwen 3 32B - Good for ranking
 }
@@ -249,11 +267,13 @@ export {
     GROQ_MODEL_NAMES,
     CEREBRAS_MODEL_NAMES,
     GOOGLE_MODEL_NAMES,
+    OPENAI_MODEL_NAMES,
     // Model role mappings
     AGENT_ROLE_MODEL, // Keep for backwards compatibility if needed
     GROQ_MODELS,
     CEREBRAS_MODELS,
     GOOGLE_MODELS,
+    OPENAI_MODELS,
     // Provider configuration
     PROVIDER_CONFIG,
     getModelForRole,
