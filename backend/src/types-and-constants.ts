@@ -134,15 +134,16 @@ const ACTIVE_PROVIDER = LLM_PROVIDER.MULTI;
 
 // Per-endpoint provider assignments (used when ACTIVE_PROVIDER = MULTI)
 const enum MULTI_ENDPOINT_PROVIDERS {
-  STREAM = LLM_PROVIDER.OPENAI,   // GPT-4o-mini - Fast, reliable streaming
+  // STREAM = LLM_PROVIDER.OPENAI,   // GPT-4o-mini - Fast, reliable streaming
+  STREAM = LLM_PROVIDER.GROQ,   // Llama 3.3 70B
   INTENT = LLM_PROVIDER.GROQ,     // Llama 3.3 70B - Smart for HYDE + Potency Gate
   RERANK = LLM_PROVIDER.GROQ,     // Qwen 3 32B - Good for ranking
 }
 
 // Legacy constants for backward compatibility (reference MULTI_ENDPOINT_PROVIDERS)
-const STREAM_PROVIDER = MULTI_ENDPOINT_PROVIDERS.STREAM;
-const INTENT_PROVIDER = MULTI_ENDPOINT_PROVIDERS.INTENT;
-const RERANK_PROVIDER = MULTI_ENDPOINT_PROVIDERS.RERANK;
+const STREAM_PROVIDER = MULTI_ENDPOINT_PROVIDERS.STREAM as unknown as LLM_PROVIDER;
+const INTENT_PROVIDER = MULTI_ENDPOINT_PROVIDERS.INTENT as unknown as LLM_PROVIDER;
+const RERANK_PROVIDER = MULTI_ENDPOINT_PROVIDERS.RERANK as unknown as LLM_PROVIDER;
 
 // ---------- MODEL IDS (NEW, ADDITIVE) ----------
 const enum MODEL_ID {
@@ -155,21 +156,33 @@ const enum MODEL_ID {
   CEREBRAS_LLAMA_31_8B = "cerebras_llama_31_8b",
   CEREBRAS_LLAMA_33_70B = "cerebras_llama_33_70b",
   CEREBRAS_QWEN_3_32B = "cerebras_qwen_3_32b",
-  CEREBRAS_ZAI_GLM_4_7 = "zai-glm-4.7",
-  CEREBRAS_GPT_OSS_120B = "gpt-oss-120b"
+  CEREBRAS_ZAI_GLM_4_7 = "cerebras_zai_glm_4_7",
+  CEREBRAS_GPT_OSS_120B = "cerebras_gpt_oss_120b",
+
+  // GOOGLE
+  GOOGLE_GEMINI_25_FLASH = "google_gemini_25_flash",
+
+  // OPENAI
+  OPENAI_GPT_4O_MINI = "openai_gpt_4o_mini",
+  OPENAI_GPT_4O = "openai_gpt_4o"
 }
 
 // ---------- MODEL → ID MAP (NEW) ----------
 const MODEL_ID_MAP = {
-  // Groq
-  [GROQ_MODELS.INTENT]: MODEL_ID.GROQ_LLAMA_31_8B_INSTANT,
-  [GROQ_MODELS.STREAM]: MODEL_ID.GROQ_LLAMA_33_70B,
-  [GROQ_MODELS.RECOMMEND]: MODEL_ID.GROQ_QWEN_3_32B,
+  // Groq (INTENT and STREAM both use 70B, so only one entry)
+  [GROQ_MODEL_NAMES.LLAMA_33_70B_VERSATILE]: MODEL_ID.GROQ_LLAMA_33_70B,
+  [GROQ_MODEL_NAMES.QWEN_3_32B]: MODEL_ID.GROQ_QWEN_3_32B,
 
-  // Cerebras
-  [CEREBRAS_MODELS.INTENT]: MODEL_ID.CEREBRAS_LLAMA_31_8B,
-  [CEREBRAS_MODELS.STREAM]: MODEL_ID.CEREBRAS_LLAMA_33_70B,
-  [CEREBRAS_MODELS.RECOMMEND]: MODEL_ID.CEREBRAS_QWEN_3_32B,
+  // Cerebras (INTENT and STREAM both use 70B, so only one entry)
+  [CEREBRAS_MODEL_NAMES.LLAMA_33_70B]: MODEL_ID.CEREBRAS_LLAMA_33_70B,
+  [CEREBRAS_MODEL_NAMES.QWEN_3_32B]: MODEL_ID.CEREBRAS_QWEN_3_32B,
+
+  // Google
+  [GOOGLE_MODEL_NAMES.GEMINI_25_FLASH]: MODEL_ID.GOOGLE_GEMINI_25_FLASH,
+
+  // OpenAI
+  [OPENAI_MODEL_NAMES.GPT_4O_MINI]: MODEL_ID.OPENAI_GPT_4O_MINI,
+  [OPENAI_MODEL_NAMES.GPT_4O]: MODEL_ID.OPENAI_GPT_4O,
 } as const;
 
 // ---------- TOKEN LIMITS (NEW) ----------
@@ -214,6 +227,33 @@ const MODEL_TOKEN_LIMITS: Record<
   [MODEL_ID.CEREBRAS_QWEN_3_32B]: {
     FREE: { contextWindow: 32_000, maxOutputTokens: 8_192 },
     PAID: { contextWindow: 131_072, maxOutputTokens: 32_768 },
+  },
+
+  [MODEL_ID.CEREBRAS_ZAI_GLM_4_7]: {
+    FREE: { contextWindow: 32_000, maxOutputTokens: 8_192 },
+    PAID: { contextWindow: 128_000, maxOutputTokens: 16_384 },
+  },
+
+  [MODEL_ID.CEREBRAS_GPT_OSS_120B]: {
+    FREE: { contextWindow: 32_000, maxOutputTokens: 8_192 },
+    PAID: { contextWindow: 128_000, maxOutputTokens: 32_768 },
+  },
+
+  // ---------- GOOGLE ----------
+  [MODEL_ID.GOOGLE_GEMINI_25_FLASH]: {
+    FREE: { contextWindow: 1_000_000, maxOutputTokens: 8_192 },
+    PAID: { contextWindow: 1_000_000, maxOutputTokens: 8_192 },
+  },
+
+  // ---------- OPENAI ----------
+  [MODEL_ID.OPENAI_GPT_4O_MINI]: {
+    FREE: { contextWindow: 128_000, maxOutputTokens: 16_384 },
+    PAID: { contextWindow: 128_000, maxOutputTokens: 16_384 },
+  },
+
+  [MODEL_ID.OPENAI_GPT_4O]: {
+    FREE: { contextWindow: 128_000, maxOutputTokens: 16_384 },
+    PAID: { contextWindow: 128_000, maxOutputTokens: 16_384 },
   },
 };
 
