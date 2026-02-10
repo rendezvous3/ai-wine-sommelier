@@ -5,7 +5,9 @@ const enum MODEL_PROVIDER {
 
 const enum LLM_PROVIDER {
     CEREBRAS = "cerebras",
-    GROQ = "groq"
+    GROQ = "groq",
+    GOOGLE = "google",
+    MULTI = "multi"
 }
 
 const enum AGENT_ROLE {
@@ -21,23 +23,50 @@ const enum AGENT_ROLE_MODEL {
     RECOMMEND = "qwen/qwen3-32b",
 }
 
-// Model mappings for each provider
+// ============================================
+// MODEL NAME CONSTANTS (no more magic strings)
+// ============================================
+const enum GROQ_MODEL_NAMES {
+  LLAMA_31_8B_INSTANT = "llama-3.1-8b-instant",
+  LLAMA_33_70B_VERSATILE = "llama-3.3-70b-versatile",
+  QWEN_3_32B = "qwen/qwen3-32b",
+}
+
+const enum CEREBRAS_MODEL_NAMES {
+  LLAMA_33_70B = "llama-3.3-70b",
+  QWEN_3_32B = "qwen-3-32b",
+}
+
+const enum GOOGLE_MODEL_NAMES {
+  GEMINI_25_FLASH = "gemini-2.5-flash",
+}
+
+// ============================================
+// ROLE → MODEL MAPPINGS (using constants)
+// ============================================
 const GROQ_MODELS = {
-  INTENT: "llama-3.1-8b-instant",
-  STREAM: "llama-3.3-70b-versatile",
-  RECOMMEND: "qwen/qwen3-32b",
+  INTENT: GROQ_MODEL_NAMES.LLAMA_33_70B_VERSATILE,  // 70B for HYDE + Potency Gate
+  STREAM: GROQ_MODEL_NAMES.LLAMA_33_70B_VERSATILE,
+  RECOMMEND: GROQ_MODEL_NAMES.QWEN_3_32B,
 } as const;
 
 const CEREBRAS_MODELS = {
-  INTENT: "llama-3.3-70b",
-  STREAM: "llama-3.3-70b",
-  RECOMMEND: "qwen-3-32b",
+  INTENT: CEREBRAS_MODEL_NAMES.LLAMA_33_70B,
+  STREAM: CEREBRAS_MODEL_NAMES.LLAMA_33_70B,
+  RECOMMEND: CEREBRAS_MODEL_NAMES.QWEN_3_32B,
+} as const;
+
+const GOOGLE_MODELS = {
+  INTENT: GOOGLE_MODEL_NAMES.GEMINI_25_FLASH,
+  STREAM: GOOGLE_MODEL_NAMES.GEMINI_25_FLASH,
+  RECOMMEND: GOOGLE_MODEL_NAMES.GEMINI_25_FLASH,
 } as const;
 
 // Type for environment bindings (minimal interface for API keys)
 interface EnvBindings {
   GROQ_API_KEY?: string;
   CEREBRAS_API_KEY_PROD: string;
+  GEMINI_API_KEY?: string;
 }
 
 // Provider configuration
@@ -51,6 +80,11 @@ const PROVIDER_CONFIG = {
     models: CEREBRAS_MODELS,
     baseUrl: "https://api.cerebras.ai/v1",
     getApiKey: (env: EnvBindings) => env.CEREBRAS_API_KEY_PROD,
+  },
+  [LLM_PROVIDER.GOOGLE]: {
+    models: GOOGLE_MODELS,
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+    getApiKey: (env: EnvBindings) => env.GEMINI_API_KEY,
   },
 } as const;
 
@@ -73,6 +107,24 @@ const STORE_NAME = "Cannavita"
 
 // Feature flags
 const USE_FIRE_AT_2_PROMPT = false // Set to true to use streamFireAt2 (Version B), false for stream (Version A)
+
+// ============================================
+// MULTI-PROVIDER CONFIGURATION
+// ============================================
+// Active mode: MULTI allows different providers per endpoint
+const ACTIVE_PROVIDER = LLM_PROVIDER.MULTI;
+
+// Per-endpoint provider assignments (used when ACTIVE_PROVIDER = MULTI)
+const enum MULTI_ENDPOINT_PROVIDERS {
+  STREAM = LLM_PROVIDER.GOOGLE,   // Gemini Flash 2.0 - Cheap, good for conversation
+  INTENT = LLM_PROVIDER.GROQ,     // Llama 3.3 70B - Smart for HYDE + Potency Gate
+  RERANK = LLM_PROVIDER.GROQ,     // Qwen 3 32B - Good for ranking
+}
+
+// Legacy constants for backward compatibility (reference MULTI_ENDPOINT_PROVIDERS)
+const STREAM_PROVIDER = MULTI_ENDPOINT_PROVIDERS.STREAM;
+const INTENT_PROVIDER = MULTI_ENDPOINT_PROVIDERS.INTENT;
+const RERANK_PROVIDER = MULTI_ENDPOINT_PROVIDERS.RERANK;
 
 // ---------- MODEL IDS (NEW, ADDITIVE) ----------
 const enum MODEL_ID {
@@ -186,9 +238,23 @@ export {
     AGENT_ROLE,
     STORE_NAME,
     USE_FIRE_AT_2_PROMPT,
+    // Multi-provider configuration
+    ACTIVE_PROVIDER,
+    MULTI_ENDPOINT_PROVIDERS,
+    // Legacy endpoint providers (backward compatibility)
+    STREAM_PROVIDER,
+    INTENT_PROVIDER,
+    RERANK_PROVIDER,
+    // Model name constants
+    GROQ_MODEL_NAMES,
+    CEREBRAS_MODEL_NAMES,
+    GOOGLE_MODEL_NAMES,
+    // Model role mappings
     AGENT_ROLE_MODEL, // Keep for backwards compatibility if needed
     GROQ_MODELS,
     CEREBRAS_MODELS,
+    GOOGLE_MODELS,
+    // Provider configuration
     PROVIDER_CONFIG,
     getModelForRole,
     getBaseUrl,

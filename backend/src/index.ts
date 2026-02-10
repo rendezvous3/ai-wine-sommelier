@@ -21,7 +21,7 @@ import {
   generateIntentWithCuePrompt,
   generateReRankPrompt
 } from "./prompts";
-import { MODEL_PROVIDER, LLM_PROVIDER, STORE_NAME, AGENT_ROLE, AGENT_ROLE_MODEL, USE_FIRE_AT_2_PROMPT, getModelForRole, getBaseUrl, getApiKey, getTokenLimitsForModel, type Tier } from "./types-and-constants";
+import { MODEL_PROVIDER, LLM_PROVIDER, STORE_NAME, AGENT_ROLE, AGENT_ROLE_MODEL, USE_FIRE_AT_2_PROMPT, STREAM_PROVIDER, INTENT_PROVIDER, RERANK_PROVIDER, getModelForRole, getBaseUrl, getApiKey, getTokenLimitsForModel, type Tier } from "./types-and-constants";
 import { formatConversationHistory, validateAndExpandFilters, buildVectorizeFilters, parseRobustJSON } from "./utils";
 import {
   isValidCategory,
@@ -36,16 +36,20 @@ import {
 
 interface Bindings {
   CEREBRAS_API_KEY_PROD: string;
-  GROQ_API_KEY?: string;     // optional
+  GROQ_API_KEY?: string;
+  GEMINI_API_KEY?: string;
   VECTORIZE_INDEX: VectorizeIndex;
   AI: Ai<AiModels>;
 }
 
 // ============================================
-// MODEL PROVIDER CONFIGURATION
-// Change this to switch between Groq and Cerebras
+// HYBRID PROVIDER SETUP
+// Stream: Gemini Flash (cheap, good for conversation)
+// Intent: Llama 70B (smart for HYDE + Potency Gate)
+// Re-rank: Qwen 32B (good for ranking)
 // ============================================
-const ACTIVE_PROVIDER = LLM_PROVIDER.GROQ; // Groq: Cheaper, great quality
+// Providers are imported from types-and-constants.ts:
+// STREAM_PROVIDER, INTENT_PROVIDER, RERANK_PROVIDER
 
 // Default tier - can be made configurable via environment variable later
 const TIER: Tier = "FREE";
@@ -181,9 +185,9 @@ app.post("/chat/intent", async (c) => {
   }
 
   // CODEX:RECOMMEND detected - call LLM for filter extraction
-  const API_KEY = getApiKey(ACTIVE_PROVIDER, c.env);
-  const MODEL = getModelForRole(ACTIVE_PROVIDER, "INTENT");
-  const BASE_URL = getBaseUrl(ACTIVE_PROVIDER);
+  const API_KEY = getApiKey(INTENT_PROVIDER, c.env);
+  const MODEL = getModelForRole(INTENT_PROVIDER, "INTENT");
+  const BASE_URL = getBaseUrl(INTENT_PROVIDER);
 
   const schemaInfo = getSchemaForPrompt();
 
@@ -236,7 +240,7 @@ app.post("/chat/intent", async (c) => {
       details: {
         message: err instanceof Error ? err.message : String(err),
         stack: err instanceof Error ? err.stack : undefined,
-        provider: ACTIVE_PROVIDER
+        provider: INTENT_PROVIDER
       }
     }, 503);
   }
@@ -634,9 +638,16 @@ app.post("/chat/stream", async (c) => {
   const productContext = body.productContext || null;  // Full product data for product-question intent
   const clarificationContext = body.clarificationContext || null;  // Follow-up question context
 
-  const API_KEY = getApiKey(ACTIVE_PROVIDER, c.env);
-  const MODEL = getModelForRole(ACTIVE_PROVIDER, "STREAM");
-  const BASE_URL = getBaseUrl(ACTIVE_PROVIDER);
+  const API_KEY = getApiKey(STREAM_PROVIDER, c.env);
+  const MODEL = getModelForRole(STREAM_PROVIDER, "STREAM");
+  const BASE_URL = getBaseUrl(STREAM_PROVIDER);
+
+  // Debug: Check API key
+  console.log("STREAM_PROVIDER:", STREAM_PROVIDER);
+  console.log("API_KEY exists:", !!API_KEY);
+  console.log("API_KEY length:", API_KEY?.length);
+  console.log("MODEL:", MODEL);
+  console.log("BASE_URL:", BASE_URL);
 
   const lastMessages = messages.slice(-10);  // Keep sufficient context for natural conversation
   const enrichedHistory = lastMessages.map(msg => {
@@ -707,7 +718,7 @@ app.post("/chat/stream", async (c) => {
           status: response?.status || null,
           statusText: response?.statusText || "Network error",
           errorText: errorText,
-          provider: ACTIVE_PROVIDER
+          provider: STREAM_PROVIDER
         }
       }, 503);
     }
@@ -721,7 +732,7 @@ app.post("/chat/stream", async (c) => {
       details: {
         message: err instanceof Error ? err.message : String(err),
         stack: err instanceof Error ? err.stack : undefined,
-        provider: ACTIVE_PROVIDER
+        provider: STREAM_PROVIDER
       }
     }, 503);
   }
@@ -801,9 +812,9 @@ app.post("/chat/recommendations", async (c) => {
 
   // return c.json({ recommendations: results }, 200);
 
-  const API_KEY = getApiKey(ACTIVE_PROVIDER, c.env);
-  const MODEL = getModelForRole(ACTIVE_PROVIDER, "RECOMMEND");
-  const BASE_URL = getBaseUrl(ACTIVE_PROVIDER);
+  const API_KEY = getApiKey(RERANK_PROVIDER, c.env);
+  const MODEL = getModelForRole(RERANK_PROVIDER, "RECOMMEND");
+  const BASE_URL = getBaseUrl(RERANK_PROVIDER);
 
   let tokenUsage: ReturnType<typeof buildTokenUsageResponse> = null;
 
@@ -839,7 +850,7 @@ app.post("/chat/recommendations", async (c) => {
           status: resp.status,
           statusText: resp.statusText,
           errorText: errorText,
-          provider: ACTIVE_PROVIDER
+          provider: RERANK_PROVIDER
         }
       }, 200);
     }
@@ -858,7 +869,7 @@ app.post("/chat/recommendations", async (c) => {
         details: {
           message: "Empty response from re-ranking API",
           responseData: data,
-          provider: ACTIVE_PROVIDER
+          provider: RERANK_PROVIDER
         },
         ...(tokenUsage ? { tokenUsage } : {})
       }, 200);
@@ -917,7 +928,7 @@ app.post("/chat/recommendations", async (c) => {
       details: {
         message: err instanceof Error ? err.message : String(err),
         stack: err instanceof Error ? err.stack : undefined,
-        provider: ACTIVE_PROVIDER
+        provider: RERANK_PROVIDER
       }
     }, 200);
   }
