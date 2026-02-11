@@ -232,7 +232,7 @@ When extracting THC preferences (match the category word from the CODEX message 
 🚨 CRITICAL: Effect/potency descriptors (downer, upper, relaxing, uplifting, strong, mild) are NOT subcategories!
 
 **Rule 4: These words ARE valid subcategories (extract when user mentions them)**:
-- "drinks" → subcategory: ["drinks"], category: "edibles"
+- "drinks" → subcategory: ["drinks"], category: "edibles" ⚠️ ALWAYS set both
 - "chocolates" → subcategory: ["chocolates"], category: "edibles"
 - "gummies" → subcategory: ["gummies"], category: "edibles"
 - "cartridges" or "carts" → subcategory: ["cartridges"], category: "vaporizers"

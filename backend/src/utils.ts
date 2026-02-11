@@ -537,6 +537,30 @@ export function parseRobustJSON(rawText: string): { success: boolean; data?: any
       const parsed = JSON.parse(cleaned);
       return { success: true, data: parsed };
     } catch (finalError) {
+      // Step 7: Final fallback - try to extract ranked_ids with regex
+      // This is specifically for re-ranker responses where we MUST get the IDs even if JSON is broken
+      try {
+        const idsMatch = jsonText.match(/"ranked_ids":\s*\[(.*?)\]/s);
+        if (idsMatch) {
+          const idsString = idsMatch[1];
+          // Extract quoted strings: "prod-123", "prod-456" -> ["prod-123", "prod-456"]
+          const rankedIds = [...idsString.matchAll(/"([^"]+)"/g)].map(m => m[1]);
+
+          if (rankedIds.length > 0) {
+            console.log(`[parseRobustJSON] Regex fallback: extracted ${rankedIds.length} ranked_ids`);
+            return {
+              success: true,
+              data: {
+                ranked_ids: rankedIds,
+                reasoning: "Partial parse - extracted IDs only"
+              }
+            };
+          }
+        }
+      } catch (regexError) {
+        // Regex extraction also failed
+      }
+
       const errorMsg = parseError instanceof Error ? parseError.message : String(parseError);
       return {
         success: false,

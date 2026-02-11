@@ -126,8 +126,8 @@ ${JSON.stringify(results)}
 3. Evaluate each candidate product based on ALL relevant fields: category, type, subcategory, description, effects, flavors, price, THC percentage (considering min/max ranges), brand, similarity_score, etc.
 4. **CRITICAL THC RULE**: Do NOT rank by THC unless user explicitly mentioned potency ("strong", "potent", "mild", etc.) OR filters contain thc_percentage_min/max. If user only mentioned effects (uplifting, energizing, sleepy), IGNORE THC entirely and use similarity_score for tiebreaking.
 5. If a product clearly contradicts the user's request (e.g., user wants "not sleepy" but product says "heavy sedative"), remove it entirely.
-6. Return ONLY a JSON object with "ranked_ids" array (product IDs) and "reasoning" object (explaining each product's ranking).
-7. Reasoning is REQUIRED for debugging - explain why each product ranked in that position (mention which priorities applied).
+6. Return ONLY a JSON object with "ranked_ids" array (product IDs) and "reasoning" string (numbered list format).
+7. Reasoning format: List each ranked product with brief reason, then explain why others fell down, then list omitted products if any. Use product NAMES for readability. Keep each reason to one line.
 
 ### RESPONSE FORMAT (STRICT):
 {
@@ -136,11 +136,7 @@ ${JSON.stringify(results)}
     "prod-def456",
     "prod-ghi789"
   ],
-  "reasoning": {
-    "prod-abc123": "Perfect subcategory match (chews), 2 effect matches (uplifted, happy), similarity_score: 0.92",
-    "prod-def456": "Subcategory match, 1 effect match (uplifted), higher THC (28%), similarity_score: 0.88",
-    "prod-ghi789": "Subcategory match, 1 effect match (energetic), best price ($15), similarity_score: 0.85"
-  }
+  "reasoning": "1. Product Name One - perfect subcategory match (chews), 2 effect matches (uplifted, happy), 0.92 sim. 2. Product Name Two - subcategory match, 1 effect (uplifted), higher THC (28%). 3. Product Name Three - category match, best price. Others ranked lower due to weaker similarity scores. Omitted: Pet Chews (non-human product)."
 }
 
 🚨 CRITICAL OUTPUT RULES:
@@ -148,9 +144,11 @@ ${JSON.stringify(results)}
 - Do NOT use <think> tags or any other XML tags
 - Do NOT include any text before or after the JSON
 - Start your response with { and end with }
-- Use product IDs (id field), NOT product names
-- Return 3-5 products maximum
+- Use product IDs (id field) in ranked_ids array
+- Return 5-7 products (more options for "show more" button)
 - Return ONLY products that were provided in the input results
-- Reasoning is REQUIRED for debugging - explain why each product ranked in that position
+- Reasoning format: "1. [Product Name] - [brief reason]. 2. [Product Name] - [brief reason]. 3. [Product Name] - [brief reason]. Others fell down due to [reason]. Omitted: [product names and why]."
+- Keep each product reason concise (one line) - mention key factors like subcategory/effects match, THC, similarity score
+- Always include why products fell down or were omitted if applicable
 `;
 }

@@ -852,7 +852,7 @@ app.post("/chat/recommendations", async (c) => {
         // model: "qwen/qwen3-32b",
         messages: [{ role: "system", content: reRankPrompt }],
         temperature: 0.1,
-        max_tokens: 4000,  // Re-rank: Increased for Grok reasoning + JSON output
+        max_tokens: 2500,  // Re-rank: Sufficient for ranked_ids array + single-sentence reasoning
         stream: false
       })
     });
@@ -914,10 +914,10 @@ app.post("/chat/recommendations", async (c) => {
 
     const parsed = parseResult.data;
     const rankedIds = parsed.ranked_ids || [];
-    const reasoning = parsed.reasoning || {};
+    const reasoning = parsed.reasoning || "No reasoning provided";
 
     // Log reasoning for debugging
-    console.log("Re-ranking reasoning:", JSON.stringify(reasoning, null, 2));
+    console.log("Re-ranking reasoning:", reasoning);
 
     // Map ranked IDs back to full product objects
     const rankedProducts = rankedIds
@@ -937,7 +937,7 @@ app.post("/chat/recommendations", async (c) => {
     return c.json({
       recommendations: rankedProducts,
       preRankedProducts: results,
-      reasoning: JSON.stringify(reasoning, null, 2),
+      reasoning: reasoning,
       filtersToUse: filtersToUse,
       ...(tokenUsage ? { tokenUsage } : {})
     }, 200);
