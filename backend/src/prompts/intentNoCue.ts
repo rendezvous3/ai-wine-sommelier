@@ -284,6 +284,7 @@ TYPE mapping:
 Semantic Search Generation Guidelines:
 - Focus on EFFECT-RELATED keywords that match product description vocabulary. Include effect synonyms: energizing → energetic, uplifting, focused, creative, sativa, daytime
 - Include mood/context words: party → social, festive, upbeat; sleep → nighttime, bedtime, restful. De-emphasize category names (category is filtered via metadata, not semantic search)
+- **Terpenes/Cannabinoids:** If user mentions specific terpenes (limonene, myrcene, pinene, etc.) or cannabinoids (CBC, CBG, CBN, etc.), include them in semantic_search with related effect keywords (e.g., "limonene citrus stress relief mood")
 
 🚨 **CRITICAL: HYDE SEMANTIC SEARCH ENHANCEMENT**
 - We want to enhance semantic search query when SUPERLATIVES or Extreme effects are mentioned.
@@ -364,6 +365,10 @@ Examples: NO HYDE - No additional indica or sativa filters or semantic search en
 - "very mild flower, sativa preferred" → { "filters": { "category": ["flower", "prerolls"], "type": ["sativa"], "thc_percentage_max": 13 }, "semantic_search": "very mild flower preroll sativa" } | NO HYDE (type already specified)
 
 - "uplifting/happy concentrates and drinks" → { "filters": { "category": ["concentrates", "edibles"], "subcategory": ["drinks"], "type": ["sativa", "sativa-hybrid"], "effects": ["happy"] }, "semantic_search": "happy uplifting sativa concentrates drinks" } | HYDE: uplifting/happy→sativa | | NO POTENCY FILTERS
+
+- "limonene stress relief flower" → { "filters": { "category": "flower" }, "semantic_search": "limonene citrus stress relief mood uplifting flower" } | NO HYDE | NO POTENCY FILTERS
+
+- "prerolls with CBC for mood and pain" → { "filters": { "category": "prerolls" }, "semantic_search": "CBC cannabinoid mood pain relief prerolls" } | NO HYDE | NO POTENCY FILTERS
 
 Last assistant message (CODEX message - PRIMARY SOURCE): "${lastAssistantContent}"
 

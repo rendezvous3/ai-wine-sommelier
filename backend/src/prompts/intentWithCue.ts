@@ -290,6 +290,7 @@ TYPE mapping:
 Semantic Search Generation Guidelines:
 - Focus on EFFECT-RELATED keywords that match product description vocabulary. Include effect synonyms: energizing → energetic, uplifting, focused, creative, sativa, daytime
 - Include mood/context words: party → social, festive, upbeat; sleep → nighttime, bedtime, restful. De-emphasize category names (category is filtered via metadata, not semantic search)
+- **Terpenes/Cannabinoids:** If user mentions specific terpenes (limonene, myrcene, pinene, etc.) or cannabinoids (CBC, CBG, CBN, etc.), include them in semantic_search with related effect keywords (e.g., "limonene citrus stress relief mood")
 
 🚨 **CRITICAL: HYDE SEMANTIC SEARCH ENHANCEMENT**
 - We want to enhance semantic search query when SUPERLATIVES or Extreme effects are mentioned.
@@ -322,6 +323,10 @@ Examples: NO HYDE - No additional indica or sativa filters or semantic search en
 - "5mg gummies berry flavor" → { "filters": { "category": "edibles", "subcategory": ["gummies"], "flavor": ["berry"], "thc_per_unit_mg_min": 5 }, "semantic_search": "berry flavored gummies" } | NO HYDE | NO POTENCY FILTERS
 
 - "live resin edibles" → { "filters": { "category": "edibles", "subcategory": ["live-resin-gummies"] }, "semantic_search": "live resin edibles" } | NO HYDE | NO POTENCY FILTERS
+
+- "limonene stress relief flower" → { "filters": { "category": "flower" }, "semantic_search": "limonene citrus stress relief mood uplifting flower" } | NO HYDE | NO POTENCY FILTERS
+
+- "prerolls with CBC for mood and pain" → { "filters": { "category": "prerolls" }, "semantic_search": "CBC cannabinoid mood pain relief prerolls" } | NO HYDE | NO POTENCY FILTERS
 
 - "live rosin gummies" → { "filters": { "category": "edibles", "subcategory": ["live-rosin-gummies"] }, "semantic_search": "live rosin gummies" } | NO HYDE (live rosin ≠ live resin)
 

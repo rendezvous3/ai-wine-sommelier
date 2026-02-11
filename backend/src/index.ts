@@ -772,11 +772,25 @@ app.post("/chat/recommendations", async (c) => {
   const hasNoTHCPreference = !filters.thc_percentage_min && !filters.thc_percentage_max;
 
   if (hasNoTHCPreference) {
-    if (category === 'flower' || category === 'prerolls') {
-      filters.thc_percentage_max = 28;  // Cap at 28% for variety
-    } else if (category === 'vaporizers') {
-      filters.thc_percentage_max = 89;  // Cap at 89% for variety
+    // Normalize category to array for uniform handling
+    const categories = Array.isArray(category) ? category : (category ? [category] : []);
+
+    // Define THC scale groups (same scale = can apply cap together)
+    const lowScaleCategories = ['flower', 'prerolls'];  // 0-28% scale
+    const highScaleCategories = ['vaporizers', 'concentrates'];  // 66-100% scale
+
+    // Check if ALL categories belong to the same scale group
+    const allLowScale = categories.length > 0 && categories.every(cat => lowScaleCategories.includes(cat));
+    const allHighScale = categories.length > 0 && categories.every(cat => highScaleCategories.includes(cat));
+
+    // Apply cap only if all categories use the same scale
+    // Mixed scales (e.g., ["vaporizers", "prerolls"]) get no cap due to incompatible ranges
+    if (allLowScale) {
+      filters.thc_percentage_max = 28;  // Cap at 28% for variety (flower, prerolls)
+    } else if (allHighScale) {
+      filters.thc_percentage_max = 89;  // Cap at 89% for variety (vaporizers, concentrates)
     }
+    // Mixed scales or edibles/cbd/topicals/accessories: no cap
   }
 
   const lastMessages = messages.slice(-5);
