@@ -210,20 +210,32 @@ export function transformSelectionsToMetadata(
   }
 
   // Convert dosage-per-piece to thc_per_unit_mg_min/max if dosage-per-piece is selected
+  // EXCEPTION: Skip dosage for chocolates-only (users can break chocolates easily)
   if (filters['dosage-per-piece']) {
-    const dosageValue = filters['dosage-per-piece'];
-    const dosageRange = dosageToRange(dosageValue);
-    
-    // Add thc_per_unit_mg_min and thc_per_unit_mg_max to filters
-    if (dosageRange.min !== null) {
-      filters['thc_per_unit_mg_min'] = dosageRange.min;
+    const subcategories = filters['subcategory'];
+    const isChocolatesOnly = Array.isArray(subcategories) &&
+                             subcategories.length === 1 &&
+                             subcategories[0] === 'chocolates';
+
+    if (isChocolatesOnly) {
+      // Chocolates can be split easily, so dosage doesn't matter - skip the filter
+      delete filters['dosage-per-piece'];
+    } else {
+      // For other edibles, apply dosage filter
+      const dosageValue = filters['dosage-per-piece'];
+      const dosageRange = dosageToRange(dosageValue);
+
+      // Add thc_per_unit_mg_min and thc_per_unit_mg_max to filters
+      if (dosageRange.min !== null) {
+        filters['thc_per_unit_mg_min'] = dosageRange.min;
+      }
+      if (dosageRange.max !== null) {
+        filters['thc_per_unit_mg_max'] = dosageRange.max;
+      }
+
+      // Remove dosage-per-piece from filters (we've converted it to thc_per_unit_mg_min/max)
+      delete filters['dosage-per-piece'];
     }
-    if (dosageRange.max !== null) {
-      filters['thc_per_unit_mg_max'] = dosageRange.max;
-    }
-    
-    // Remove dosage-per-piece from filters (we've converted it to thc_per_unit_mg_min/max)
-    delete filters['dosage-per-piece'];
   }
 
   // Build natural language query
@@ -279,10 +291,18 @@ export function transformSelectionsToMetadata(
   }
   
   // Add dosage per piece (for edibles only)
+  // EXCEPTION: Skip dosage for chocolates-only (users can break chocolates easily)
   if (metadata['dosage-per-piece']) {
-    // metadata['dosage-per-piece'] is like "Low (<5mg)" or "High (10mg)", add "THC" to description
-    const dosageLabel = metadata['dosage-per-piece'].replace(/(<\d+mg|>\d+mg|\d+-\d+mg|\d+mg)/, '$1 THC');
-    query += `, with ${dosageLabel} dosage per piece`;
+    const subcategoryMetadata = metadata['subcategory'];
+    const isChocolatesOnly = Array.isArray(subcategoryMetadata) &&
+                             subcategoryMetadata.length === 1 &&
+                             subcategoryMetadata[0] === 'Chocolates';
+
+    if (!isChocolatesOnly) {
+      // Only add dosage to query if NOT chocolates-only
+      const dosageLabel = metadata['dosage-per-piece'].replace(/(<\d+mg|>\d+mg|\d+-\d+mg|\d+mg)/, '$1 THC');
+      query += `, with ${dosageLabel} dosage per piece`;
+    }
   }
   
   // Add price preference (applies to both standard and edible flows)
