@@ -43,15 +43,6 @@ interface Bindings {
   ENVIRONMENT?: string;
 }
 
-// ============================================
-// HYBRID PROVIDER SETUP
-// Stream: Gemini Flash (cheap, good for conversation)
-// Intent: Llama 70B (smart for HYDE + Potency Gate)
-// Re-rank: Qwen 32B (good for ranking)
-// ============================================
-// Providers are imported from types-and-constants.ts:
-// STREAM_PROVIDER, INTENT_PROVIDER, RERANK_PROVIDER
-
 // Default tier - can be made configurable via environment variable later
 const TIER: Tier = "FREE";
 
@@ -135,19 +126,11 @@ app.post("/chat/intent", async (c) => {
   const body = await c.req.json();
   const messages = body.messages || [];
 
-  // IMPORTANT: Use FULL context to capture multi-turn queries
-  // Example: "What are your most potent vapes?" → "sleep"
-  // We need to see "most potent" from the first user message
-  // The CODEX message is still the trigger, but we need full conversation for filter extraction
-
   const lastMessage = messages[messages.length - 1]?.content || "";
 
-  // CODEX DETECTION (before LLM call)
-  // Check last assistant message for CODEX cues
   const lastAssistantMsg = messages.filter((m: any) => m.role === 'assistant').pop();
   const lastAssistantContent = lastAssistantMsg?.content || '';
-  
-  // Store assistant query for response verification
+
   const assistantQuery = lastAssistantContent;
 
   const RECOMMEND_CUES = [
@@ -643,8 +626,8 @@ app.post("/chat/product-lookup", async (c) => {
 app.post("/chat/stream", async (c) => {
   const body = await c.req.json();
   const messages = body.messages || [];
-  const productContext = body.productContext || null;  // Full product data for product-question intent
-  const clarificationContext = body.clarificationContext || null;  // Follow-up question context
+  const productContext = body.productContext || null; 
+  const clarificationContext = body.clarificationContext || null;
 
   const API_KEY = getApiKey(STREAM_PROVIDER, c.env);
   const MODEL = getModelForRole(STREAM_PROVIDER, "STREAM");
@@ -686,12 +669,6 @@ app.post("/chat/stream", async (c) => {
     const { recommendations, ...rest } = msg;
     return rest;
   });
-
-  // const messagesForLLM = [
-  //   { role: "system", content: "Hello." },
-  //   { role: "system", content: prompt },
-  //   ...lastMessages
-  // ];
 
     const messagesForLLM = [
     { role: "system", content: "Hello." },
