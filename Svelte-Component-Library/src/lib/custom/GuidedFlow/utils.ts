@@ -73,20 +73,23 @@ export function transformSelectionsToMetadata(
       });
     });
 
-    if (selectedOptions.length === 0) continue;
+    // Skip if no options found, UNLESS it's a price-selector (which has no options array)
+    if (selectedOptions.length === 0 && step.type !== 'price-selector') continue;
 
     // Build metadata with human-readable labels
-    if (step.type === 'single-select' || step.type === 'slider') {
-      const option = selectedOptions[0];
-      let label = option.label;
-      
+    if (step.type === 'single-select' || step.type === 'slider' || step.type === 'price-selector') {
+      const option = step.type === 'price-selector' ? null : selectedOptions[0];
+      let label = option?.label || '';
+
       // Add description if available (e.g., potency percentages)
-      if (option.description) {
+      if (option?.description) {
         label = `${label} (${option.description})`;
       }
-      
-      metadata[stepId] = label;
-      
+
+      if (step.type !== 'price-selector') {
+        metadata[stepId] = label;
+      }
+
       // Handle special cases for query building
       if (stepId === 'category') {
         filters['category'] = option.value;
@@ -107,31 +110,50 @@ export function transformSelectionsToMetadata(
         }
         queryParts.push(`${dosageLabel} dosage per piece`);
       } else if (stepId === 'price') {
-        // Price value is already an object with price_min/price_max, or null for "No Preference"
-        if (option.value === null) {
-          // "No Preference" case - don't set price filters, but add to query
-          metadata[stepId] = 'with no price range preference';
-          queryParts.push('with no price range preference');
-        } else if (option.value && typeof option.value === 'object') {
-          if (option.value.price_min !== null && option.value.price_min !== undefined) {
-            filters['price_min'] = option.value.price_min;
+        // Handle new price-selector format
+        if (step.type === 'price-selector') {
+          // value is { mode: 'no-max' | 'set-max', max?: number }
+          const priceValue = value; // value is the raw selection, not from options
+
+          if (priceValue && typeof priceValue === 'object') {
+            if (priceValue.mode === 'no-max') {
+              // "No Max" case - don't set price filters
+              metadata[stepId] = 'with no max budget';
+              queryParts.push('with no max budget');
+            } else if (priceValue.mode === 'set-max' && priceValue.max !== undefined) {
+              // "Set Max" case - set price_max filter
+              filters['price_max'] = priceValue.max;
+              metadata[stepId] = `max budget $${priceValue.max}`;
+              queryParts.push(`max budget $${priceValue.max}`);
+            }
           }
-          if (option.value.price_max !== null && option.value.price_max !== undefined) {
-            filters['price_max'] = option.value.price_max;
+        } else {
+          // Old format: Price value is already an object with price_min/price_max, or null for "No Preference"
+          if (option.value === null) {
+            // "No Preference" case - don't set price filters, but add to query
+            metadata[stepId] = 'with no price range preference';
+            queryParts.push('with no price range preference');
+          } else if (option.value && typeof option.value === 'object') {
+            if (option.value.price_min !== null && option.value.price_min !== undefined) {
+              filters['price_min'] = option.value.price_min;
+            }
+            if (option.value.price_max !== null && option.value.price_max !== undefined) {
+              filters['price_max'] = option.value.price_max;
+            }
+            // Build price range string for query
+            const priceMin = option.value.price_min ?? 0;
+            const priceMax = option.value.price_max;
+            let priceLabel = '';
+            if (priceMax !== null && priceMax !== undefined) {
+              priceLabel = `priced $${priceMin}-$${priceMax}`;
+            } else {
+              priceLabel = `priced $${priceMin}+`;
+            }
+            metadata[stepId] = priceLabel;
+            queryParts.push(priceLabel);
           }
-          // Build price range string for query
-          const priceMin = option.value.price_min ?? 0;
-          const priceMax = option.value.price_max;
-          let priceLabel = '';
-          if (priceMax !== null && priceMax !== undefined) {
-            priceLabel = `priced $${priceMin}-$${priceMax}`;
-          } else {
-            priceLabel = `priced $${priceMin}+`;
-          }
-          metadata[stepId] = priceLabel;
-          queryParts.push(priceLabel);
         }
-      } else {
+      } else if (option) {
         filters[stepId] = option.value;
         queryParts.push(label);
       }

@@ -2,6 +2,7 @@
   import type { FlowStep as FlowStepType } from './types.js';
   import FlowOptionCard from './FlowOptionCard.svelte';
   import FlowSlider from './FlowSlider.svelte';
+  import PriceSelector from './PriceSelector.svelte';
 
   interface FlowStepProps {
     step: FlowStepType;
@@ -138,6 +139,10 @@
   function handleSliderChange(value: string) {
     onSelect(value);
   }
+
+  function handlePriceSelectorChange(value: { mode: 'no-max' | 'set-max'; max?: number }) {
+    onSelect(value);
+  }
 </script>
 
 <div class="flow-step">
@@ -153,6 +158,12 @@
       value={selectedValues.length > 0 ? selectedValues[0] : null}
       onValueChange={handleSliderChange}
       options={step.options}
+    />
+  {:else if step.type === 'price-selector'}
+    <PriceSelector
+      value={selectedValues.length > 0 ? selectedValues[0] : null}
+      onValueChange={handlePriceSelectorChange}
+      category={step.category || null}
     />
   {:else}
     <div
@@ -182,7 +193,6 @@
     display: flex;
     flex-direction: column;
     padding: 12px 6px 6px 6px;
-    overflow-y: auto;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
   }

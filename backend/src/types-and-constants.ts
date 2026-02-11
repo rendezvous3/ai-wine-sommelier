@@ -84,7 +84,7 @@ const OPENAI_MODELS = {
 const GROK_MODELS = {
   INTENT: GROK_MODEL_NAMES.GROK_4_1_FAST_REASONING,
   STREAM: GROK_MODEL_NAMES.GROK_4_1_FAST_NON_REASONING,
-  RECOMMEND: GROK_MODEL_NAMES.GROK_4_1_FAST_REASONING,  // Switched to fast model for speed
+  RECOMMEND: GROK_MODEL_NAMES.GROK_4_1_FAST_NON_REASONING,  // Switched to fast model for speed
 } as const;
 
 // Type for environment bindings (minimal interface for API keys)

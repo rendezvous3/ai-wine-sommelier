@@ -452,7 +452,7 @@
   }
 
   .chat-window__messages-end {
-    height: 12px;
+    height: 50px;
     flex-shrink: 0;
   }
 

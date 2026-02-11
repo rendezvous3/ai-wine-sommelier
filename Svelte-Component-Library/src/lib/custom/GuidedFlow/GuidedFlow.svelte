@@ -59,15 +59,15 @@
   }
 
   function handleSelect(value: any) {
-    // For single-select and slider, store as single value; for multi-select, store as array
-    if (currentStep.type === 'single-select' || currentStep.type === 'slider') {
+    // For single-select, slider, and price-selector, store as single value; for multi-select, store as array
+    if (currentStep.type === 'single-select' || currentStep.type === 'slider' || currentStep.type === 'price-selector') {
       state.selections[currentStep.id] = value;
     } else {
       // Multi-select: value is already an array from FlowStep
       state.selections[currentStep.id] = value;
     }
     state.completedSteps.add(state.currentStepIndex);
-    
+
     // Notify parent of selection changes
     config.onSelectionChange?.(state.selections);
   }

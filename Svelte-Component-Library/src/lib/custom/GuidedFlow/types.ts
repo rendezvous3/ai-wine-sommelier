@@ -11,12 +11,13 @@ export interface FlowStep {
   id: string;
   title: string;
   subtitle?: string; // e.g., "(Select one)" or "(Up to 2)"
-  type: 'single-select' | 'multi-select' | 'slider';
+  type: 'single-select' | 'multi-select' | 'slider' | 'price-selector';
   maxSelections?: number; // for multi-select
   options: FlowOption[];
   required?: boolean;
   gridColumns?: number; // Number of columns for grid layout (default: auto-fit)
   cardSize?: 'normal' | 'small'; // Card size for compact grid layouts
+  category?: string; // For price-selector: current selected category
   customStyles?: {
     padding?: string;
     fontSize?: string;

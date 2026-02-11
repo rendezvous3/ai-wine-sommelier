@@ -418,46 +418,16 @@
     ]
   };
 
-  // Price step (shared by both flows)
-  const priceStep = {
+  // Price step (shared by both flows) - uses dynamic category
+  const priceStep = $derived({
     id: 'price',
-    title: 'What price are you looking for each product?',
-    subtitle: '(Select one)',
-    type: 'single-select' as const,
+    title: 'Max Price',
+    subtitle: '',
+    type: 'price-selector' as const,
     required: true,
-    options: [
-      {
-        id: 'no-preference',
-        label: 'No Preference',
-        value: null,
-        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="8" stroke="currentColor" stroke-width="2"/><path d="M16 20H24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
-      },
-      {
-        id: 'low',
-        label: '$0-25',
-        value: { price_min: 0, price_max: 25 },
-        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 16L20 10L28 16V28C28 29.1 27.1 30 26 30H14C12.9 30 12 29.1 12 28V16Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 22L20 18L24 22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-      },
-      {
-        id: 'medium',
-        label: '$25-50',
-        value: { price_min: 25, price_max: 50 },
-        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 16L20 10L28 16V28C28 29.1 27.1 30 26 30H14C12.9 30 12 29.1 12 28V16Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 22L20 18L24 22M20 18V26" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-      },
-      {
-        id: 'high',
-        label: '$50-75',
-        value: { price_min: 50, price_max: 75 },
-        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 16L20 10L28 16V28C28 29.1 27.1 30 26 30H14C12.9 30 12 29.1 12 28V16Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 22L20 18L24 22M20 18V26M16 26H24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-      },
-      {
-        id: 'premium',
-        label: '$75+',
-        value: { price_min: 75, price_max: null },
-        icon: '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 16L20 10L28 16V28C28 29.1 27.1 30 26 30H14C12.9 30 12 29.1 12 28V16Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 22L20 18L24 22M20 18V26M16 26H24M18 24H22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
-      }
-    ]
-  };
+    category: selectedCategory,
+    options: [] // Not used for price-selector
+  });
 
   // Standard flow steps (for Flower, Prerolls, Vaporizers, Concentrates)
   const standardFlowSteps = $derived([
@@ -605,6 +575,16 @@
     messages = [...messages, queryMessage];
     loading = true;
 
+    // Add shimmer loading message
+    const shimmerIndex = messages.length;
+    messages = [
+      ...messages,
+      { role: "assistant", content: "Looking for best matches...", shimmer: true }
+    ];
+
+    // Wait a tiny bit for shimmer to render
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     // Call recommendations API
     try {
       const resp = await fetch(
@@ -619,43 +599,68 @@
           }),
         }
       );
-      
+
       if (!resp.ok) {
         try {
           const errorData = await resp.json();
-          messages = [...messages, {
-            role: "assistant",
-            content: errorData.error || "Our recommendation service is experiencing technical difficulties. Please try again."
-          }];
+          // Replace shimmer with error message
+          messages = [
+            ...messages.slice(0, shimmerIndex),
+            {
+              role: "assistant",
+              content: errorData.error || "Our recommendation service is experiencing technical difficulties. Please try again."
+            },
+            ...messages.slice(shimmerIndex + 1)
+          ];
         } catch (parseErr) {
-          messages = [...messages, {
-            role: "assistant",
-            content: "Our recommendation service is experiencing technical difficulties. Please try again."
-          }];
+          // Replace shimmer with error message
+          messages = [
+            ...messages.slice(0, shimmerIndex),
+            {
+              role: "assistant",
+              content: "Our recommendation service is experiencing technical difficulties. Please try again."
+            },
+            ...messages.slice(shimmerIndex + 1)
+          ];
         }
         return;
       }
-      
+
       const data = await resp.json();
-      
+
       // Check for error field
       if (data.error) {
-        messages = [...messages, {
-          role: "assistant",
-          content: data.error
-        }];
+        // Replace shimmer with error message
+        messages = [
+          ...messages.slice(0, shimmerIndex),
+          {
+            role: "assistant",
+            content: data.error
+          },
+          ...messages.slice(shimmerIndex + 1)
+        ];
       }
-      
+
       productRecommendations = data.recommendations || [];
-      
-      // Add recommendations as assistant message (even if there was an error, show fallback results)
+
+      // Replace shimmer with recommendations (even if there was an error, show fallback results)
       if (productRecommendations.length > 0) {
         const botMessage: Message = {
           role: "assistant",
           content: "",
           recommendations: productRecommendations,
         };
-        messages = [...messages, botMessage];
+        messages = [
+          ...messages.slice(0, shimmerIndex),
+          botMessage,
+          ...messages.slice(shimmerIndex + 1)
+        ];
+      } else {
+        // Remove shimmer if no recommendations
+        messages = [
+          ...messages.slice(0, shimmerIndex),
+          ...messages.slice(shimmerIndex + 1)
+        ];
       }
     } catch (err) {
       console.error("Recommendations API failed:", err);
@@ -1256,8 +1261,12 @@
   }
 
   .shimmer-message {
-    padding: 0.75rem 1rem;
-    margin: 0.5rem 0;
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-top: 20px;
+    margin-bottom: 0;
     opacity: 0.8;
   }
 </style>
