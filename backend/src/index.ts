@@ -40,6 +40,7 @@ interface Bindings {
   GEMINI_API_KEY?: string;
   VECTORIZE_INDEX: VectorizeIndex;
   AI: Ai<AiModels>;
+  ENVIRONMENT?: string;
 }
 
 // ============================================
@@ -53,6 +54,13 @@ interface Bindings {
 
 // Default tier - can be made configurable via environment variable later
 const TIER: Tier = "FREE";
+
+// Dev-only logging helper (for debug statements only)
+function devLog(env: Bindings | undefined, ...args: any[]) {
+  if (env?.ENVIRONMENT === 'development') {
+    console.log(...args);
+  }
+}
 
 // Helper function to build token usage response object
 function buildTokenUsageResponse(
@@ -643,11 +651,11 @@ app.post("/chat/stream", async (c) => {
   const BASE_URL = getBaseUrl(STREAM_PROVIDER);
 
   // Debug: Check API key
-  console.log("STREAM_PROVIDER:", STREAM_PROVIDER);
-  console.log("API_KEY exists:", !!API_KEY);
-  console.log("API_KEY length:", API_KEY?.length);
-  console.log("MODEL:", MODEL);
-  console.log("BASE_URL:", BASE_URL);
+  devLog(c.env, "STREAM_PROVIDER:", STREAM_PROVIDER);
+  devLog(c.env, "API_KEY exists:", !!API_KEY);
+  devLog(c.env, "API_KEY length:", API_KEY?.length);
+  devLog(c.env, "MODEL:", MODEL);
+  devLog(c.env, "BASE_URL:", BASE_URL);
 
   const lastMessages = messages.slice(-10);  // Keep sufficient context for natural conversation
   const enrichedHistory = lastMessages.map(msg => {
@@ -917,7 +925,7 @@ app.post("/chat/recommendations", async (c) => {
     const reasoning = parsed.reasoning || "No reasoning provided";
 
     // Log reasoning for debugging
-    console.log("Re-ranking reasoning:", reasoning);
+    devLog(c.env, "Re-ranking reasoning:", reasoning);
 
     // Map ranked IDs back to full product objects
     const rankedProducts = rankedIds
