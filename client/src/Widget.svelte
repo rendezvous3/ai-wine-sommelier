@@ -643,7 +643,7 @@
 
       productRecommendations = data.recommendations || [];
 
-      // Replace shimmer with recommendations (even if there was an error, show fallback results)
+      // Replace shimmer with recommendations or friendly error message
       if (productRecommendations.length > 0) {
         const botMessage: Message = {
           role: "assistant",
@@ -656,9 +656,13 @@
           ...messages.slice(shimmerIndex + 1)
         ];
       } else {
-        // Remove shimmer if no recommendations
+        // No recommendations found - show friendly message
         messages = [
           ...messages.slice(0, shimmerIndex),
+          {
+            role: "assistant",
+            content: "I couldn't find any products matching those exact specifications. Try adjusting your preferences, or feel free to ask me about specific products!"
+          },
           ...messages.slice(shimmerIndex + 1)
         ];
       }
@@ -1148,7 +1152,7 @@
         const recData = await recResp.json();
         productRecommendations = recData.recommendations || [];
 
-        // Replace shimmer with recommendations
+        // Replace shimmer with recommendations or friendly error message
         if (productRecommendations.length > 0) {
           const botMessage: Message = {
             role: "assistant",
@@ -1161,9 +1165,13 @@
             ...messages.slice(shimmerIndex + 1)
           ];
         } else {
-          // Remove shimmer if no recommendations
+          // No recommendations found - show friendly message
           messages = [
             ...messages.slice(0, shimmerIndex),
+            {
+              role: "assistant",
+              content: "I couldn't find any products matching those exact specifications. Try adjusting your preferences, or feel free to ask me about specific products!"
+            },
             ...messages.slice(shimmerIndex + 1)
           ];
         }
