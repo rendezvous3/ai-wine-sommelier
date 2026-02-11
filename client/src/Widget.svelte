@@ -1269,4 +1269,11 @@
     margin-bottom: 0;
     opacity: 0.8;
   }
+
+  /* Mobile: move shimmer closer to left edge to match assistant messages */
+  @media (max-width: 640px) {
+    .shimmer-message {
+      padding-left: 4px;
+    }
+  }
 </style>
