@@ -583,13 +583,15 @@ app.post("/chat/product-lookup", async (c) => {
     // 3. Access confidence score (Cloudflare uses Cosine Similarity)
     // Score interpretation:
     // - 0.95+: Almost exact name match
-    // - 0.75-0.85: Good semantic match
-    // - Below 0.70: AI guessing, should trigger follow-up
+    // - 0.70-0.85: Good semantic match
+    // - 0.55-0.70: Partial match (e.g., "Kiva" matching "Kiva | Camino | ...")
+    // - Below 0.55: Low confidence, should trigger follow-up
     const topMatch = matches.matches[0];
     const confidence = topMatch.score || 0;
 
-    // High confidence (>0.7): Return single product
-    if (confidence > 0.7) {
+    // High confidence (>0.6): Return single product
+    // Lowered from 0.7 to 0.6 to catch partial brand/name matches
+    if (confidence > 0.6) {
       return c.json({
         product: { id: topMatch.id, ...topMatch.metadata },
         confidence,

@@ -714,9 +714,8 @@
   // ------------------------------------------------------
   // PRODUCT QUESTION HANDLER (SIMPLIFIED - STREAM HANDLES INTELLIGENCE)
   // ------------------------------------------------------
-  async function handleProductQuestion(productQuery: string, payload: { messages: Message[] }, reuseMessageIndex?: number | null) {
+  async function handleProductQuestion(productQuery: string, payload: { messages: Message[] }) {
     console.log('[Product Lookup] Query:', productQuery);
-    console.log('[Product Lookup] Reuse message index:', reuseMessageIndex);
 
     // Prevent concurrent lookups
     if (productLookupInProgress) {
@@ -734,7 +733,7 @@
     try {
       productLookupInProgress = true;
 
-      // Call backend semantic search - let backend handle ALL intelligence
+      // STEP 1: Call backend semantic search - WAIT FOR COMPLETION
       console.log('[Product Lookup] Calling backend API with query:', productQuery);
       const lookupResp = await fetch(`${BASE_URL}/product-lookup`, {
         method: 'POST',
@@ -757,18 +756,23 @@
       const lookupResult = await lookupResp.json();
       console.log('[Product Lookup] API result:', lookupResult);
 
-      // Lower threshold to 0.65 to catch near-matches
-      if (lookupResult.confidence > 0.65 && lookupResult.product) {
-        // High confidence - stream with product context, reuse message index
-        console.log('[Product Lookup] High confidence from API (>0.65), streaming with context');
+      // STEP 2: Handle result based on backend decision - SEQUENTIAL, NO OVERLAP
+
+      if (lookupResult.product) {
+        // Backend found a confident match - stream with product context
+        console.log('[Product Lookup] Product found (confidence:', lookupResult.confidence, '), streaming with context');
         retryAttempts = 0; // Reset retry counter on success
-        await streamWithProductContext(lookupResult.product, payload, reuseMessageIndex);
+
+        // Stream product details - WAIT FOR COMPLETION
+        await streamWithProductContext(lookupResult.product, payload);
+
       } else if (lookupResult.needsClarification) {
         // Low/medium confidence - show clarification question
         console.log('[Product Lookup] Needs clarification, streaming clarification context');
 
-        // Stream the clarification question using clarificationContext
-        await streamFollowUp(lookupResult.message, payload, reuseMessageIndex);
+        // Stream the clarification question - WAIT FOR COMPLETION
+        await streamFollowUp(lookupResult.message, payload);
+
       } else {
         // No match - offer to search for recommendations
         console.log('[Product Lookup] No match found');
@@ -788,13 +792,12 @@
   }
 
   // Stream response with product context
-  async function streamWithProductContext(product: Recommendation | Record<string, any> | null, payload: { messages: Message[] }, reuseMessageIndex?: number | null) {
+  async function streamWithProductContext(product: Recommendation | Record<string, any> | null, payload: { messages: Message[] }) {
     console.log('[Product Context] Streaming with product:', product?.name);
-    console.log('[Product Context] Reuse message index:', reuseMessageIndex);
 
     let buffer = "";
     let botMessageContent = "";
-    let streamingMessageIndex: number | null = reuseMessageIndex !== undefined ? reuseMessageIndex : null;
+    let streamingMessageIndex: number | null = null;  // Always append NEW message
 
     try {
       // Validate product has required fields
@@ -887,10 +890,9 @@
         buffer = parts[parts.length - 1];
       }
 
+      // Stream has completed - now insert product card
       console.log('[Product Context] Streaming completed');
       console.log('[Product Context] Final streaming index:', streamingMessageIndex);
-      console.log('[Product Context] Product exists?', !!product);
-      console.log('[Product Context] Streaming index not null?', streamingMessageIndex !== null);
 
       // After streaming completes, add the product card as a recommendation
       if (product && streamingMessageIndex !== null) {
@@ -918,22 +920,14 @@
           pack_count: product.pack_count
         };
 
-        console.log('[Product Card] Product recommendation built:', productRecommendation);
-        console.log('[Product Card] Current messages length:', messages.length);
-        console.log('[Product Card] Inserting card at index:', streamingMessageIndex + 1);
-
-        // Add product card message after the description
+        // Insert product card immediately after the streaming message
         messages = [
           ...messages.slice(0, streamingMessageIndex + 1),
           createMessage("assistant", "", { recommendations: [productRecommendation] }),
           ...messages.slice(streamingMessageIndex + 1)
         ];
 
-        console.log('[Product Card] Card inserted successfully');
-        console.log('[Product Card] New messages length:', messages.length);
-        console.log('[Product Card] Card message:', messages[streamingMessageIndex + 1]);
-
-        // Removed productRegistry - stream has conversation history
+        console.log('[Product Card] Card inserted at index:', streamingMessageIndex + 1);
       } else {
         console.warn('[Product Card] Skipped - product:', product, 'streamingMessageIndex:', streamingMessageIndex);
       }
@@ -950,13 +944,12 @@
   }
 
   // Stream follow-up question for clarification
-  async function streamFollowUp(clarificationMessage: string, payload: { messages: Message[] }, reuseMessageIndex?: number | null) {
+  async function streamFollowUp(clarificationMessage: string, payload: { messages: Message[] }) {
     console.log('[Follow-up] Clarification message:', clarificationMessage);
-    console.log('[Follow-up] Reuse message index:', reuseMessageIndex);
 
     let buffer = "";
     let botMessageContent = "";
-    let streamingMessageIndex: number | null = reuseMessageIndex !== undefined ? reuseMessageIndex : null;
+    let streamingMessageIndex: number | null = null;  // Always append NEW message
 
     try {
       const resp = await fetch(`${BASE_URL}/stream`, {
@@ -1309,17 +1302,14 @@
       // Extract product name from stream text
       const productName = extractProductName(fullStreamText);
       console.log('[CODEX] PRODUCT_LOOKUP detected, product name:', productName);
-      console.log('[CODEX] Streaming message index:', streamingMessageIndex);
       console.log('[CODEX] Current messages length:', messages.length);
 
       if (productName) {
-        // Don't clear the message - let the new stream overwrite it immediately
-        // This prevents flickering as there's no visible gap
-        console.log('[CODEX] Will reuse message index for product lookup stream');
+        console.log('[CODEX] Starting product lookup flow (will append new messages, preserving cue)');
 
         try {
-          // Call product-lookup flow, passing the message index to reuse
-          await handleProductQuestion(productName, { messages }, streamingMessageIndex);
+          // Call product-lookup flow - it will append new messages
+          await handleProductQuestion(productName, { messages });
         } finally {
           // Ensure loading state is cleared even if handleProductQuestion fails
           loading = false;
