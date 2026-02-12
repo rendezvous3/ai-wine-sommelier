@@ -145,8 +145,12 @@
     let match = text.match(/Let me look up (.+?)(?:\s+for you|\.)/i);
     if (match && match[1].trim()) return match[1].trim();
 
-    // Try pattern 2: "I'll pull up the details on X"
-    match = text.match(/I'll pull up (?:the )?details on (.+?)(?:\.|$)/i);
+    // Try pattern 2: "Let me/I'll pull up the details on X"
+    match = text.match(/(?:Let me|I'll) pull up (?:the )?details on (.+?)(?:\s+for you|\.)/i);
+    if (match && match[1].trim()) return match[1].trim();
+
+    // Try pattern 3: "Let me check on X"
+    match = text.match(/Let me check on (.+?)(?:\s+for you|\.)/i);
     if (match && match[1].trim()) return match[1].trim();
 
     return null;
@@ -155,6 +159,9 @@
   // Fuzzy find product in product registry and conversation history
   function fuzzyFindProduct(query: string, msgs: Message[]): FuzzyResult {
     console.log('[Product Lookup] Fuzzy search for:', query);
+
+    // Stopwords to filter out from matching (same as in handleProductQuestion)
+    const stopwords = ['that', 'this', 'the', 'yes', 'yea', 'yeah', 'yep', 'yup', 'one', 'first', 'second', 'product', 'products', 'item', 'stuff', 'thing', 'think', 'guess', 'maybe', 'probably'];
 
     const normalized = query.toLowerCase().replace(/[^\w\s]/g, '');
 
@@ -165,16 +172,23 @@
       return { product: registryMatch, confident: true, score: 1.0 };
     }
 
-    // Second: Fuzzy match in registry (word-based)
-    const words = normalized.split(/\s+/).filter(w => w.length > 2);
+    // Second: Fuzzy match in registry (word-based, excluding stopwords)
+    const words = normalized.split(/\s+/)
+      .filter(w => w.length > 2 && !stopwords.includes(w));
+
     if (words.length > 0) {
       for (const [key, product] of productRegistry) {
         if (!key.startsWith('name:')) continue;
         const productName = key.replace('name:', '');
-        const matchCount = words.filter(w => productName.includes(w)).length;
+
+        // Filter stopwords from product name too
+        const productWords = productName.split(/\s+/)
+          .filter(w => w.length > 2 && !stopwords.includes(w));
+
+        const matchCount = words.filter(w => productWords.some(pw => pw.includes(w) || w.includes(pw))).length;
         if (matchCount >= Math.ceil(words.length * 0.6)) {
           const score = matchCount / words.length;
-          console.log('[Product Lookup] Found fuzzy match in registry:', product.name, 'Score:', score);
+          console.log('[Product Lookup] Found fuzzy match in registry:', product.name, 'Significant query words:', words, 'Score:', score);
           return {
             product,
             confident: matchCount === words.length,
@@ -196,7 +210,10 @@
         const nameLower = product.name.toLowerCase();
         const brandLower = (product.brand || '').toLowerCase();
 
-        const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2);
+        // Filter stopwords from query
+        const queryWords = queryLower.split(/\s+/)
+          .filter(w => w.length > 2 && !stopwords.includes(w));
+
         if (queryWords.length === 0) continue;
 
         const matchedWords = queryWords.filter(word =>
@@ -212,7 +229,7 @@
     }
 
     if (bestMatch) {
-      console.log('[Product Lookup] Found match in history:', bestMatch.name, 'Score:', bestScore);
+      console.log('[Product Lookup] Found match in history:', bestMatch.name, 'Significant query words:', queryLower.split(/\s+/).filter(w => w.length > 2 && !stopwords.includes(w)), 'Score:', bestScore);
     } else {
       console.log('[Product Lookup] No match found');
     }
@@ -789,133 +806,80 @@
     try {
       productLookupInProgress = true;
 
-      // Phase 0: Check if query matches one of the suggested names from previous clarification
-      let matchedSuggestion = false;
+      // Phase 0: Responding to clarification - fuzzy match against suggested names ONLY (scoped search)
       if (suggestedProductNames.length > 0) {
+        console.log('[Clarification Scope] User responding to clarification, matching against:', suggestedProductNames);
         const queryLower = productQuery.toLowerCase().trim();
 
-        // Check for confirmation words (yes, yea, yeah, that one, first one, etc.)
-        const confirmationWords = ['yes', 'yea', 'yeah', 'yep', 'yup', 'sure', 'that one', 'first one', 'that\'s it', 'correct', 'exactly'];
-        const isConfirmation = confirmationWords.some(word => queryLower === word || queryLower.startsWith(word + ' ') || queryLower.endsWith(' ' + word));
+        // Check for simple "yes" confirmation
+        const confirmationWords = ['yes', 'yea', 'yeah', 'yep', 'yup', 'sure'];
+        const isSimpleConfirmation = confirmationWords.includes(queryLower);
 
-        let suggestedName: string | null = null;
+        let matchedProduct: string | null = null;
 
-        if (isConfirmation) {
-          // Use first suggested name for confirmation words
-          suggestedName = suggestedProductNames[0];
-          console.log('[Product Lookup] Confirmation word detected, using first suggestion:', suggestedName);
-          matchedSuggestion = true;
+        if (isSimpleConfirmation) {
+          // Use first suggested product
+          matchedProduct = suggestedProductNames[0];
+          console.log('[Clarification Scope] Simple "yes" confirmation, using first suggestion:', matchedProduct);
         } else {
-          // Stopwords to exclude from fuzzy matching (common words that add noise)
-          const stopwords = ['that', 'this', 'the', 'yes', 'yea', 'yeah', 'yep', 'yup', 'one', 'first', 'second'];
+          // Fuzzy match against suggested names ONLY (NOT global search)
+          const stopwords = ['that', 'this', 'the', 'yes', 'yea', 'yeah', 'yep', 'yup', 'one', 'first', 'second', 'think', 'guess', 'maybe', 'probably'];
+          const queryWords = queryLower.split(/[\s|]+/).filter(w => w.length >= 3 && !stopwords.includes(w));
 
-          // Extract words from query (3+ chars, excluding stopwords)
-          const queryWords = queryLower.split(/[\s|]+/)
-            .filter(w => w.length >= 3 && !stopwords.includes(w));
+          console.log('[Clarification Scope] Fuzzy matching query words:', queryWords);
 
-          // Check if query matches any suggested name (fuzzy word-based matching)
           for (const suggested of suggestedProductNames) {
             const suggestedLower = suggested.toLowerCase();
 
-            // First try exact substring match
-            if (suggestedLower.includes(queryLower) || queryLower.includes(suggestedLower)) {
-              console.log('[Product Lookup] Query matches suggested name (exact):', suggested);
-              suggestedName = suggested;
-              matchedSuggestion = true;
-              break;
-            }
+            // Extract words from suggested name (excluding stopwords)
+            const suggestedWords = suggestedLower.split(/[\s|]+/).filter(w => w.length >= 3 && !stopwords.includes(w));
 
-            // Then try fuzzy word matching (e.g., "wild berry" → "Wild Cherry", "that Alaskan yes" → "Ayrloom | Alaskan Thunder Fuck | AIO")
-            const suggestedWords = suggestedLower.split(/[\s|]+/).filter(w => w.length >= 3);
+            // Count matches
             const matchedWordCount = queryWords.filter(qw =>
               suggestedWords.some(sw => sw.includes(qw) || qw.includes(sw))
             ).length;
 
-            // If 60%+ of SIGNIFICANT query words match, consider it a match
-            if (queryWords.length > 0 && matchedWordCount / queryWords.length >= 0.6) {
-              console.log('[Product Lookup] Query matches suggested name (fuzzy):', suggested, 'Significant words:', queryWords, 'Score:', matchedWordCount / queryWords.length);
-              suggestedName = suggested;
-              matchedSuggestion = true;
+            // If 50%+ of query words match, consider it a match (lower threshold since scope is limited)
+            if (queryWords.length > 0 && matchedWordCount / queryWords.length >= 0.5) {
+              matchedProduct = suggested;
+              console.log('[Clarification Scope] Matched:', suggested, 'Score:', matchedWordCount / queryWords.length);
               break;
             }
           }
-        }
 
-        if (matchedSuggestion && suggestedName) {
-          // Update the "Let me look up..." message to "Getting more details on..."
-          if (reuseMessageIndex !== null && reuseMessageIndex !== undefined) {
-            messages = [
-              ...messages.slice(0, reuseMessageIndex),
-              createMessage("assistant", `Getting more details on ${suggestedName}`),
-              ...messages.slice(reuseMessageIndex + 1)
-            ];
-            console.log('[Product Lookup] Updated message to: Getting more details on', suggestedName);
-
-            // Update payload to reference the new messages array
-            // (otherwise backend stream gets old array without the update)
-            payload.messages = messages;
-
-            // Don't reuse this index anymore - the message should persist as-is
-            // Product description will be a NEW message after this
-            reuseMessageIndex = null;
+          // If no match, use first suggestion as fallback
+          if (!matchedProduct) {
+            matchedProduct = suggestedProductNames[0];
+            console.log('[Clarification Scope] No clear match, defaulting to first suggestion:', matchedProduct);
           }
-
-          // Use the full suggested name for lookup
-          productQuery = suggestedName;
-          // Clear suggestions so we don't use them again
-          suggestedProductNames = [];
         }
-      }
 
-      // If no match found and we have old suggestions, clear them (new query)
-      if (!matchedSuggestion && suggestedProductNames.length > 0) {
-        console.log('[Product Lookup] Clearing stale suggested names from previous query');
+        // Use the matched product
+        productQuery = matchedProduct;
         suggestedProductNames = [];
+        console.log('[Clarification Scope] Final product query:', productQuery);
       }
 
-      // Phase 1: Fuzzy match in product registry and conversation history (no API call)
-      const fuzzyResult = fuzzyFindProduct(productQuery, payload.messages);
-      console.log('[Product Lookup] Fuzzy result:', fuzzyResult);
+      // Phase 1: Check product registry (ONLY exact matches - ask first before using)
+      const registryMatch = productRegistry.get(`name:${productQuery.toLowerCase().replace(/[^\w\s]/g, '')}`);
 
-      // Check if this product was recently discussed (within last 4 messages)
-      const recentMessages = payload.messages.slice(-4);
-      const wasRecentlyDiscussed = fuzzyResult.product && recentMessages.some(msg =>
-        msg.content.toLowerCase().includes(fuzzyResult.product?.name.toLowerCase() || '')
-      );
-
-      if (fuzzyResult.confident && fuzzyResult.product) {
-        // High confidence match in history - stream with full context
-        console.log('[Product Lookup] High confidence match, streaming with context');
-        console.log('[Product Lookup] Product:', fuzzyResult.product);
-        console.log('[Product Lookup] Payload messages length:', payload.messages.length);
-        console.log('[Product Lookup] Reuse index:', reuseMessageIndex);
-        await streamWithProductContext(fuzzyResult.product, payload, reuseMessageIndex);
-        return;
-      } else if (fuzzyResult.product && !wasRecentlyDiscussed) {
-        // Low confidence match - ask follow-up ONLY if it wasn't just discussed
-        // Don't reuse message index - keep "Let me look up..." and add clarification below
-        console.log('[Product Lookup] Low confidence match, asking for clarification');
-        console.log('[Product Lookup] Product:', fuzzyResult.product.name);
-
-        // Store suggested name for next query (so "yes" confirmation works)
-        suggestedProductNames = [fuzzyResult.product.name];
-        console.log('[Product Lookup] Stored suggested name for next query:', suggestedProductNames);
-
-        // Show clarification directly instead of streaming
-        messages = [...messages, createMessage("assistant", `Do you mean ${fuzzyResult.product.name}?`)];
-        console.log('[Product Lookup] Added clarification message directly');
-        return;
-      } else if (fuzzyResult.product && wasRecentlyDiscussed) {
-        // This is a follow-up about a recently discussed product - stream with context
-        console.log('[Product Lookup] Recent follow-up, streaming with context');
-        console.log('[Product Lookup] Product:', fuzzyResult.product);
-        console.log('[Product Lookup] Reuse index:', reuseMessageIndex);
-        await streamWithProductContext(fuzzyResult.product, payload, reuseMessageIndex);
+      if (registryMatch) {
+        // Found exact match in registry - ASK user if they mean this or a new product
+        console.log('[Product Registry] Found exact match, asking for clarification:', registryMatch.name);
+        suggestedProductNames = [registryMatch.name];
+        messages = [...messages, createMessage("assistant", `Are you referring to the ${registryMatch.name} we discussed, or asking about a different product?`)];
         return;
       }
 
-      // Phase 2: Semantic search via backend (product not in history)
+      // NO fuzzy matching from registry - always go to backend for new lookups
+
+      // Phase 2: Backend semantic search (NEW lookups - not in registry)
+      // This includes:
+      // - First-time product lookups
+      // - User responses to clarifications (e.g., "wild cherry", "the second one")
+      // Backend semantic search is way smarter than frontend fuzzy matching
       console.log('[Product Lookup] Not found in registry, calling backend API');
+      console.log('[Product Lookup] Query for backend:', productQuery);
       const lookupResp = await fetch(`${BASE_URL}/product-lookup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1278,14 +1242,14 @@
 
     const payload = { messages };
 
-    // PRE-STREAM CHECK: If user is confirming a clarification, bypass stream and trigger product lookup directly
+    // PRE-STREAM CHECK: If user says simple "yes" to clarification, bypass stream for efficiency
     if (suggestedProductNames.length > 0) {
       const queryLower = userMsg.toLowerCase().trim();
-      const confirmationWords = ['yes', 'yea', 'yeah', 'yep', 'yup', 'sure', 'that one', 'first one', 'that\'s it', 'correct', 'exactly'];
-      const isConfirmation = confirmationWords.some(word => queryLower === word || queryLower.startsWith(word + ' ') || queryLower.endsWith(' ' + word));
+      const confirmationWords = ['yes', 'yea', 'yeah', 'yep', 'yup', 'sure'];
+      const isSimpleConfirmation = confirmationWords.includes(queryLower);
 
-      if (isConfirmation) {
-        console.log('[Pre-Stream] Confirmation detected, bypassing stream and triggering product lookup directly');
+      if (isSimpleConfirmation) {
+        console.log('[Pre-Stream] Simple confirmation detected, bypassing stream and triggering product lookup directly');
         try {
           await handleProductQuestion(userMsg, payload);
         } finally {
@@ -1293,6 +1257,9 @@
         }
         return;
       }
+      // For specific responses (e.g., "wild cherry", "the second one"), let stream handle it
+      // Stream will detect PRODUCT_LOOKUP CODEX and call handleProductQuestion
+      // Then handleProductQuestion will call backend semantic search
     }
 
     // STREAM-FIRST ARCHITECTURE
@@ -1548,7 +1515,7 @@
         return; // Exit early, loading already cleared
       }
     }
-    // else: No CODEX = just conversation, we're done
+    // No CODEX fallback - cards are ONLY inserted via explicit CODEX cues from stream
 
     loading = false;
   }

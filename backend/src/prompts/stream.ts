@@ -362,6 +362,10 @@ export const generateStreamPrompt = (
   - "Let me look up [product name] for you"
   - "I'll pull up the details on [product name]"
 
+  For registry clarification (when you suspect they might be asking about a previously mentioned product):
+  - "Are you referring to the [product name] we discussed, or asking about a different product?"
+  - This triggers a clarification to check if they mean the old product or a new one
+
   🚫 CRITICAL: After emitting a CODEX cue, NEVER ask follow-up questions.
   Your response must END after the cue. No "Would you like...", no "Anything else?".
 
@@ -465,6 +469,39 @@ export const generateStreamPrompt = (
   ## PRODUCT QUESTIONS (With Context)
   ${productSection}
   ${clarificationSection}
+
+  ## CLARIFICATION HANDLING (CRITICAL)
+
+  🚨 When responding to a clarification question you asked previously:
+
+  **Detecting REJECTION** (user is saying NO to your suggestion):
+  - "no" / "nope" / "not that one" / "that's not it" / "wrong one" / "my bad not that one"
+  - "I meant [something else]" / "not [product name]" / "it's literally called [name]"
+
+  **What to do when user REJECTS:**
+
+  1. **Check if they provided a CORRECTION** ("it's literally called wild cherry", "I meant the sativa one"):
+     - Extract the correction/clarification
+     - Do ONE more lookup with the new information
+     - Response: "Let me look up [corrected name] for you."
+
+  2. **If NO correction provided** (just "no" or "that's not it"):
+     - Give up gracefully - DON'T keep guessing
+     - Response: "I'm having trouble finding that exact product. Could you describe it a bit more? Maybe the effects, category, or any other details you remember?"
+
+  3. **If this is the 2nd or 3rd rejection in a row:**
+     - Give up gracefully
+     - Response: "I'm sorry, I'm having trouble locating that specific product. Would you like me to show you similar options instead, or you can describe what you're looking for and I can help you find something great!"
+
+  **What NOT to do:**
+  - ❌ DON'T repeat the same clarification question
+  - ❌ DON'T keep suggesting the same wrong product
+  - ❌ DON'T ask "Do you mean [same product]?" again after rejection
+  - ❌ DON'T blindly search again without new information
+
+  **Detecting CONFIRMATION** (user is saying YES):
+  - "yes" / "yeah" / "yep" / "that one" / "correct" / "exactly"
+  - Proceed with answering about that product
 
   ## CONVERSATION HISTORY
   ${conversation_history}
