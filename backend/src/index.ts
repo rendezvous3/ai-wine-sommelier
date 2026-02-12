@@ -583,15 +583,16 @@ app.post("/chat/product-lookup", async (c) => {
     // 3. Access confidence score (Cloudflare uses Cosine Similarity)
     // Score interpretation:
     // - 0.95+: Almost exact name match
-    // - 0.70-0.85: Good semantic match
-    // - 0.55-0.70: Partial match (e.g., "Kiva" matching "Kiva | Camino | ...")
-    // - Below 0.55: Low confidence, should trigger follow-up
+    // - 0.70-0.90: Good semantic match, specific enough (includes post-clarification queries)
+    // - 0.60-0.70: Partial match (e.g., "Kiva" = brand only, needs clarification)
+    // - Below 0.60: Low confidence, needs clarification
     const topMatch = matches.matches[0];
     const confidence = topMatch.score || 0;
 
-    // High confidence (>0.6): Return single product
-    // Lowered from 0.7 to 0.6 to catch partial brand/name matches
-    if (confidence > 0.6) {
+    // High confidence (>0.70): Return single product
+    // Lowered to 0.70 to catch post-clarification queries like "Ayrloom Alaskan Thunder Fuck AIO" (0.72)
+    // Brand-only queries (e.g., "Kiva" = 0.61) still trigger clarification
+    if (confidence > 0.70) {
       return c.json({
         product: { id: topMatch.id, ...topMatch.metadata },
         confidence,
@@ -730,6 +731,7 @@ app.post("/chat/stream", async (c) => {
   }
   
   if (response) {
+    // Pass through stream directly - no filtering
     return new Response(response.body, {
       headers: {
         "Content-Type": "text/event-stream",

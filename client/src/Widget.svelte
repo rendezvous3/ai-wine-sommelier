@@ -122,7 +122,8 @@
       "Let me look up",
       "Let me check on",
       "Let me pull up",
-      "I'll pull up the details"
+      "I'll pull up the details",
+      "Getting more details on"
     ]
   };
 
@@ -141,36 +142,15 @@
   function extractProductName(text: string): string | null {
     console.log('[Extract] Attempting to extract from:', text);
 
-    // Flexible patterns that allow prefix words (e.g., "Great, let me...")
-    // Pattern 1: "let me look up X"
-    let match = text.match(/let me look up (.+?)(?:\s+for you|\.|$)/i);
-    if (match && match[1].trim()) {
-      console.log('[Extract] Pattern 1 matched:', match[1].trim());
-      return match[1].trim();
+    // FOOLPROOF EXTRACTION: Product names are wrapped in double quotes
+    // This handles ANY product name including periods, commas, special characters
+    const quoteMatch = text.match(/"([^"]+)"/);
+    if (quoteMatch && quoteMatch[1].trim()) {
+      console.log('[Extract] Extracted from quotes:', quoteMatch[1].trim());
+      return quoteMatch[1].trim();
     }
 
-    // Pattern 2: "pull up the details on X" or "pull up details on X"
-    match = text.match(/pull up (?:the )?details on (.+?)(?:\s+for you|\.|$)/i);
-    if (match && match[1].trim()) {
-      console.log('[Extract] Pattern 2 matched:', match[1].trim());
-      return match[1].trim();
-    }
-
-    // Pattern 3: "let me pull up X"
-    match = text.match(/let me pull up (.+?)(?:\s+for you|\.|$)/i);
-    if (match && match[1].trim()) {
-      console.log('[Extract] Pattern 3 matched:', match[1].trim());
-      return match[1].trim();
-    }
-
-    // Pattern 4: "let me check on X"
-    match = text.match(/let me check on (.+?)(?:\s+for you|\.|$)/i);
-    if (match && match[1].trim()) {
-      console.log('[Extract] Pattern 4 matched:', match[1].trim());
-      return match[1].trim();
-    }
-
-    console.log('[Extract] No pattern matched - extraction failed!');
+    console.log('[Extract] No quoted product name found - extraction failed!');
     return null;
   }
 
