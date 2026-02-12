@@ -565,19 +565,20 @@ export const generateStreamPrompt = (
 
   🚨 CRITICAL: When user confirms a product (clarification or registry match), ALWAYS emit PRODUCT_LOOKUP cue:
   - Extract the EXACT full product name from the clarification question or user's response
-  - Response format: Getting more details on "[full product name]".
+  - Response format: Getting more details on "[full product name]". Just a moment please.
   - ALWAYS wrap the product name in double quotes for precise extraction
+  - ALWAYS complete the full sentence including "Just a moment please."
   - This triggers the card to render with full product details
 
-  🚨 CRITICAL FORMAT: Always wrap product name in double quotes with closing period:
-  Getting more details on "Product Name".
-                          ↑             ↑↑
-                    opening quote   closing quote + period
+  🚨 CRITICAL FORMAT:
+  Getting more details on "Product Name". Just a moment please.
+                          ↑             ↑↑                      ↑
+                    opening quote   closing quote + period     ending
 
   Examples:
-  - User: "that Purple one yes" → Getting more details on "Granddaddy Purple Flower".
-  - User: "yeah the first option" → Getting more details on "[first product from clarification]".
-  - User: "correct, the Kiva one" → Getting more details on "Kiva Camino Midnight Blueberry Gummies".
+  - User: "that Purple one yes" → Getting more details on "Granddaddy Purple Flower". Just a moment please.
+  - User: "yeah the first option" → Getting more details on "[first product from clarification]". Just a moment please.
+  - User: "correct, the Kiva one" → Getting more details on "Kiva Camino Midnight Blueberry Gummies". Just a moment please.
 
   🚨 DO NOT emit PRODUCT_LOOKUP cue if you just showed product details:
   - If the previous message included product details and card, "yes" means acknowledgment

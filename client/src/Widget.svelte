@@ -1137,16 +1137,24 @@
               fullStreamText += token;
 
               // REAL-TIME CODEX DETECTION - Stop stream when we have COMPLETE cue
-              // A complete cue has: pattern + quoted product name + period
+              // A complete cue has: pattern + quoted product name + ending phrase
               const codex = detectCodex(fullStreamText);
               if (codex) {
-                // Check if we have a COMPLETE cue (has quotes and ends with period)
+                // Check if we have a COMPLETE cue (has quotes and proper ending)
                 const hasQuotedProduct = /"[^"]+"/i.test(fullStreamText);
-                const endsWithPeriod = fullStreamText.trim().endsWith('.');
+                const hasProperEnding = fullStreamText.trim().endsWith('for you.') ||
+                                       fullStreamText.trim().endsWith('Just a moment please.');
 
-                if (hasQuotedProduct && endsWithPeriod) {
+                if (hasQuotedProduct && hasProperEnding) {
                   console.log('[STREAM] COMPLETE CODEX cue detected:', codex);
                   console.log('[STREAM] Stopping stream to prevent hallucination');
+
+                  // Update UI with final token BEFORE breaking
+                  if (streamingMessageIndex !== null) {
+                    messages[streamingMessageIndex].content = fullStreamText;
+                    messages = [...messages];
+                  }
+
                   codexDetectedMidStream = true;
                   break;
                 } else {
