@@ -49,7 +49,11 @@
     content: string;
     recommendations?: Recommendation[];
     shimmer?: boolean;  // Add shimmer flag for loading messages
+    id?: string;  // Unique identifier for Svelte keying
   }
+
+  // Counter for generating unique message IDs
+  let messageIdCounter = 0;
 
   interface Recommendation {
     id: string;
@@ -77,7 +81,29 @@
   let input = $state("");
   let loading = $state(false);
 
+  // Helper function to create messages with unique IDs
+  function createMessage(role: "user" | "assistant", content: string, extras?: Partial<Message>): Message {
+    return {
+      id: `msg-${Date.now()}-${messageIdCounter++}`,
+      role,
+      content,
+      ...extras
+    };
+  }
+
   let productRecommendations = $state<Recommendation[]>([]);
+
+  // Product registry to track ALL products shown to user (recommendations + lookups)
+  let productRegistry = $state<Map<string, Recommendation>>(new Map());
+
+  // Prevent concurrent product lookups
+  let productLookupInProgress = $state(false);
+
+  // Abort controller for canceling previous lookups
+  let currentLookupController: AbortController | null = null;
+
+  // Store suggested product names from clarification for next query
+  let suggestedProductNames: string[] = [];
 
   // Fuzzy matching result interface
   interface FuzzyResult {
@@ -85,14 +111,6 @@
     confident: boolean;
     score: number;
   }
-
-  // Track the most recently presented product to avoid unnecessary clarification
-  interface LastPresentedProduct {
-    product: Recommendation;
-    messageIndex: number;
-  }
-
-  let lastPresentedProduct = $state<LastPresentedProduct | null>(null);
 
   // CODEX Detection Constants
   const CODEX_PATTERNS = {
@@ -104,7 +122,9 @@
     ],
     PRODUCT_LOOKUP: [
       "Let me look up",
-      "I'll pull up the details on"
+      "Let me check on",
+      "Let me pull up",
+      "I'll pull up the details"
     ]
   };
 
@@ -121,13 +141,50 @@
 
   // Extract product name from PRODUCT_LOOKUP cue
   function extractProductName(text: string): string | null {
-    const match = text.match(/Let me look up (.+?) for you/i)
-                || text.match(/I'll pull up the details on (.+)/i);
-    return match ? match[1].trim() : null;
+    // Try pattern 1: "Let me look up X for you"
+    let match = text.match(/Let me look up (.+?)(?:\s+for you|\.)/i);
+    if (match && match[1].trim()) return match[1].trim();
+
+    // Try pattern 2: "I'll pull up the details on X"
+    match = text.match(/I'll pull up (?:the )?details on (.+?)(?:\.|$)/i);
+    if (match && match[1].trim()) return match[1].trim();
+
+    return null;
   }
 
-  // Fuzzy find product in conversation history
+  // Fuzzy find product in product registry and conversation history
   function fuzzyFindProduct(query: string, msgs: Message[]): FuzzyResult {
+    console.log('[Product Lookup] Fuzzy search for:', query);
+
+    const normalized = query.toLowerCase().replace(/[^\w\s]/g, '');
+
+    // First: Check registry by normalized name (fastest, exact match)
+    const registryMatch = productRegistry.get(`name:${normalized}`);
+    if (registryMatch) {
+      console.log('[Product Lookup] Found exact match in registry:', registryMatch.name);
+      return { product: registryMatch, confident: true, score: 1.0 };
+    }
+
+    // Second: Fuzzy match in registry (word-based)
+    const words = normalized.split(/\s+/).filter(w => w.length > 2);
+    if (words.length > 0) {
+      for (const [key, product] of productRegistry) {
+        if (!key.startsWith('name:')) continue;
+        const productName = key.replace('name:', '');
+        const matchCount = words.filter(w => productName.includes(w)).length;
+        if (matchCount >= Math.ceil(words.length * 0.6)) {
+          const score = matchCount / words.length;
+          console.log('[Product Lookup] Found fuzzy match in registry:', product.name, 'Score:', score);
+          return {
+            product,
+            confident: matchCount === words.length,
+            score
+          };
+        }
+      }
+    }
+
+    // Fallback: Search in message history (legacy support)
     const queryLower = query.toLowerCase();
     let bestMatch: Recommendation | null = null;
     let bestScore = 0;
@@ -139,8 +196,7 @@
         const nameLower = product.name.toLowerCase();
         const brandLower = (product.brand || '').toLowerCase();
 
-        // Simple fuzzy: check if query words appear in name or brand
-        const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2); // Filter out short words
+        const queryWords = queryLower.split(/\s+/).filter(w => w.length > 2);
         if (queryWords.length === 0) continue;
 
         const matchedWords = queryWords.filter(word =>
@@ -153,6 +209,12 @@
           bestMatch = product;
         }
       }
+    }
+
+    if (bestMatch) {
+      console.log('[Product Lookup] Found match in history:', bestMatch.name, 'Score:', bestScore);
+    } else {
+      console.log('[Product Lookup] No match found');
     }
 
     return {
@@ -645,6 +707,14 @@
 
       // Replace shimmer with recommendations or friendly error message
       if (productRecommendations.length > 0) {
+        // Add recommendations to product registry
+        productRecommendations.forEach(product => {
+          productRegistry.set(product.id, product);
+          const normalizedName = product.name.toLowerCase().replace(/[^\w\s]/g, '');
+          productRegistry.set(`name:${normalizedName}`, product);
+        });
+        console.log('[Guided Flow] Added', productRecommendations.length, 'recommendations to registry');
+
         const botMessage: Message = {
           role: "assistant",
           content: "",
@@ -698,79 +768,240 @@
   // ------------------------------------------------------
   // PRODUCT QUESTION HANDLER
   // ------------------------------------------------------
-  async function handleProductQuestion(productQuery: string, payload: { messages: Message[] }) {
-    // Phase 1: Fuzzy match in conversation history (no API call)
-    const fuzzyResult = fuzzyFindProduct(productQuery, messages);
+  async function handleProductQuestion(productQuery: string, payload: { messages: Message[] }, reuseMessageIndex?: number | null) {
+    console.log('[Product Lookup] Query:', productQuery);
+    console.log('[Product Lookup] Reuse message index:', reuseMessageIndex);
+    console.log('[Product Lookup] Suggested names from previous clarification:', suggestedProductNames);
 
-    // Check if this matches the recently presented product (within last 3 messages)
-    const currentMessageIndex = messages.length;
-    const isRecentFollowUp = lastPresentedProduct &&
-                             fuzzyResult.product?.id === lastPresentedProduct.product.id &&
-                             (currentMessageIndex - lastPresentedProduct.messageIndex) <= 3;
-
-    if (fuzzyResult.confident && fuzzyResult.product) {
-      // High confidence match in history - stream with full context
-      await streamWithProductContext(fuzzyResult.product, payload);
-      return;
-    } else if (fuzzyResult.product && !isRecentFollowUp) {
-      // Low confidence match - ask follow-up ONLY if it's not a recent follow-up
-      // (Don't ask "Did you mean X?" immediately after presenting X)
-      await streamFollowUp(`Do you mean ${fuzzyResult.product.name}?`, payload);
-      return;
-    } else if (isRecentFollowUp && lastPresentedProduct) {
-      // This is a follow-up about the product we just presented - stream with context
-      await streamWithProductContext(lastPresentedProduct.product, payload);
+    // Prevent concurrent lookups
+    if (productLookupInProgress) {
+      console.log('[Product Lookup] Blocked: lookup already in progress');
       return;
     }
 
-    // Phase 2: Semantic search via backend (product not in history)
+    // Cancel previous lookup if still running
+    if (currentLookupController) {
+      console.log('[Product Lookup] Aborting previous lookup');
+      currentLookupController.abort();
+    }
+    currentLookupController = new AbortController();
+
     try {
+      productLookupInProgress = true;
+
+      // Phase 0: Check if query matches one of the suggested names from previous clarification
+      let matchedSuggestion = false;
+      if (suggestedProductNames.length > 0) {
+        const queryLower = productQuery.toLowerCase().trim();
+
+        // Check for confirmation words (yes, yea, yeah, that one, first one, etc.)
+        const confirmationWords = ['yes', 'yea', 'yeah', 'yep', 'yup', 'sure', 'that one', 'first one', 'that\'s it', 'correct', 'exactly'];
+        const isConfirmation = confirmationWords.some(word => queryLower === word || queryLower.startsWith(word + ' ') || queryLower.endsWith(' ' + word));
+
+        let suggestedName: string | null = null;
+
+        if (isConfirmation) {
+          // Use first suggested name for confirmation words
+          suggestedName = suggestedProductNames[0];
+          console.log('[Product Lookup] Confirmation word detected, using first suggestion:', suggestedName);
+          matchedSuggestion = true;
+        } else {
+          // Stopwords to exclude from fuzzy matching (common words that add noise)
+          const stopwords = ['that', 'this', 'the', 'yes', 'yea', 'yeah', 'yep', 'yup', 'one', 'first', 'second'];
+
+          // Extract words from query (3+ chars, excluding stopwords)
+          const queryWords = queryLower.split(/[\s|]+/)
+            .filter(w => w.length >= 3 && !stopwords.includes(w));
+
+          // Check if query matches any suggested name (fuzzy word-based matching)
+          for (const suggested of suggestedProductNames) {
+            const suggestedLower = suggested.toLowerCase();
+
+            // First try exact substring match
+            if (suggestedLower.includes(queryLower) || queryLower.includes(suggestedLower)) {
+              console.log('[Product Lookup] Query matches suggested name (exact):', suggested);
+              suggestedName = suggested;
+              matchedSuggestion = true;
+              break;
+            }
+
+            // Then try fuzzy word matching (e.g., "wild berry" → "Wild Cherry", "that Alaskan yes" → "Ayrloom | Alaskan Thunder Fuck | AIO")
+            const suggestedWords = suggestedLower.split(/[\s|]+/).filter(w => w.length >= 3);
+            const matchedWordCount = queryWords.filter(qw =>
+              suggestedWords.some(sw => sw.includes(qw) || qw.includes(sw))
+            ).length;
+
+            // If 60%+ of SIGNIFICANT query words match, consider it a match
+            if (queryWords.length > 0 && matchedWordCount / queryWords.length >= 0.6) {
+              console.log('[Product Lookup] Query matches suggested name (fuzzy):', suggested, 'Significant words:', queryWords, 'Score:', matchedWordCount / queryWords.length);
+              suggestedName = suggested;
+              matchedSuggestion = true;
+              break;
+            }
+          }
+        }
+
+        if (matchedSuggestion && suggestedName) {
+          // Update the "Let me look up..." message to "Getting more details on..."
+          if (reuseMessageIndex !== null && reuseMessageIndex !== undefined) {
+            messages = [
+              ...messages.slice(0, reuseMessageIndex),
+              createMessage("assistant", `Getting more details on ${suggestedName}`),
+              ...messages.slice(reuseMessageIndex + 1)
+            ];
+            console.log('[Product Lookup] Updated message to: Getting more details on', suggestedName);
+
+            // Update payload to reference the new messages array
+            // (otherwise backend stream gets old array without the update)
+            payload.messages = messages;
+
+            // Don't reuse this index anymore - the message should persist as-is
+            // Product description will be a NEW message after this
+            reuseMessageIndex = null;
+          }
+
+          // Use the full suggested name for lookup
+          productQuery = suggestedName;
+          // Clear suggestions so we don't use them again
+          suggestedProductNames = [];
+        }
+      }
+
+      // If no match found and we have old suggestions, clear them (new query)
+      if (!matchedSuggestion && suggestedProductNames.length > 0) {
+        console.log('[Product Lookup] Clearing stale suggested names from previous query');
+        suggestedProductNames = [];
+      }
+
+      // Phase 1: Fuzzy match in product registry and conversation history (no API call)
+      const fuzzyResult = fuzzyFindProduct(productQuery, payload.messages);
+      console.log('[Product Lookup] Fuzzy result:', fuzzyResult);
+
+      // Check if this product was recently discussed (within last 4 messages)
+      const recentMessages = payload.messages.slice(-4);
+      const wasRecentlyDiscussed = fuzzyResult.product && recentMessages.some(msg =>
+        msg.content.toLowerCase().includes(fuzzyResult.product?.name.toLowerCase() || '')
+      );
+
+      if (fuzzyResult.confident && fuzzyResult.product) {
+        // High confidence match in history - stream with full context
+        console.log('[Product Lookup] High confidence match, streaming with context');
+        console.log('[Product Lookup] Product:', fuzzyResult.product);
+        console.log('[Product Lookup] Payload messages length:', payload.messages.length);
+        console.log('[Product Lookup] Reuse index:', reuseMessageIndex);
+        await streamWithProductContext(fuzzyResult.product, payload, reuseMessageIndex);
+        return;
+      } else if (fuzzyResult.product && !wasRecentlyDiscussed) {
+        // Low confidence match - ask follow-up ONLY if it wasn't just discussed
+        // Don't reuse message index - keep "Let me look up..." and add clarification below
+        console.log('[Product Lookup] Low confidence match, asking for clarification');
+        console.log('[Product Lookup] Product:', fuzzyResult.product.name);
+
+        // Store suggested name for next query (so "yes" confirmation works)
+        suggestedProductNames = [fuzzyResult.product.name];
+        console.log('[Product Lookup] Stored suggested name for next query:', suggestedProductNames);
+
+        // Show clarification directly instead of streaming
+        messages = [...messages, createMessage("assistant", `Do you mean ${fuzzyResult.product.name}?`)];
+        console.log('[Product Lookup] Added clarification message directly');
+        return;
+      } else if (fuzzyResult.product && wasRecentlyDiscussed) {
+        // This is a follow-up about a recently discussed product - stream with context
+        console.log('[Product Lookup] Recent follow-up, streaming with context');
+        console.log('[Product Lookup] Product:', fuzzyResult.product);
+        console.log('[Product Lookup] Reuse index:', reuseMessageIndex);
+        await streamWithProductContext(fuzzyResult.product, payload, reuseMessageIndex);
+        return;
+      }
+
+      // Phase 2: Semantic search via backend (product not in history)
+      console.log('[Product Lookup] Not found in registry, calling backend API');
       const lookupResp = await fetch(`${BASE_URL}/product-lookup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ product_query: productQuery })
+        body: JSON.stringify({ product_query: productQuery }),
+        signal: currentLookupController.signal
       });
 
       if (!lookupResp.ok) {
-        // Fallback to regular stream if lookup fails
-        await streamFollowUp(
-          "I couldn't find that product. Would you like me to search for recommendations?",
-          payload
-        );
+        const errorData = await lookupResp.json().catch(() => ({}));
+        console.error('[Product Lookup] API error:', errorData);
+        // Show error message directly
+        messages = [...messages, createMessage("assistant", errorData.error || "I couldn't find that product. Would you like me to search for recommendations?")];
         return;
       }
 
       const lookupResult = await lookupResp.json();
+      console.log('[Product Lookup] API result:', lookupResult);
 
-      if (lookupResult.confidence > 0.7 && lookupResult.product) {
-        // High confidence - stream with product context
-        await streamWithProductContext(lookupResult.product, payload);
+      // Lower threshold to 0.65 to catch near-matches (e.g., "Alaskan Thunder Fuck" matching "Ayrloom | Alaskan Thunder Fuck | AIO")
+      if (lookupResult.confidence > 0.65 && lookupResult.product) {
+        // High confidence - stream with product context, reuse message index
+        console.log('[Product Lookup] High confidence from API (>0.65), streaming with context');
+        // Clear suggested names since we found a match
+        suggestedProductNames = [];
+        await streamWithProductContext(lookupResult.product, payload, reuseMessageIndex);
       } else if (lookupResult.needsClarification) {
-        // Low/medium confidence - stream follow-up question
-        await streamFollowUp(lookupResult.message, payload);
+        // Low/medium confidence - show clarification question
+        // Don't reuse message index - keep "Let me look up..." and add clarification below
+        console.log('[Product Lookup] Needs clarification');
+
+        // Store suggested names for next query
+        if (lookupResult.suggestedNames && Array.isArray(lookupResult.suggestedNames)) {
+          suggestedProductNames = lookupResult.suggestedNames;
+          console.log('[Product Lookup] Stored suggested names for next query:', suggestedProductNames);
+        }
+
+        // Remove "I'm not quite sure which one you mean." prefix from clarification message
+        let clarificationMessage = lookupResult.message;
+        if (clarificationMessage.includes("I'm not quite sure which one you mean.")) {
+          clarificationMessage = clarificationMessage.replace("I'm not quite sure which one you mean. ", "");
+        }
+        console.log('[Product Lookup] Clarification message:', clarificationMessage);
+
+        // Show clarification directly instead of streaming (backend stream returns wrong content)
+        messages = [...messages, createMessage("assistant", clarificationMessage)];
+        console.log('[Product Lookup] Added clarification message directly (no stream)');
       } else {
         // No match - offer to search for recommendations
-        await streamFollowUp(
-          "I couldn't find that product in our inventory. Would you like me to search for recommendations?",
-          payload
-        );
+        console.log('[Product Lookup] No match found');
+        // Clear suggested names
+        suggestedProductNames = [];
+        messages = [...messages, createMessage("assistant", "I couldn't find that product in our inventory. Would you like me to search for recommendations?")];
       }
     } catch (err) {
-      console.error("Product lookup failed:", err);
-      await streamFollowUp(
-        "I'm having trouble finding that product. Could you tell me more about what you're looking for?",
-        payload
-      );
+      if ((err as Error).name === 'AbortError') {
+        console.log('[Product Lookup] Lookup aborted (new request started)');
+        return;
+      }
+      console.error('[Product Lookup] Failed:', err);
+      messages = [...messages, createMessage("assistant", "I'm having trouble finding that product right now. Could you tell me more about what you're looking for?")];
+    } finally {
+      productLookupInProgress = false;
+      currentLookupController = null;
     }
   }
 
   // Stream response with product context
-  async function streamWithProductContext(product: Recommendation | Record<string, any> | null, payload: { messages: Message[] }) {
+  async function streamWithProductContext(product: Recommendation | Record<string, any> | null, payload: { messages: Message[] }, reuseMessageIndex?: number | null) {
+    console.log('[Product Context] Streaming with product:', product?.name);
+    console.log('[Product Context] Reuse message index:', reuseMessageIndex);
+
     let buffer = "";
     let botMessageContent = "";
-    let streamingMessageIndex: number | null = null;
+    let streamingMessageIndex: number | null = reuseMessageIndex !== undefined ? reuseMessageIndex : null;
 
     try {
+      // Validate product has required fields
+      if (product && (!product.name || product.name.trim() === '')) {
+        console.error('[Product Context] Product missing name:', product);
+        messages = [...messages, {
+          role: 'assistant',
+          content: 'I found a product but the data seems incomplete. Please try again.'
+        }];
+        return;
+      }
+
       const resp = await fetch(`${BASE_URL}/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -781,9 +1012,12 @@
       });
 
       if (!resp.ok || !resp.body) {
+        const errorMessage = product
+          ? `I'm having trouble loading ${product.name}. Please try again.`
+          : "I'm having trouble getting that information. Please try again.";
         messages = [...messages, {
           role: "assistant",
-          content: "I'm having trouble getting that information. Please try again."
+          content: errorMessage
         }];
         return;
       }
@@ -814,27 +1048,49 @@
             if (token) {
               botMessageContent += token;
 
+              // Strip PRODUCT CONTEXT and debugging artifacts before displaying
+              let cleanContent = botMessageContent;
+
+              // Remove PRODUCT CONTEXT block and everything after it
+              const productContextIndex = cleanContent.indexOf("**PRODUCT CONTEXT**");
+              if (productContextIndex !== -1) {
+                cleanContent = cleanContent.substring(0, productContextIndex).trim();
+              }
+
+              // Remove JSON code blocks (``` { ... } ```)
+              cleanContent = cleanContent.replace(/```\s*\{[\s\S]*?\}\s*```/g, "").trim();
+
+              // Remove any standalone ``` markers
+              cleanContent = cleanContent.replace(/```/g, "").trim();
+
               if (streamingMessageIndex === null) {
                 streamingMessageIndex = messages.length;
-                messages = [...messages, { role: "assistant", content: botMessageContent }];
+                messages = [...messages, { role: "assistant", content: cleanContent }];
               } else {
                 messages = [
                   ...messages.slice(0, streamingMessageIndex),
-                  { role: "assistant", content: botMessageContent },
+                  { role: "assistant", content: cleanContent },
                   ...messages.slice(streamingMessageIndex + 1)
                 ];
               }
             }
           } catch (err) {
-            console.error("Stream parse error:", err);
+            console.error("[Product Context] Stream parse error:", err);
           }
         }
 
         buffer = parts[parts.length - 1];
       }
 
+      console.log('[Product Context] Streaming completed');
+      console.log('[Product Context] Final streaming index:', streamingMessageIndex);
+      console.log('[Product Context] Product exists?', !!product);
+      console.log('[Product Context] Streaming index not null?', streamingMessageIndex !== null);
+
       // After streaming completes, add the product card as a recommendation
       if (product && streamingMessageIndex !== null) {
+        console.log('[Product Card] Building product recommendation from:', product);
+
         const productRecommendation: Recommendation = {
           id: product.id || '',
           name: product.name || '',
@@ -857,37 +1113,49 @@
           pack_count: product.pack_count
         };
 
+        console.log('[Product Card] Product recommendation built:', productRecommendation);
+        console.log('[Product Card] Current messages length:', messages.length);
+        console.log('[Product Card] Inserting card at index:', streamingMessageIndex + 1);
+
         // Add product card message after the description
         messages = [
           ...messages.slice(0, streamingMessageIndex + 1),
-          {
-            role: "assistant",
-            content: "",
-            recommendations: [productRecommendation]
-          },
+          createMessage("assistant", "", { recommendations: [productRecommendation] }),
           ...messages.slice(streamingMessageIndex + 1)
         ];
 
-        // Track this as the most recently presented product
-        lastPresentedProduct = {
-          product: productRecommendation,
-          messageIndex: streamingMessageIndex + 1  // The product card message index
-        };
+        console.log('[Product Card] Card inserted successfully');
+        console.log('[Product Card] New messages length:', messages.length);
+        console.log('[Product Card] Card message:', messages[streamingMessageIndex + 1]);
+
+        // Add to product registry for future lookups
+        productRegistry.set(productRecommendation.id, productRecommendation);
+        const normalizedName = productRecommendation.name.toLowerCase().replace(/[^\w\s]/g, '');
+        productRegistry.set(`name:${normalizedName}`, productRecommendation);
+        console.log('[Product Registry] Added product:', productRecommendation.name);
+      } else {
+        console.warn('[Product Card] Skipped - product:', product, 'streamingMessageIndex:', streamingMessageIndex);
       }
     } catch (err) {
-      console.error("Stream failed:", err);
+      console.error("[Product Context] Stream failed:", err);
+      const errorMessage = product && err instanceof Error
+        ? `I had trouble loading ${product.name}. ${err.message}`
+        : "I'm having trouble getting that information. Please try again.";
       messages = [...messages, {
         role: "assistant",
-        content: "I'm having trouble getting that information. Please try again."
+        content: errorMessage
       }];
     }
   }
 
   // Stream follow-up question for clarification
-  async function streamFollowUp(clarificationMessage: string, payload: { messages: Message[] }) {
+  async function streamFollowUp(clarificationMessage: string, payload: { messages: Message[] }, reuseMessageIndex?: number | null) {
+    console.log('[Follow-up] Clarification message:', clarificationMessage);
+    console.log('[Follow-up] Reuse message index:', reuseMessageIndex);
+
     let buffer = "";
     let botMessageContent = "";
-    let streamingMessageIndex: number | null = null;
+    let streamingMessageIndex: number | null = reuseMessageIndex !== undefined ? reuseMessageIndex : null;
 
     try {
       const resp = await fetch(`${BASE_URL}/stream`, {
@@ -899,7 +1167,10 @@
         }),
       });
 
+      console.log('[Follow-up] Stream response status:', resp.status, resp.ok);
+
       if (!resp.ok || !resp.body) {
+        console.error('[Follow-up] Stream response not ok or no body, using fallback');
         messages = [...messages, {
           role: "assistant",
           content: clarificationMessage  // Fallback to showing the clarification directly
@@ -910,9 +1181,15 @@
       const reader = resp.body.getReader();
       const decoder = new TextDecoder("utf-8");
 
+      console.log('[Follow-up] Starting to read stream...');
+      let tokenCount = 0;
+
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          console.log('[Follow-up] Stream done, total tokens:', tokenCount);
+          break;
+        }
 
         buffer += decoder.decode(value, { stream: true });
         let parts = buffer.split("\n\n");
@@ -931,28 +1208,54 @@
             const json = JSON.parse(jsonStr);
             const token = json.choices?.[0]?.delta?.content ?? "";
             if (token) {
+              tokenCount++;
               botMessageContent += token;
+
+              // Strip PRODUCT CONTEXT and debugging artifacts before displaying
+              let cleanContent = botMessageContent;
+
+              // Remove PRODUCT CONTEXT block and everything after it
+              const productContextIndex = cleanContent.indexOf("**PRODUCT CONTEXT**");
+              if (productContextIndex !== -1) {
+                cleanContent = cleanContent.substring(0, productContextIndex).trim();
+              }
+
+              // Remove JSON code blocks (``` { ... } ```)
+              cleanContent = cleanContent.replace(/```\s*\{[\s\S]*?\}\s*```/g, "").trim();
+
+              // Remove any standalone ``` markers
+              cleanContent = cleanContent.replace(/```/g, "").trim();
 
               if (streamingMessageIndex === null) {
                 streamingMessageIndex = messages.length;
-                messages = [...messages, { role: "assistant", content: botMessageContent }];
+                messages = [...messages, { role: "assistant", content: cleanContent }];
+                console.log('[Follow-up] Created new message at index:', streamingMessageIndex);
               } else {
                 messages = [
                   ...messages.slice(0, streamingMessageIndex),
-                  { role: "assistant", content: botMessageContent },
+                  { role: "assistant", content: cleanContent },
                   ...messages.slice(streamingMessageIndex + 1)
                 ];
               }
             }
           } catch (err) {
-            console.error("Stream parse error:", err);
+            console.error("[Follow-up] Stream parse error:", err);
           }
         }
 
         buffer = parts[parts.length - 1];
       }
+
+      // If stream completed but no content, fallback to showing clarification directly
+      if (botMessageContent.trim() === '') {
+        console.warn('[Follow-up] Stream completed but no content, using fallback');
+        messages = [...messages, {
+          role: "assistant",
+          content: clarificationMessage
+        }];
+      }
     } catch (err) {
-      console.error("Stream failed:", err);
+      console.error("[Follow-up] Stream failed:", err);
       messages = [...messages, {
         role: "assistant",
         content: clarificationMessage  // Fallback to showing the clarification directly
@@ -974,6 +1277,23 @@
     loading = true;
 
     const payload = { messages };
+
+    // PRE-STREAM CHECK: If user is confirming a clarification, bypass stream and trigger product lookup directly
+    if (suggestedProductNames.length > 0) {
+      const queryLower = userMsg.toLowerCase().trim();
+      const confirmationWords = ['yes', 'yea', 'yeah', 'yep', 'yup', 'sure', 'that one', 'first one', 'that\'s it', 'correct', 'exactly'];
+      const isConfirmation = confirmationWords.some(word => queryLower === word || queryLower.startsWith(word + ' ') || queryLower.endsWith(' ' + word));
+
+      if (isConfirmation) {
+        console.log('[Pre-Stream] Confirmation detected, bypassing stream and triggering product lookup directly');
+        try {
+          await handleProductQuestion(userMsg, payload);
+        } finally {
+          loading = false;
+        }
+        return;
+      }
+    }
 
     // STREAM-FIRST ARCHITECTURE
     // STEP 1: Stream immediately (instant feedback)
@@ -1049,15 +1369,30 @@
             if (token) {
               fullStreamText += token;
 
+              // Strip PRODUCT CONTEXT and debugging artifacts before displaying
+              let cleanContent = fullStreamText;
+
+              // Remove PRODUCT CONTEXT block and everything after it
+              const productContextIndex = cleanContent.indexOf("**PRODUCT CONTEXT**");
+              if (productContextIndex !== -1) {
+                cleanContent = cleanContent.substring(0, productContextIndex).trim();
+              }
+
+              // Remove JSON code blocks (``` { ... } ```)
+              cleanContent = cleanContent.replace(/```\s*\{[\s\S]*?\}\s*```/g, "").trim();
+
+              // Remove any standalone ``` markers
+              cleanContent = cleanContent.replace(/```/g, "").trim();
+
               // Create message only when we have the first token (avoid empty bubble)
               if (streamingMessageIndex === null) {
                 streamingMessageIndex = messages.length;
-                messages = [...messages, { role: "assistant", content: fullStreamText }];
+                messages = [...messages, { role: "assistant", content: cleanContent }];
               } else {
                 // Update the existing streaming message
                 messages = [
                   ...messages.slice(0, streamingMessageIndex),
-                  { role: "assistant", content: fullStreamText },
+                  { role: "assistant", content: cleanContent },
                   ...messages.slice(streamingMessageIndex + 1)
                 ];
               }
@@ -1154,6 +1489,14 @@
 
         // Replace shimmer with recommendations or friendly error message
         if (productRecommendations.length > 0) {
+          // Add recommendations to product registry
+          productRecommendations.forEach(product => {
+            productRegistry.set(product.id, product);
+            const normalizedName = product.name.toLowerCase().replace(/[^\w\s]/g, '');
+            productRegistry.set(`name:${normalizedName}`, product);
+          });
+          console.log('[Product Registry] Added', productRecommendations.length, 'recommendations');
+
           const botMessage: Message = {
             role: "assistant",
             content: "",
@@ -1186,10 +1529,23 @@
     } else if (codex === 'PRODUCT_LOOKUP') {
       // Extract product name from stream text
       const productName = extractProductName(fullStreamText);
+      console.log('[CODEX] PRODUCT_LOOKUP detected, product name:', productName);
+      console.log('[CODEX] Streaming message index:', streamingMessageIndex);
+      console.log('[CODEX] Current messages length:', messages.length);
+
       if (productName) {
-        // Call product-lookup flow (existing function)
-        // IMPORTANT: Use fresh messages (includes stream response)
-        await handleProductQuestion(productName, { messages });
+        // Don't clear the message - let the new stream overwrite it immediately
+        // This prevents flickering as there's no visible gap
+        console.log('[CODEX] Will reuse message index for product lookup stream');
+
+        try {
+          // Call product-lookup flow, passing the message index to reuse
+          await handleProductQuestion(productName, { messages }, streamingMessageIndex);
+        } finally {
+          // Ensure loading state is cleared even if handleProductQuestion fails
+          loading = false;
+        }
+        return; // Exit early, loading already cleared
       }
     }
     // else: No CODEX = just conversation, we're done
@@ -1235,7 +1591,7 @@
       <ChatMessage variant="system" messageText="Welcome! Ask me anything about products." />
     {/if}
 
-    {#each messages as msg}
+    {#each messages as msg (msg.id || `fallback-${messages.indexOf(msg)}`)}
       {#if msg.shimmer === true}
         <!-- Render shimmer text for loading messages -->
         <div class="shimmer-message">
