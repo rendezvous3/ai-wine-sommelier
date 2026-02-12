@@ -545,6 +545,7 @@ app.post("/chat/intent", async (c) => {
 app.post("/chat/product-lookup", async (c) => {
   const body = await c.req.json();
   const productQuery = body.product_query || "";
+  const retryAttempt = body.retry_attempt || 0;
 
   if (!productQuery) {
     return c.json({
@@ -563,8 +564,10 @@ app.post("/chat/product-lookup", async (c) => {
     const queryVector = embeddingResponse.data[0];
 
     // 2. Query Vectorize directly (native API with confidence scores)
+    // Increase topK on retries to expand search scope
+    const topK = Math.min(3 + retryAttempt, 5); // Start at 3, increase to max 5
     const matches = await c.env.VECTORIZE_INDEX.query(queryVector, {
-      topK: 3,
+      topK,
       returnMetadata: true,
     });
 
@@ -594,10 +597,10 @@ app.post("/chat/product-lookup", async (c) => {
       });
     }
 
-    // Medium/Low confidence (<0.7): Return top matches for follow-up question
+    // Medium/Low confidence (<0.7): Return top 3 matches for follow-up question
     // Frontend will use these names in a clarifying question
     const topNames = matches.matches
-      .slice(0, 2)
+      .slice(0, 3)  // Return top 3 options instead of 2
       .map(m => m.metadata?.name)
       .filter(Boolean);
 
@@ -606,8 +609,10 @@ app.post("/chat/product-lookup", async (c) => {
       confidence,
       needsClarification: true,
       suggestedNames: topNames,
-      message: topNames.length > 0
-        ? `I'm not quite sure which one you mean. Did you mean ${topNames.join(' or ')}?`
+      message: topNames.length > 1
+        ? `Did you mean ${topNames.slice(0, -1).join(', ')} or ${topNames[topNames.length - 1]}?`
+        : topNames.length === 1
+        ? `Did you mean ${topNames[0]}?`
         : "I couldn't find that exact product. Could you tell me more, like the brand or type?"
     });
 
