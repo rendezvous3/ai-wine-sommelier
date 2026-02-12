@@ -634,8 +634,51 @@ app.post("/chat/product-lookup", async (c) => {
 app.post("/chat/stream", async (c) => {
   const body = await c.req.json();
   const messages = body.messages || [];
-  const productContext = body.productContext || null; 
+  const productContext = body.productContext || null;
   const clarificationContext = body.clarificationContext || null;
+
+  // DEBUGGING: Log what context we're receiving
+  console.log('[STREAM] Request received');
+  console.log('[STREAM] Messages count:', messages.length);
+  console.log('[STREAM] Has productContext:', !!productContext);
+  console.log('[STREAM] Has clarificationContext:', !!clarificationContext);
+  if (clarificationContext) {
+    console.log('[STREAM] Clarification text:', clarificationContext);
+  }
+  if (productContext) {
+    console.log('[STREAM] Product context first 100 chars:', productContext.substring(0, 100));
+  }
+
+  // BYPASS LLM FOR CLARIFICATIONS - Return text directly as SSE stream
+  if (clarificationContext) {
+    console.log('[STREAM] Bypassing LLM, returning clarification directly');
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      start(controller) {
+        // Send the clarification text as a single SSE event
+        const sseEvent = `data: ${JSON.stringify({
+          choices: [{
+            delta: { content: clarificationContext },
+            finish_reason: null
+          }]
+        })}\n\n`;
+        controller.enqueue(encoder.encode(sseEvent));
+
+        // Send done marker
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+        controller.close();
+      }
+    });
+
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        "Access-Control-Allow-Origin": "*"
+      }
+    });
+  }
 
   const API_KEY = getApiKey(STREAM_PROVIDER, c.env);
   const MODEL = getModelForRole(STREAM_PROVIDER, "STREAM");

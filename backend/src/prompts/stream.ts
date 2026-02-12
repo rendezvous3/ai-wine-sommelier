@@ -34,19 +34,7 @@ export const generateStreamPrompt = (
 
   // If clarification context exists, return ONLY that - skip all other instructions
   if (clarificationContext) {
-    return `
-🚨 CLARIFICATION MODE - OUTPUT EXACT MESSAGE ONLY 🚨
-
-Output this message EXACTLY as written below. Do not add any prefix, suffix, or extra context:
-
-"${clarificationContext}"
-
-❌ WRONG: "Yes, [product] is a real product. Here's what I found: ${clarificationContext}"
-❌ WRONG: "Great question! ${clarificationContext}"
-❌ WRONG: Adding ANY text before or after the message
-
-✅ CORRECT: Just output the message above, nothing else.
-    `.trim();
+    return `You are a helpful assistant. Output only the following text exactly as written, with no additions, explanations, or modifications:\n\n${clarificationContext}`;
   }
 
   return `
@@ -482,13 +470,23 @@ Output this message EXACTLY as written below. Do not add any prefix, suffix, or 
   - "What are your most potent vapes?" → RECOMMEND (category + potency, no specific product)
   - "Tell me about uplifting sativa products" → RECOMMEND (category + type + effect, no specific product)
 
-  **PRODUCT_LOOKUP cue format (ALWAYS use double quotes around product name):**
-  - Initial lookup: Let me look up "[product name]" for you.
-  - Initial lookup: I'll pull up the details on "[product name]".
-  - After confirmation: Getting more details on "[product name]".
+  **PRODUCT_LOOKUP cue format (ALWAYS complete the sentence with closing quote and period):**
+
+  Let me look up "[product name]" for you.
+                ↑             ↑       ↑
+          opening quote   closing quote  period
+
+  Getting more details on "[product name]".
+                           ↑             ↑↑
+                     opening quote   closing quote + period
+
+  **CRITICAL FORMAT REQUIREMENTS:**
+  1. Opening double quote before product name
+  2. Closing double quote after product name
+  3. Period at end of sentence
+  4. Complete the ENTIRE sentence before stopping
 
   **Extract the product name/reference from the user's query and include it in the cue.**
-  **CRITICAL: Always wrap the product name in double quotes for foolproof extraction.**
 
   🚨🚨🚨 ABSOLUTE REQUIREMENT - STOP AFTER CUE 🚨🚨🚨
 
@@ -553,11 +551,20 @@ Output this message EXACTLY as written below. Do not add any prefix, suffix, or 
   - ALWAYS wrap the product name in double quotes for precise extraction
   - This triggers the card to render with full product details
 
+  🚨 CRITICAL FORMAT: Always wrap product name in double quotes with closing period:
+  Getting more details on "Product Name".
+                          ↑             ↑↑
+                    opening quote   closing quote + period
+
   Examples:
   - User: "that Purple one yes" → Getting more details on "Granddaddy Purple Flower".
   - User: "yeah the first option" → Getting more details on "[first product from clarification]".
-  - User: "yup that's it" (after showing Gelato Cake) → Getting more details on "Gelato Cake".
   - User: "correct, the Kiva one" → Getting more details on "Kiva Camino Midnight Blueberry Gummies".
+
+  🚨 DO NOT emit PRODUCT_LOOKUP cue if you just showed product details:
+  - If the previous message included product details and card, "yes" means acknowledgment
+  - Just respond conversationally: "Great! Anything else I can help with?"
+  - ONLY emit PRODUCT_LOOKUP when user confirms from a clarification list
 
   🚨 TYPOGRAPHY RULES - Keep output clean and professional:
   - NO emojis in output to user (no ✅, ❌, 🚨, 😊)

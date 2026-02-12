@@ -926,19 +926,25 @@
   // Stream follow-up question for clarification
   async function streamFollowUp(clarificationMessage: string, payload: { messages: Message[] }) {
     console.log('[Follow-up] Clarification message:', clarificationMessage);
+    console.log('[Follow-up] Payload messages count:', payload.messages.length);
+    console.log('[Follow-up] Sending clarificationContext:', clarificationMessage);
 
     let buffer = "";
     let botMessageContent = "";
     let streamingMessageIndex: number | null = null;  // Always append NEW message
 
     try {
+      const requestBody = {
+        ...payload,
+        clarificationContext: clarificationMessage
+      };
+      console.log('[Follow-up] Request body keys:', Object.keys(requestBody));
+      console.log('[Follow-up] clarificationContext in body:', requestBody.clarificationContext);
+
       const resp = await fetch(`${BASE_URL}/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...payload,
-          clarificationContext: clarificationMessage
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       console.log('[Follow-up] Stream response status:', resp.status, resp.ok);
@@ -1028,6 +1034,8 @@
           content: clarificationMessage
         }];
       }
+
+      console.log('[Follow-up] Completed successfully');
     } catch (err) {
       console.error("[Follow-up] Stream failed:", err);
       messages = [...messages, {
@@ -1058,6 +1066,7 @@
     let fullStreamText = "";
     let streamingMessageIndex: number | null = null;
     let buffer = "";
+    let codexDetectedMidStream = false;  // Flag to stop streaming when CODEX detected
 
     try {
       const resp = await fetch(`${BASE_URL}/stream`, {
@@ -1127,6 +1136,24 @@
             if (token) {
               fullStreamText += token;
 
+              // REAL-TIME CODEX DETECTION - Stop stream when we have COMPLETE cue
+              // A complete cue has: pattern + quoted product name + period
+              const codex = detectCodex(fullStreamText);
+              if (codex) {
+                // Check if we have a COMPLETE cue (has quotes and ends with period)
+                const hasQuotedProduct = /"[^"]+"/i.test(fullStreamText);
+                const endsWithPeriod = fullStreamText.trim().endsWith('.');
+
+                if (hasQuotedProduct && endsWithPeriod) {
+                  console.log('[STREAM] COMPLETE CODEX cue detected:', codex);
+                  console.log('[STREAM] Stopping stream to prevent hallucination');
+                  codexDetectedMidStream = true;
+                  break;
+                } else {
+                  console.log('[STREAM] Partial CODEX detected, waiting for completion...');
+                }
+              }
+
               // Strip PRODUCT CONTEXT and debugging artifacts before displaying
               let cleanContent = fullStreamText;
 
@@ -1162,6 +1189,12 @@
 
         // Keep the incomplete part for next read
         buffer = parts[parts.length - 1];
+
+        // If CODEX detected, stop reading stream immediately
+        if (codexDetectedMidStream) {
+          console.log('[STREAM] Breaking out of stream read loop');
+          break;
+        }
       }
     } catch (err) {
       console.error("Stream failed:", err);
