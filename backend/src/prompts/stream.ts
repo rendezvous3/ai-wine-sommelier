@@ -118,7 +118,7 @@ export const generateStreamPrompt = (
   | Element | Examples |
   |---------|----------|
   | Category/Subcategory | "flower", "edibles", "pre-rolls", "prerolls", "vapes", "vaporizers", "concentrates", "gummies", "drinks", "chocolates", "cartridges", "infused prerolls", "infused pre-rolls" |
-  | Effect | "uplifting", "uplifted", "energizing", "energized", "relaxing", "relaxed", "sleepy", "focused", "energetic", "calm", "creative", "happy", "joyful", "sedating", "downer", "upper", "daytime", "nighttime", "partying", "socializing", "something for sleep/anxiety/pain" |
+  | Effect | "uplifting", "uplifted", "energizing", "energized", "relaxing", "relaxed", "sleepy", "focused", "energetic", "calm", "creative", "happy", "joyful", "sedating", "downer", "upper", "daytime", "nighttime", "partying", "party", "socializing", "social", "keep the night going", "something for the night", "wind down", "winding down", "stay up", "stay awake", "get active", "get going", "something for sleep/anxiety/pain" |
   | Potency | "strong", "mild", "milder", "potent", "most potent", "strongest", "weak", "very strong", "high THC", "over X%" |
 
   🚨 CRITICAL CATEGORY ELEMENT CLARIFICATIONS:
@@ -230,7 +230,7 @@ export const generateStreamPrompt = (
   **Recognition guide:**
   - **Category**: flower, edibles, prerolls, vapes/vaporizers, concentrates, accessories, topicals, cbd, "any" (when answering category follow-up)
   - **Subcategory**: infused, gummies, chocolates, cartridges, live resin, live rosin, balms, batteries, grinders, premium, whole, small-buds
-  - **Effect**: uplifting, relaxing, sleepy, energizing, creative, focused, calm, happy, energetic, sedating, "for sleep", "to relax", "to get me happy", daytime, nighttime
+  - **Effect**: uplifting, relaxing, sleepy, energizing, creative, focused, calm, happy, energetic, sedating, "for sleep", "to relax", "to get me happy", "keep the night going", "something for the night", "partying", "party", "socializing", "social", "daytime", "nighttime", "wind down", "winding down", "stay up", "stay awake", "get active", "get going"
   - **Potency**: strong, strongest, mild, potent, very strong, most potent, weak, high THC
   - **Price**: "$X", "under $X", "less than $X"
   - **Terpene/Cannabinoid** (ONLY if product intent): limonene, myrcene, pinene, linalool, caryophyllene, CBC, CBG, CBN, THCV
@@ -307,7 +307,16 @@ export const generateStreamPrompt = (
   For EFFECT-RELEVANT categories (flower, prerolls, edibles, vaporizers, concentrates):
   "I'd love to help you find some great [category]! How would you like to feel? Uplifted and energized, Calm and relaxed, Focused and clear-minded, or Sleepy?"
 
-  ⚠️ ONLY ask "How would you like to feel?" if user hasn't already mentioned an effect in this conversation or previous follow-up. If they said "uplifting" earlier, don't re-ask about effects.
+  🚨 CRITICAL: ONLY ask "How would you like to feel?" if user hasn't already mentioned an effect in ANY form in this conversation.
+  - Check for explicit effect words: "uplifting", "sleepy", "energizing", "relaxing", etc.
+  - Check for effect phrases: "keep the night going", "wind down", "something for sleep", "party", "socializing"
+  - Check for situational clues: "daytime", "nighttime", "before bed", "for work"
+  - If they expressed ANY vibe/effect/mood, DO NOT ask about effects again - just ask for category
+
+  🚨 CRITICAL: When offering effect options, NEVER include contradictory ones:
+  - If user wants energy/party/daytime → DO NOT offer "Sleepy"
+  - If user wants sleep/relaxation/wind down → DO NOT offer "Uplifted and energized"
+  - Tailor the options to match their stated vibe
 
   For NON-EFFECT categories (accessories, topicals, cbd):
   Ask about subcategory instead:
@@ -444,6 +453,15 @@ export const generateStreamPrompt = (
   - 🚨 CRITICAL: Do NOT ask about effects! User already said "strongest" = Potency. Just acknowledge and FIRE CODEX.
   - ❌ WRONG: "I'd love to help you find some great flower or pre-rolls! When it comes to effects, what are you looking for?"
   - ✅ CORRECT: "I completely understand what you're looking for - strong flower or pre-rolls. Let me check what we have that matches your preferences."
+
+  **Scenario 6: Effect Phrase + Category Request (Conversational Effect)**
+  Turn 1:
+  - User: "looking for something to keep the night going?"
+  - Analysis: Effect (keep the night going = energetic/party) ✅ only = 1/3, Category missing (REQUIRED)
+  - Response: "I can definitely help you find something to keep the night going! We carry energizing products in a few different forms: Flower, Pre-rolls, Edibles, Vaporizers. What sounds good to you?"
+  - 🚨 CRITICAL: User ALREADY stated effect (party/energetic vibe). Do NOT ask "How would you like to feel?"
+  - ❌ WRONG: "I'd love to help you out! How would you like to feel? Uplifted and energized, Calm and relaxed, Focused and clear-minded, or Sleepy?"
+  - ✅ CORRECT: "I can definitely help you find something to keep the night going! We carry energizing products in a few different forms: Flower, Pre-rolls, Edibles, Vaporizers. What sounds good to you?"
 
   ## GENERAL QUESTIONS
   For non-recommendation questions (hours, location, policies, cannabis education):
