@@ -161,7 +161,7 @@ The vectorizer applies comprehensive transformations to raw Dutchie data:
 
 Create venv if not created
 ```bash
-python3 -m venv
+python3 -m venv venv
 pip install --upgrade pip
 ```
 
