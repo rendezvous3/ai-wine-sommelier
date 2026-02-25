@@ -594,6 +594,73 @@ npm run build  # Outputs to dist/
    - Ensures consistent behavior between dev and production
    - No need to mock or emulate Cloudflare services locally
 
+## Component Library Integration
+
+The `Svelte-Component-Library/` folder is a **separate git repository** cloned directly inside the parent project. The parent repo tracks all Component Library files as regular files — no git submodules, no npm linking, no build step.
+
+### How It Works
+
+```
+AiChatBot/                              ← Parent repo (github.com/rendezvous3/AiChatBot)
+├── .git/
+├── client/src/Widget.svelte            ← Imports via relative paths
+├── Svelte-Component-Library/           ← Nested repo (github.com/rendezvous3/Svelte-Component-Library)
+│   ├── .git/                           ← Its own git (independent remote)
+│   └── src/lib/custom/
+│       ├── ChatWidget/
+│       ├── ChatMessage/
+│       └── ...
+└── backend/
+```
+
+The parent git fully tracks all files inside `Svelte-Component-Library/` as regular files. The nested `.git` exists independently, allowing the Component Library to also be committed and pushed to its own remote — making it portable and reusable across projects.
+
+### Import Pattern
+
+Imports use plain relative paths — no aliases or config required:
+
+```typescript
+import ChatWidget from "../../Svelte-Component-Library/src/lib/custom/ChatWidget/ChatWidget.svelte";
+import ChatMessage from "../../Svelte-Component-Library/src/lib/custom/ChatMessage/ChatMessage.svelte";
+import type { GuidedFlowConfig } from "../../Svelte-Component-Library/src/lib/custom/GuidedFlow/types.js";
+```
+
+Vite resolves these at build time. Tree-shaking is automatic — only imported components are bundled into `widget.js`. Storybook files (`.stories.ts`) are never imported so they're never bundled.
+
+### Dual-Commit Workflow
+
+When you make changes to Component Library files, you need two commits — one to keep the Component Library repo updated on its own remote, and one to update the parent project:
+
+```bash
+# 1. Commit to the Component Library's own repo
+cd Svelte-Component-Library/
+git add .
+git commit -m "Add new component variant"
+git push   # → pushes to github.com/rendezvous3/Svelte-Component-Library
+
+# 2. Commit to the parent AiChatBot repo
+cd ..
+git add Svelte-Component-Library/
+git commit -m "Update component library"
+git push   # → pushes to github.com/rendezvous3/AiChatBot
+```
+
+### Replicating This in a New Project
+
+```bash
+# 1. Clone the Component Library into your new project root
+cd /path/to/YourNewProject
+git clone https://github.com/rendezvous3/Svelte-Component-Library.git
+
+# 2. Add and commit it to the parent repo
+git add Svelte-Component-Library/
+git commit -m "Add component library"
+
+# 3. Import components with relative paths — no other config needed
+```
+
+---
+
 ## Theme Configuration
 
 The widget supports both light and dark themes. To change the theme:
