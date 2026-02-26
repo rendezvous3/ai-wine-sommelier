@@ -47,6 +47,7 @@
     messagesCount?: number;
     noAssistantBubble?: boolean;
     iconSrc?: string;
+    showInput?: boolean;
   }
 
   let {
@@ -81,7 +82,8 @@
     guidedFlowConfig,
     messagesCount = 0,
     noAssistantBubble = false,
-    iconSrc
+    iconSrc,
+    showInput = true
   }: ChatWidgetProps = $props();
 
   // Provide themeBackgroundColor to child components via context
@@ -203,7 +205,7 @@
         {/if}
       </ChatWindow>
 
-      {#if mode === 'chat' && !isExpanded}
+      {#if mode === 'chat' && !isExpanded && showInput}
         <div class="chat-widget__input-wrapper">
           <ChatInput
             placeholder="Type a message..."

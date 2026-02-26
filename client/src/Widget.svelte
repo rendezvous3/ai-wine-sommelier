@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onDestroy, onMount } from "svelte";
   import ChatWidget from "../../Svelte-Component-Library/src/lib/custom/ChatWidget/ChatWidget.svelte";
   import ChatMessage from "../../Svelte-Component-Library/src/lib/custom/ChatMessage/ChatMessage.svelte";
   import ShimmerText from "../../Svelte-Component-Library/src/lib/custom/ShimmerText/ShimmerText.svelte";
@@ -156,17 +156,99 @@
 
   // Removed fuzzyFindProduct - stream has conversation history and handles all product matching
 
-  // Menu items for the header
+  // Sidebar links for disclosures and feedback pages
+  const medicalDisclosureIcon = `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/>
+    <path d="M10 6V14M6 10H14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>`;
+
   const menuItems = [
-    { id: 'settings', label: 'Settings', icon: 'settings', iconType: 'svg' as const },
-    { id: 'help', label: 'Help', icon: 'help', iconType: 'svg' as const },
-    { id: 'about', label: 'About', icon: 'about', iconType: 'svg' as const },
+    { id: 'ai-disclosure', label: 'AI Disclosure', icon: 'about', iconType: 'svg' as const },
+    { id: 'medical-disclosure', label: 'Medical Disclosure', icon: medicalDisclosureIcon, iconType: 'svg' as const },
     { id: 'feedback', label: 'Send Feedback', icon: 'feedback', iconType: 'svg' as const }
   ];
 
+  type PanelId = 'ai-disclosure' | 'medical-disclosure' | 'feedback';
+  let activePanel = $state<PanelId | null>(null);
+  let feedbackName = $state('');
+  let feedbackEmail = $state('');
+  let feedbackType = $state<'bug' | 'quality' | 'safety' | 'other'>('quality');
+  let feedbackMessage = $state('');
+  let feedbackNotice = $state('');
+  let feedbackScreenshotFile = $state<File | null>(null);
+  let feedbackScreenshotPreview = $state('');
+
+  const menuRoutes: Record<string, string> = {
+    'ai-disclosure': '/disclosures/ai-disclosure.html',
+    'medical-disclosure': '/disclosures/medical-disclosure.html',
+    feedback: '/support/feedback.html'
+  };
+
   function handleMenuItemClick(itemId: string) {
-    console.log('Menu item clicked:', itemId);
-    // Add menu item action handlers here
+    if (itemId === 'ai-disclosure' || itemId === 'medical-disclosure' || itemId === 'feedback') {
+      activePanel = itemId;
+    }
+  }
+
+  function openExternalPanelPage(panelId: PanelId) {
+    const path = menuRoutes[panelId];
+    if (!path) return;
+    window.open(new URL(path, window.location.origin).toString(), '_blank', 'noopener,noreferrer');
+  }
+
+  function closePanel() {
+    activePanel = null;
+    feedbackNotice = '';
+    removeFeedbackScreenshot();
+  }
+
+  function handleFeedbackScreenshotChange(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0] ?? null;
+
+    if (feedbackScreenshotPreview) {
+      URL.revokeObjectURL(feedbackScreenshotPreview);
+      feedbackScreenshotPreview = '';
+    }
+
+    if (!file) {
+      feedbackScreenshotFile = null;
+      return;
+    }
+
+    feedbackScreenshotFile = file;
+    feedbackScreenshotPreview = URL.createObjectURL(file);
+  }
+
+  function removeFeedbackScreenshot() {
+    if (feedbackScreenshotPreview) {
+      URL.revokeObjectURL(feedbackScreenshotPreview);
+    }
+    feedbackScreenshotFile = null;
+    feedbackScreenshotPreview = '';
+  }
+
+  function submitFeedback() {
+    if (!feedbackMessage.trim()) {
+      feedbackNotice = 'Please add a message before sending feedback.';
+      return;
+    }
+
+    const subject = `[Budtender Feedback] ${feedbackType}`;
+    const body = [
+      `Name: ${feedbackName.trim() || 'N/A'}`,
+      `Email: ${feedbackEmail.trim() || 'N/A'}`,
+      `Type: ${feedbackType}`,
+      `Screenshot: ${feedbackScreenshotFile ? `${feedbackScreenshotFile.name} (${Math.round(feedbackScreenshotFile.size / 1024)} KB)` : 'None'}`,
+      '',
+      'Message:',
+      feedbackMessage.trim()
+    ].join('\n');
+
+    window.location.href = `mailto:feedback@cannavita.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    feedbackNotice = feedbackScreenshotFile
+      ? 'Email draft opened. Please attach the selected screenshot manually before sending.'
+      : 'Your email app should open with the feedback pre-filled.';
   }
 
 
@@ -191,6 +273,12 @@
   $effect(() => {
     if (isInitialized && persistChat) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    }
+  });
+
+  onDestroy(() => {
+    if (feedbackScreenshotPreview) {
+      URL.revokeObjectURL(feedbackScreenshotPreview);
     }
   });
 
@@ -1352,7 +1440,10 @@
 <ChatWidget
   isOpen={isOpen}
   onToggle={() => (isOpen = !isOpen)}
-  onClose={() => (isOpen = false)}
+  onClose={() => {
+    isOpen = false;
+    closePanel();
+  }}
   onSend={handleSend}
   position="bottom-right"
   expandIcon="dots"
@@ -1369,43 +1460,123 @@
   hasMessages={messages.length > 0}
   clearButtonIcon="erase"
   mode={mode}
-  onModeToggle={handleModeToggle}
+  onModeToggle={activePanel === null ? handleModeToggle : undefined}
   modeTogglePosition="lower-left"
   guidedFlowConfig={mode === 'guided-flow' ? guidedFlowConfig : undefined}
   messagesCount={messages.length}
   darkMode={true}
   noAssistantBubble={true}
+  showInput={activePanel === null}
 >
   {#snippet children()}
-    {#if messages.length === 0}
-      <ChatMessage variant="system" messageText="Welcome! Ask me anything about products." />
-    {/if}
-
-    {#each messages as msg (msg.id || `fallback-${messages.indexOf(msg)}`)}
-      {#if msg.shimmer === true}
-        <!-- Render shimmer text for loading messages -->
-        <div class="shimmer-message">
-          <ShimmerText
-            text={msg.content}
-            speed={2.5}
-            baseColor="#8b8b8b"
-            highlightColor="#e0e0e0"
-            fontSize="0.875rem"
-          />
-        </div>
-      {:else}
-        <ChatMessage
-          variant={msg.role}
-          messageText={msg.content}
-          products={msg.recommendations ? convertToProducts(msg.recommendations) : undefined}
-          recommendationTitle={msg.role === 'assistant' && msg.recommendations && msg.recommendations.length > 0 ? "Cannavita Budtender recommendations" : undefined}
-          recommendationLayout="compact-list"
-          productsInBubble={true}
-          showHoverActions={false}
-          actionType="link"
-        />
+    {#if activePanel === null}
+      {#if messages.length === 0}
+        <ChatMessage variant="system" messageText="Welcome! Ask me anything about products." />
       {/if}
-    {/each}
+
+      {#each messages as msg (msg.id || `fallback-${messages.indexOf(msg)}`)}
+        {#if msg.shimmer === true}
+          <!-- Render shimmer text for loading messages -->
+          <div class="shimmer-message">
+            <ShimmerText
+              text={msg.content}
+              speed={2.5}
+              baseColor="#8b8b8b"
+              highlightColor="#e0e0e0"
+              fontSize="0.875rem"
+            />
+          </div>
+        {:else}
+          <ChatMessage
+            variant={msg.role}
+            messageText={msg.content}
+            products={msg.recommendations ? convertToProducts(msg.recommendations) : undefined}
+            recommendationTitle={msg.role === 'assistant' && msg.recommendations && msg.recommendations.length > 0 ? "Cannavita Budtender recommendations" : undefined}
+            recommendationLayout="compact-list"
+            productsInBubble={true}
+            showHoverActions={false}
+            actionType="link"
+          />
+        {/if}
+      {/each}
+    {:else}
+      <section class="widget-panel" class:widget-panel--feedback={activePanel === 'feedback'}>
+        <div class="widget-panel__top">
+          <button type="button" class="widget-panel__back" onclick={closePanel} aria-label="Back to chat">
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 14L8 10L12 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <button type="button" class="widget-panel__external-link" onclick={() => openExternalPanelPage(activePanel)}>
+            Full Page
+          </button>
+        </div>
+
+        {#if activePanel === 'ai-disclosure'}
+          <h3>AI Assistant Disclosure</h3>
+          <p>This assistant is experimental. Responses are generated automatically and may be incomplete, inaccurate, or outdated.</p>
+          <ul>
+            <li>Use guidance as informational, not guaranteed advice.</li>
+            <li>Verify key product details with in-store staff before purchase.</li>
+            <li>This assistant does not provide medical diagnosis or treatment advice.</li>
+          </ul>
+          <p class="widget-panel__note">For urgent health concerns, contact a licensed medical professional or call 911.</p>
+        {:else if activePanel === 'medical-disclosure'}
+          <h3>Medical and Recreational Disclosure</h3>
+          <p>Cannavita is a recreational dispensary. Content in this widget is for retail and educational purposes only.</p>
+          <ul>
+            <li>No statements here diagnose, treat, cure, or prevent disease.</li>
+            <li>Consult a licensed healthcare professional for medical questions.</li>
+            <li>Do not drive or operate machinery while impaired.</li>
+            <li>Keep all cannabis products away from children and pets.</li>
+          </ul>
+        {:else if activePanel === 'feedback'}
+          <h3>Send Feedback</h3>
+          <p>Share bugs, safety concerns, or recommendation quality issues.</p>
+
+          <form class="feedback-form" onsubmit={(event) => { event.preventDefault(); submitFeedback(); }}>
+            <div class="feedback-form__row">
+              <label>
+                Name (optional)
+                <input type="text" bind:value={feedbackName} />
+              </label>
+              <label>
+                Email (optional)
+                <input type="email" bind:value={feedbackEmail} />
+              </label>
+            </div>
+            <label>
+              Feedback type
+              <select bind:value={feedbackType}>
+                <option value="bug">Bug report</option>
+                <option value="quality">Recommendation quality</option>
+                <option value="safety">Safety/medical concern</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label>
+              Message
+              <textarea bind:value={feedbackMessage} placeholder="Tell us what happened and what should improve." required></textarea>
+            </label>
+            <label>
+              Screenshot (optional)
+              <input type="file" accept="image/*" onchange={handleFeedbackScreenshotChange} />
+            </label>
+            {#if feedbackScreenshotPreview}
+              <div class="feedback-screenshot">
+                <img src={feedbackScreenshotPreview} alt="Feedback screenshot preview" />
+                <button type="button" class="feedback-screenshot__remove" onclick={removeFeedbackScreenshot}>Remove screenshot</button>
+              </div>
+            {/if}
+            <button type="submit" class="feedback-form__submit">Send Feedback</button>
+          </form>
+
+          {#if feedbackNotice}
+            <p class="widget-panel__note">{feedbackNotice}</p>
+          {/if}
+        {/if}
+      </section>
+    {/if}
   {/snippet}
 </ChatWidget>
 
@@ -1422,6 +1593,193 @@
     margin-top: 20px;
     margin-bottom: 0;
     opacity: 0.8;
+  }
+
+  .widget-panel {
+    height: 100%;
+    padding: 14px 12px 14px;
+    color: #ebebeb;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .widget-panel h3 {
+    margin: 8px 0 4px;
+    font-size: 1rem;
+    color: #f5f5f5;
+  }
+
+  .widget-panel p,
+  .widget-panel li {
+    color: #d2d2d2;
+    font-size: 0.85rem;
+    line-height: 1.35;
+  }
+
+  .widget-panel ul {
+    margin: 8px 0 0;
+    padding-left: 18px;
+  }
+
+  .widget-panel__top {
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+    margin-top: 10px;
+    margin-bottom: 14px;
+    padding-right: 54px;
+  }
+
+  .widget-panel__back,
+  .feedback-form__submit {
+    border: 1px solid #4f4f4f;
+    border-radius: 8px;
+    background: #2d2d2d;
+    color: #f1f1f1;
+    padding: 6px 9px;
+    font-size: 0.76rem;
+    cursor: pointer;
+  }
+
+  .widget-panel__back {
+    width: 34px;
+    height: 34px;
+    border-radius: 999px;
+    background: rgba(45, 45, 48, 0.95);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .widget-panel__back:hover {
+    filter: brightness(1.1);
+  }
+
+  .widget-panel__external-link {
+    border: none;
+    background: transparent;
+    color: #71d0c2;
+    font-size: 0.82rem;
+    line-height: 1;
+    padding: 8px 2px;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+  }
+
+  .widget-panel__external-link:hover {
+    color: #8fe0d3;
+  }
+
+  .feedback-form {
+    display: grid;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .feedback-form label {
+    display: grid;
+    gap: 4px;
+    font-size: 0.78rem;
+    color: #d8d8d8;
+  }
+
+  .feedback-form__row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .feedback-form input,
+  .feedback-form select,
+  .feedback-form textarea {
+    border: 1px solid #4f4f4f;
+    border-radius: 8px;
+    background: #212121;
+    color: #f1f1f1;
+    font: inherit;
+    padding: 7px 9px;
+  }
+
+  .feedback-form textarea {
+    min-height: 82px;
+    max-height: 100px;
+    resize: vertical;
+  }
+
+  .feedback-form input[type="file"] {
+    font-size: 0.76rem;
+    padding: 6px 8px;
+  }
+
+  .feedback-form input[type="file"]::file-selector-button {
+    margin-right: 8px;
+    border: 1px solid #2e6d64;
+    border-radius: 7px;
+    background: #1f433e;
+    color: #e9f8f4;
+    padding: 6px 10px;
+    font-size: 0.74rem;
+    cursor: pointer;
+  }
+
+  .feedback-form input[type="file"]::file-selector-button:hover {
+    filter: brightness(1.08);
+  }
+
+  .feedback-screenshot {
+    display: grid;
+    gap: 8px;
+  }
+
+  .feedback-screenshot img {
+    max-width: 100%;
+    max-height: 88px;
+    object-fit: contain;
+    border-radius: 8px;
+    border: 1px solid #4f4f4f;
+    background: #171717;
+  }
+
+  .feedback-screenshot__remove {
+    justify-self: start;
+    border: 1px solid #4f4f4f;
+    border-radius: 8px;
+    background: #2d2d2d;
+    color: #f1f1f1;
+    padding: 5px 9px;
+    font-size: 0.72rem;
+    cursor: pointer;
+  }
+
+  .widget-panel__note {
+    margin-top: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid #3b5f58;
+    background: #1c312d;
+    color: #bde3da;
+    font-size: 0.78rem;
+    line-height: 1.3;
+  }
+
+  @media (max-width: 430px) {
+    .feedback-form__row {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .widget-panel--feedback h3 {
+    margin-top: 2px;
+    margin-bottom: 10px;
+  }
+
+  .widget-panel--feedback > p {
+    margin-top: 0;
+    margin-bottom: 12px;
+    line-height: 1.4;
   }
 
   /* Mobile: move shimmer closer to left edge to match assistant messages */
