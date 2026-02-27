@@ -184,7 +184,7 @@
     { label: 'Potent Flower', prompt: 'potent flower', icon: flowerIcon },
     { label: 'Uplifting Vape', prompt: 'uplifting vape', icon: vapeIcon },
     { label: 'Sleepy Edibles', prompt: 'sleepy edibles', icon: gummiesIcon },
-    { label: 'Calming Pre-Rolls', prompt: 'calming pre-rolls', icon: prerollIcon },
+    { label: 'Calm Pre-Rolls', prompt: 'calm pre-rolls', icon: prerollIcon },
     { label: 'CBD Oil', prompt: 'cbd oil', icon: concentrateTwoIcon },
     { label: 'Berry Gummies', prompt: 'berry gummies', icon: gummiesIcon }
   ];

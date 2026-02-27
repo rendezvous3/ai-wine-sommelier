@@ -19,7 +19,7 @@
 
 <section class="welcome-quick-start">
   <div class="welcome-quick-start__welcome">
-    <ChatMessage variant="assistant" messageText="Welcome, ask me anything about our products!" />
+    <ChatMessage variant="assistant" messageText="Welcome, ask me anything about our products! Unsure? Explore our Guided experience, button at the bottom left." />
   </div>
 
   <QuickStartPanel
@@ -36,6 +36,13 @@
     margin: 30px 12px 8px;
     display: grid;
     gap: 12px;
+  }
+
+  @media (max-width: 640px) {
+    .welcome-quick-start {
+      margin-top: 10px;
+      margin-bottom: 6px;
+    }
   }
 
   .welcome-quick-start__welcome :global(.chat-message__content-wrapper) {
