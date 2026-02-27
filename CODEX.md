@@ -34,3 +34,16 @@ This repository should be treated with a strict development-only context window.
 - Read only files needed for the current task.
 - Skip excluded paths during search/index operations.
 - Only enter excluded paths when the user explicitly asks.
+
+## UI Development Flow (Mandatory)
+
+- `client/src/Widget.svelte` is composition-only. Keep it focused on wiring state, callbacks, and imports.
+- Implement feature UI as reusable components in `Svelte-Component-Library/src/lib/custom/**`.
+- Do not ship new large inline UI sections in `Widget.svelte` (HTML/CSS/function bundles).
+- Reuse components across related features:
+  - Welcome/assistant intro
+  - Quick Start container
+  - Tag/chip items
+  - Disclosure panels
+  - Feedback form panel
+- Prefer shared chat primitives (`ChatMessage`, chat bubble patterns) for welcome/disclosure messaging to keep visual consistency.

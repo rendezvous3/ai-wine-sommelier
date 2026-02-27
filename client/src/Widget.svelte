@@ -3,6 +3,8 @@
   import ChatWidget from "../../Svelte-Component-Library/src/lib/custom/ChatWidget/ChatWidget.svelte";
   import ChatMessage from "../../Svelte-Component-Library/src/lib/custom/ChatMessage/ChatMessage.svelte";
   import ShimmerText from "../../Svelte-Component-Library/src/lib/custom/ShimmerText/ShimmerText.svelte";
+  import WelcomeQuickStart from "../../Svelte-Component-Library/src/lib/custom/WelcomeQuickStart/WelcomeQuickStart.svelte";
+  import type { QuickStartRequest } from "../../Svelte-Component-Library/src/lib/custom/QuickStartPanel/QuickStartPanel.svelte";
   import type { GuidedFlowConfig } from "../../Svelte-Component-Library/src/lib/custom/GuidedFlow/types.js";
   import { getTHCScaleForCategory } from "../../Svelte-Component-Library/src/lib/custom/GuidedFlow/thcScales.js";
   import { theme } from "./theme.svelte.js";
@@ -12,6 +14,7 @@
   import vapeIcon from "./icons/categories/vape.png";
   import ediblesIcon from "./icons/categories/edibles.png";
   import concentrateIcon from "./icons/categories/concentrate.png";
+  import concentrateTwoIcon from "./icons/categories/concentrate2.png";
   import chatIcon from "./icons/assistant/chat.png";
 
   import calmIcon from "./icons/effects/calm.png";
@@ -177,6 +180,14 @@
   let feedbackNotice = $state('');
   let feedbackScreenshotFile = $state<File | null>(null);
   let feedbackScreenshotPreview = $state('');
+  const popularRequests: QuickStartRequest[] = [
+    { label: 'Potent Flower', prompt: 'potent flower', icon: flowerIcon },
+    { label: 'Uplifting Vape', prompt: 'uplifting vape', icon: vapeIcon },
+    { label: 'Sleepy Edibles', prompt: 'sleepy edibles', icon: gummiesIcon },
+    { label: 'Calming Pre-Rolls', prompt: 'calming pre-rolls', icon: prerollIcon },
+    { label: 'CBD Oil', prompt: 'cbd oil', icon: concentrateTwoIcon },
+    { label: 'Berry Gummies', prompt: 'berry gummies', icon: gummiesIcon }
+  ];
 
   const menuRoutes: Record<string, string> = {
     'ai-disclosure': '/disclosures/ai-disclosure.html',
@@ -339,6 +350,10 @@
   // Wrapper for ChatWidget's onSend
   function handleSend(message: string) {
     handleChat(message);
+  }
+
+  function handlePopularRequest(request: QuickStartRequest) {
+    void handleChat(request.prompt);
   }
 
   // Clear chat function
@@ -1471,7 +1486,11 @@
   {#snippet children()}
     {#if activePanel === null}
       {#if messages.length === 0}
-        <ChatMessage variant="system" messageText="Welcome! Ask me anything about products." />
+        <WelcomeQuickStart
+          requests={popularRequests}
+          {loading}
+          onRequestSelect={handlePopularRequest}
+        />
       {/if}
 
       {#each messages as msg (msg.id || `fallback-${messages.indexOf(msg)}`)}
