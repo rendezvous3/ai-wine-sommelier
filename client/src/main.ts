@@ -8,9 +8,11 @@ document.body.appendChild(container);
 // const apiUrl = script.dataset.api ?? import.meta.env.VITE_API_URL;
 // const store = script.dataset.store ?? "demo-store";
 
-const script = document.getElementById('ecom-widget-script') as HTMLScriptElement;
-const apiUrl = script?.dataset.api ?? import.meta.env.VITE_API_URL ?? "http://localhost:8787/chat";
-const store = script?.dataset.store ?? "demo-store";
+const scriptById = document.getElementById('ecom-widget-script') as HTMLScriptElement | null;
+const scriptBySrc = document.querySelector('script[src*="widget.js"]') as HTMLScriptElement | null;
+const script = scriptById ?? scriptBySrc;
+const apiUrl = script?.dataset.api ?? import.meta.env.VITE_API_URL ?? "http://localhost:8787";
+const store = script?.dataset.store ?? import.meta.env.VITE_STORE_NAME ?? window.location.hostname ?? "demo-store";
 
 const shadow = container.attachShadow({ mode: 'open' });
 
@@ -22,6 +24,10 @@ shadow.appendChild(fontLink);
 
 const app = mount(Widget, {
   target: shadow,
+  props: {
+    store,
+    apiBase: apiUrl
+  }
   // target: document.getElementById('app')!,
   // target: document.body,
 })

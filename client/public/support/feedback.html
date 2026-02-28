@@ -91,6 +91,15 @@
         border: 1px solid #b6e4d3;
         color: #225f4e;
       }
+      .error {
+        display: none;
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: #fff2f0;
+        border: 1px solid #f1b9b2;
+        color: #8d2e22;
+      }
       .show { display: block; }
     </style>
   </head>
@@ -131,7 +140,7 @@
         <label>
           Screenshot (optional)
           <input type="file" id="screenshot" name="screenshot" accept="image/*" />
-          <span class="small">If selected, attach it manually in your email draft before sending.</span>
+          <span class="small">Optional screenshot will be attached to your feedback email.</span>
         </label>
 
         <div id="screenshotPreview" class="screenshot-preview">
@@ -139,25 +148,33 @@
           <button type="button" id="removeScreenshot">Remove screenshot</button>
         </div>
 
-        <button type="submit">Send Feedback</button>
+        <button type="submit" id="submitButton">Send Feedback</button>
       </form>
 
-      <div id="success" class="success">Thanks. Your email client should open with your feedback pre-filled.</div>
+      <div id="success" class="success">Thanks, your feedback has been sent successfully.</div>
+      <div id="error" class="error">Unable to send feedback right now.</div>
 
       <p class="small">
-        If your email client does not open, send feedback directly to
-        <a href="mailto:feedback@cannavita.com">feedback@cannavita.com</a>.
+        We review every submission and use this to improve assistant quality and safety.
       </p>
     </main>
 
     <script>
       const form = document.getElementById('feedbackForm');
       const success = document.getElementById('success');
+      const error = document.getElementById('error');
+      const submitButton = document.getElementById('submitButton');
       const screenshotInput = document.getElementById('screenshot');
       const screenshotPreview = document.getElementById('screenshotPreview');
       const screenshotImage = document.getElementById('screenshotImage');
       const removeScreenshot = document.getElementById('removeScreenshot');
+      const params = new URLSearchParams(window.location.search);
+      const rawApiBase = params.get('api') || 'https://ecom-chat-backend.andresmeona.workers.dev';
+      const apiBase = rawApiBase.replace(/\/chat\/?$/, '').replace(/\/$/, '');
+      const source = params.get('source') || 'external-page';
+      const store = params.get('store') || window.location.hostname || 'unknown-store';
       let screenshotUrl = '';
+      let submitting = false;
 
       function clearScreenshot() {
         if (screenshotUrl) URL.revokeObjectURL(screenshotUrl);
@@ -181,34 +198,68 @@
 
       removeScreenshot.addEventListener('click', clearScreenshot);
 
-      form.addEventListener('submit', (event) => {
+      function setSubmitting(next) {
+        submitting = next;
+        submitButton.disabled = next;
+        submitButton.textContent = next ? 'Sending...' : 'Send Feedback';
+        for (const el of form.querySelectorAll('input, textarea, select, button')) {
+          if (el.id === 'removeScreenshot' && !screenshotInput.files?.[0]) continue;
+          el.disabled = next;
+        }
+      }
+
+      form.addEventListener('submit', async (event) => {
         event.preventDefault();
+        if (submitting) return;
 
         const name = document.getElementById('name').value.trim();
         const email = document.getElementById('email').value.trim();
         const type = document.getElementById('type').value;
         const message = document.getElementById('message').value.trim();
         const screenshotFile = screenshotInput.files && screenshotInput.files[0] ? screenshotInput.files[0] : null;
-        const screenshotValue = screenshotFile
-          ? `${screenshotFile.name} (${Math.round(screenshotFile.size / 1024)} KB)`
-          : 'None';
+        success.classList.remove('show');
+        error.classList.remove('show');
 
-        const subject = `[Budtender Feedback] ${type}`;
-        const body = [
-          `Name: ${name || 'N/A'}`,
-          `Email: ${email || 'N/A'}`,
-          `Type: ${type}`,
-          `Screenshot: ${screenshotValue}`,
-          '',
-          'Message:',
-          message
-        ].join('\n');
+        if (!message) {
+          error.textContent = 'Please add a message before sending feedback.';
+          error.classList.add('show');
+          return;
+        }
 
-        window.location.href = `mailto:feedback@cannavita.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        success.textContent = screenshotFile
-          ? 'Email draft opened. Please attach the selected screenshot manually before sending.'
-          : 'Thanks. Your email client should open with your feedback pre-filled.';
-        success.classList.add('show');
+        try {
+          setSubmitting(true);
+
+          const formData = new FormData();
+          formData.set('name', name);
+          formData.set('email', email);
+          formData.set('type', type);
+          formData.set('message', message);
+          formData.set('store', store);
+          formData.set('source', source);
+          formData.set('pageUrl', window.location.href);
+          formData.set('userAgent', navigator.userAgent);
+          if (screenshotFile) {
+            formData.set('screenshot', screenshotFile);
+          }
+
+          const resp = await fetch(`${apiBase}/feedback`, {
+            method: 'POST',
+            body: formData
+          });
+          const data = await resp.json().catch(() => ({}));
+          if (!resp.ok || !data?.ok) {
+            throw new Error(data?.message || data?.error || 'Unable to send feedback right now.');
+          }
+
+          form.reset();
+          clearScreenshot();
+          success.classList.add('show');
+        } catch (err) {
+          error.textContent = err instanceof Error ? err.message : 'Unable to send feedback right now.';
+          error.classList.add('show');
+        } finally {
+          setSubmitting(false);
+        }
       });
     </script>
   </body>

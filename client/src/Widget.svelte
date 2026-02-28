@@ -36,17 +36,28 @@
   import liveResinGummiesIcon from "./icons/edible_subcategories/live_resin_gummies.png";
   import liveRosinGummiesIcon from "./icons/edible_subcategories/live_rosin_gummies.png";
 
+  interface WidgetProps {
+    store?: string;
+    apiBase?: string;
+  }
+
+  const envStoreName = import.meta.env.VITE_STORE_NAME;
+  const envApiBase = import.meta.env.VITE_API_URL;
+  let {
+    store = envStoreName ?? window.location.hostname ?? "demo-store",
+    apiBase = envApiBase ?? "http://localhost:8787"
+  }: WidgetProps = $props();
+
   let isOpen = $state(false);
   let mode = $state<'chat' | 'guided-flow'>('chat');
 
-  const BASE_URL = import.meta.env.VITE_API_URL;
-  const storeName = import.meta.env.VITE_STORE_NAME;
+  const BASE_URL = apiBase.replace(/\/chat\/?$/, "").replace(/\/$/, "");
 
   let isInitialized = $state(false);
 
   const persistChat = false; // Set to true to re-enable localStorage persistence
 
-  const STORAGE_KEY = `widget_chat_${storeName}`;
+  const STORAGE_KEY = `widget_chat_${store}`;
   interface Message {
     role: "user" | "assistant";
     content: string;
@@ -178,6 +189,8 @@
   let feedbackType = $state<'bug' | 'quality' | 'safety' | 'other'>('quality');
   let feedbackMessage = $state('');
   let feedbackNotice = $state('');
+  let feedbackNoticeType = $state<'success' | 'error' | null>(null);
+  let feedbackSending = $state(false);
   let feedbackScreenshotFile = $state<File | null>(null);
   let feedbackScreenshotPreview = $state('');
   const popularRequests: QuickStartRequest[] = [
@@ -204,12 +217,21 @@
   function openExternalPanelPage(panelId: PanelId) {
     const path = menuRoutes[panelId];
     if (!path) return;
-    window.open(new URL(path, window.location.origin).toString(), '_blank', 'noopener,noreferrer');
+    const url = new URL(path, window.location.origin);
+    if (panelId === 'feedback') {
+      url.searchParams.set('store', store);
+      if (BASE_URL) {
+        url.searchParams.set('api', BASE_URL);
+      }
+      url.searchParams.set('source', 'external-page');
+    }
+    window.open(url.toString(), '_blank', 'noopener,noreferrer');
   }
 
   function closePanel() {
     activePanel = null;
     feedbackNotice = '';
+    feedbackNoticeType = null;
     removeFeedbackScreenshot();
   }
 
@@ -239,27 +261,55 @@
     feedbackScreenshotPreview = '';
   }
 
-  function submitFeedback() {
+  async function submitFeedback() {
+    if (feedbackSending) return;
     if (!feedbackMessage.trim()) {
       feedbackNotice = 'Please add a message before sending feedback.';
+      feedbackNoticeType = 'error';
       return;
     }
 
-    const subject = `[Budtender Feedback] ${feedbackType}`;
-    const body = [
-      `Name: ${feedbackName.trim() || 'N/A'}`,
-      `Email: ${feedbackEmail.trim() || 'N/A'}`,
-      `Type: ${feedbackType}`,
-      `Screenshot: ${feedbackScreenshotFile ? `${feedbackScreenshotFile.name} (${Math.round(feedbackScreenshotFile.size / 1024)} KB)` : 'None'}`,
-      '',
-      'Message:',
-      feedbackMessage.trim()
-    ].join('\n');
+    feedbackSending = true;
+    feedbackNotice = '';
+    feedbackNoticeType = null;
 
-    window.location.href = `mailto:feedback@cannavita.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    feedbackNotice = feedbackScreenshotFile
-      ? 'Email draft opened. Please attach the selected screenshot manually before sending.'
-      : 'Your email app should open with the feedback pre-filled.';
+    try {
+      const formData = new FormData();
+      formData.set('name', feedbackName.trim());
+      formData.set('email', feedbackEmail.trim());
+      formData.set('type', feedbackType);
+      formData.set('message', feedbackMessage.trim());
+      formData.set('store', store);
+      formData.set('source', 'widget');
+      formData.set('pageUrl', window.location.href);
+      formData.set('userAgent', navigator.userAgent);
+      if (feedbackScreenshotFile) {
+        formData.set('screenshot', feedbackScreenshotFile);
+      }
+
+      const resp = await fetch(`${BASE_URL}/feedback`, {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data?.ok) {
+        throw new Error(data?.message || data?.error || 'Unable to send feedback right now.');
+      }
+
+      feedbackNotice = 'Thanks, your feedback has been sent successfully.';
+      feedbackNoticeType = 'success';
+      feedbackName = '';
+      feedbackEmail = '';
+      feedbackType = 'quality';
+      feedbackMessage = '';
+      removeFeedbackScreenshot();
+    } catch (err) {
+      feedbackNotice = err instanceof Error ? err.message : 'Unable to send feedback right now.';
+      feedbackNoticeType = 'error';
+    } finally {
+      feedbackSending = false;
+    }
   }
 
 
@@ -1557,16 +1607,16 @@
             <div class="feedback-form__row">
               <label>
                 Name (optional)
-                <input type="text" bind:value={feedbackName} />
+                <input type="text" bind:value={feedbackName} disabled={feedbackSending} />
               </label>
               <label>
                 Email (optional)
-                <input type="email" bind:value={feedbackEmail} />
+                <input type="email" bind:value={feedbackEmail} disabled={feedbackSending} />
               </label>
             </div>
             <label>
               Feedback type
-              <select bind:value={feedbackType}>
+              <select bind:value={feedbackType} disabled={feedbackSending}>
                 <option value="bug">Bug report</option>
                 <option value="quality">Recommendation quality</option>
                 <option value="safety">Safety/medical concern</option>
@@ -1575,23 +1625,25 @@
             </label>
             <label>
               Message
-              <textarea bind:value={feedbackMessage} placeholder="Tell us what happened and what should improve." required></textarea>
+              <textarea bind:value={feedbackMessage} placeholder="Tell us what happened and what should improve." required disabled={feedbackSending}></textarea>
             </label>
             <label>
               Screenshot (optional)
-              <input type="file" accept="image/*" onchange={handleFeedbackScreenshotChange} />
+              <input type="file" accept="image/*" onchange={handleFeedbackScreenshotChange} disabled={feedbackSending} />
             </label>
             {#if feedbackScreenshotPreview}
               <div class="feedback-screenshot">
                 <img src={feedbackScreenshotPreview} alt="Feedback screenshot preview" />
-                <button type="button" class="feedback-screenshot__remove" onclick={removeFeedbackScreenshot}>Remove screenshot</button>
+                <button type="button" class="feedback-screenshot__remove" onclick={removeFeedbackScreenshot} disabled={feedbackSending}>Remove screenshot</button>
               </div>
             {/if}
-            <button type="submit" class="feedback-form__submit">Send Feedback</button>
+            <button type="submit" class="feedback-form__submit" disabled={feedbackSending}>
+              {feedbackSending ? 'Sending...' : 'Send Feedback'}
+            </button>
           </form>
 
           {#if feedbackNotice}
-            <p class="widget-panel__note">{feedbackNotice}</p>
+            <p class="widget-panel__note" class:widget-panel__note--error={feedbackNoticeType === 'error'}>{feedbackNotice}</p>
           {/if}
         {/if}
       </section>
@@ -1782,6 +1834,21 @@
     color: #bde3da;
     font-size: 0.78rem;
     line-height: 1.3;
+  }
+
+  .widget-panel__note--error {
+    border-color: #6a4343;
+    background: #351f1f;
+    color: #f0c4c4;
+  }
+
+  .feedback-form__submit:disabled,
+  .feedback-screenshot__remove:disabled,
+  .feedback-form input:disabled,
+  .feedback-form select:disabled,
+  .feedback-form textarea:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
   }
 
   @media (max-width: 430px) {

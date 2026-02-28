@@ -400,6 +400,23 @@
     flex: none;
   }
 
+  /* When ChatWindow is rendered inside ChatWidget expanded mode, ChatWidget owns the outer layout. */
+  :global(.chat-widget--expanded) .chat-window--expanded {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    z-index: auto;
+    box-shadow: none;
+    border: none;
+    animation: none;
+    flex: 1;
+  }
+
   @keyframes expand-window {
     from {
       opacity: 0;
@@ -684,6 +701,11 @@
       width: 95vw;
       height: 90vh;
     }
+
+    :global(.chat-widget--expanded) .chat-window--expanded {
+      width: 100%;
+      height: 100%;
+    }
   }
 
   @media (max-width: 640px) {
@@ -694,6 +716,14 @@
       top: 0;
       left: 0;
       transform: none;
+    }
+
+    :global(.chat-widget--expanded) .chat-window--expanded {
+      top: auto;
+      left: auto;
+      width: 100%;
+      height: 100%;
+      border-radius: 0;
     }
 
     .chat-window__messages {
@@ -720,4 +750,3 @@
     }
   }
 </style>
-

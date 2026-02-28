@@ -38,6 +38,7 @@ interface Bindings {
   CEREBRAS_API_KEY_PROD: string;
   GROQ_API_KEY?: string;
   GEMINI_API_KEY?: string;
+  RESEND_API_KEY: string;
   VECTORIZE_INDEX: VectorizeIndex;
   AI: Ai<AiModels>;
   ENVIRONMENT?: string;
@@ -90,6 +91,72 @@ function buildTokenUsageResponse(
 
 const app = new Hono<{ Bindings: Bindings }>();
 
+const FEEDBACK_FROM = "Cannavita Feedback <noreply@xtscale.com>";
+const FEEDBACK_TO = "hq@algohase.com";
+const FEEDBACK_MAX_MESSAGE_LEN = 4000;
+const FEEDBACK_MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const FEEDBACK_RATE_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+const FEEDBACK_RATE_MAX = 5;
+const ALLOWED_SCREENSHOT_MIME = new Set(["image/png", "image/jpeg", "image/webp"]);
+
+const feedbackRateLimitStore = new Map<string, number[]>();
+
+function cleanupRateLimitStore(now: number) {
+  for (const [key, timestamps] of feedbackRateLimitStore.entries()) {
+    const fresh = timestamps.filter((ts) => now - ts < FEEDBACK_RATE_WINDOW_MS);
+    if (fresh.length === 0) {
+      feedbackRateLimitStore.delete(key);
+      continue;
+    }
+    feedbackRateLimitStore.set(key, fresh);
+  }
+}
+
+function isRateLimited(ip: string, now: number): boolean {
+  cleanupRateLimitStore(now);
+  const timestamps = feedbackRateLimitStore.get(ip) ?? [];
+  const fresh = timestamps.filter((ts) => now - ts < FEEDBACK_RATE_WINDOW_MS);
+  if (fresh.length >= FEEDBACK_RATE_MAX) {
+    feedbackRateLimitStore.set(ip, fresh);
+    return true;
+  }
+  fresh.push(now);
+  feedbackRateLimitStore.set(ip, fresh);
+  return false;
+}
+
+function normalizeStore(rawStore: string): string {
+  return rawStore
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9._-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function toBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
 app.use('*', cors({
   origin: '*',
   allowMethods: ['GET', 'POST', 'OPTIONS'],
@@ -120,6 +187,127 @@ app.options('/chat', () => {
 
 app.get('/', (c) => {
     return c.text('hello world')
+});
+
+app.post("/feedback", async (c) => {
+  try {
+    const formData = await c.req.formData();
+
+    const name = String(formData.get("name") ?? "").trim();
+    const email = String(formData.get("email") ?? "").trim();
+    const type = String(formData.get("type") ?? "").trim().toLowerCase();
+    const message = String(formData.get("message") ?? "").trim();
+    const rawStore = String(formData.get("store") ?? "");
+    const source = String(formData.get("source") ?? "widget").trim();
+    const pageUrl = String(formData.get("pageUrl") ?? "").trim();
+    const userAgent = String(formData.get("userAgent") ?? "").trim() || c.req.header("user-agent") || "";
+    const screenshot = formData.get("screenshot");
+    const ip = c.req.header("CF-Connecting-IP") || "unknown";
+
+    const store = normalizeStore(rawStore);
+    if (!store) {
+      return c.json({ ok: false, error: "validation_error", message: "Store is required." }, 400);
+    }
+    if (!["bug", "quality", "safety", "other"].includes(type)) {
+      return c.json({ ok: false, error: "validation_error", message: "Invalid feedback type." }, 400);
+    }
+    if (!message || message.length < 5 || message.length > FEEDBACK_MAX_MESSAGE_LEN) {
+      return c.json({ ok: false, error: "validation_error", message: "Message must be between 5 and 4000 characters." }, 400);
+    }
+    if (email && !isValidEmail(email)) {
+      return c.json({ ok: false, error: "validation_error", message: "Email format is invalid." }, 400);
+    }
+
+    const now = Date.now();
+    if (isRateLimited(ip, now)) {
+      return c.json({ ok: false, error: "rate_limited", message: "Too many submissions. Please try again later." }, 429);
+    }
+
+    let attachment: { filename: string; content: string; content_type: string } | undefined;
+    if (screenshot && screenshot instanceof File && screenshot.size > 0) {
+      if (screenshot.size > FEEDBACK_MAX_FILE_SIZE) {
+        return c.json({ ok: false, error: "file_too_large", message: "Screenshot must be 5MB or smaller." }, 413);
+      }
+      if (!ALLOWED_SCREENSHOT_MIME.has(screenshot.type)) {
+        return c.json({ ok: false, error: "unsupported_file_type", message: "Only PNG, JPEG, and WEBP screenshots are allowed." }, 415);
+      }
+
+      const bytes = new Uint8Array(await screenshot.arrayBuffer());
+      attachment = {
+        filename: screenshot.name || "feedback-screenshot",
+        content: toBase64(bytes),
+        content_type: screenshot.type
+      };
+    }
+
+    const submittedAt = new Date(now).toISOString();
+    const subject = `[Cannavita Feedback][store:${store}][type:${type}]`;
+    const textBody = [
+      `Store (normalized): ${store}`,
+      `Store (raw): ${rawStore || "N/A"}`,
+      `Source: ${source || "N/A"}`,
+      `Submitted At (UTC): ${submittedAt}`,
+      `Name: ${name || "N/A"}`,
+      `Email: ${email || "N/A"}`,
+      `Type: ${type}`,
+      `Page URL: ${pageUrl || "N/A"}`,
+      `User Agent: ${userAgent || "N/A"}`,
+      `IP: ${ip}`,
+      `Screenshot: ${attachment ? "Attached" : "None"}`,
+      "",
+      "Message:",
+      message
+    ].join("\n");
+
+    const htmlBody = `
+      <h2>Cannavita Feedback Submission</h2>
+      <p><strong>Store (normalized):</strong> ${escapeHtml(store)}</p>
+      <p><strong>Store (raw):</strong> ${escapeHtml(rawStore || "N/A")}</p>
+      <p><strong>Source:</strong> ${escapeHtml(source || "N/A")}</p>
+      <p><strong>Submitted At (UTC):</strong> ${escapeHtml(submittedAt)}</p>
+      <p><strong>Name:</strong> ${escapeHtml(name || "N/A")}</p>
+      <p><strong>Email:</strong> ${escapeHtml(email || "N/A")}</p>
+      <p><strong>Type:</strong> ${escapeHtml(type)}</p>
+      <p><strong>Page URL:</strong> ${escapeHtml(pageUrl || "N/A")}</p>
+      <p><strong>User Agent:</strong> ${escapeHtml(userAgent || "N/A")}</p>
+      <p><strong>IP:</strong> ${escapeHtml(ip)}</p>
+      <p><strong>Screenshot:</strong> ${attachment ? "Attached" : "None"}</p>
+      <hr />
+      <p><strong>Message</strong></p>
+      <p>${escapeHtml(message).replace(/\n/g, "<br />")}</p>
+    `;
+
+    const resendPayload: Record<string, unknown> = {
+      from: FEEDBACK_FROM,
+      to: [FEEDBACK_TO],
+      subject,
+      text: textBody,
+      html: htmlBody
+    };
+    if (attachment) {
+      resendPayload.attachments = [attachment];
+    }
+
+    const resendResp = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${c.env.RESEND_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(resendPayload)
+    });
+
+    const resendData = await resendResp.json().catch(() => ({}));
+    if (!resendResp.ok || !resendData?.id) {
+      console.error("[Feedback] Resend error:", resendData);
+      return c.json({ ok: false, error: "email_provider_error", message: "Feedback could not be delivered." }, 502);
+    }
+
+    return c.json({ ok: true, id: resendData.id });
+  } catch (err) {
+    console.error("[Feedback] Unexpected error:", err);
+    return c.json({ ok: false, error: "internal_error", message: "Unexpected error while sending feedback." }, 500);
+  }
 });
 
 app.post("/chat/intent", async (c) => {
