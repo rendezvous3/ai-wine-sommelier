@@ -52,6 +52,7 @@
   let mode = $state<'chat' | 'guided-flow'>('chat');
 
   const BASE_URL = apiBase.replace(/\/chat\/?$/, "").replace(/\/$/, "");
+  const CHAT_BASE_URL = `${BASE_URL}/chat`;
 
   let isInitialized = $state(false);
 
@@ -735,7 +736,7 @@
     // Call recommendations API
     try {
       const resp = await fetch(
-        `${BASE_URL}/recommendations`,
+        `${CHAT_BASE_URL}/recommendations`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -868,7 +869,7 @@
 
       // STEP 1: Call backend semantic search - WAIT FOR COMPLETION
       console.log('[Product Lookup] Calling backend API with query:', productQuery);
-      const lookupResp = await fetch(`${BASE_URL}/product-lookup`, {
+      const lookupResp = await fetch(`${CHAT_BASE_URL}/product-lookup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -943,7 +944,7 @@
         return;
       }
 
-      const resp = await fetch(`${BASE_URL}/stream`, {
+      const resp = await fetch(`${CHAT_BASE_URL}/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -953,6 +954,14 @@
       });
 
       if (!resp.ok || !resp.body) {
+        const errorText = !resp.ok ? await resp.text().catch(() => "") : "";
+        console.error("[Product Context] Stream request failed", {
+          url: `${CHAT_BASE_URL}/stream`,
+          status: resp.status,
+          statusText: resp.statusText,
+          hasBody: !!resp.body,
+          responseText: errorText
+        });
         const errorMessage = product
           ? `I'm having trouble loading ${product.name}. Please try again.`
           : "I'm having trouble getting that information. Please try again.";
@@ -1094,7 +1103,7 @@
       console.log('[Follow-up] Request body keys:', Object.keys(requestBody));
       console.log('[Follow-up] clarificationContext in body:', requestBody.clarificationContext);
 
-      const resp = await fetch(`${BASE_URL}/stream`, {
+      const resp = await fetch(`${CHAT_BASE_URL}/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
@@ -1103,6 +1112,14 @@
       console.log('[Follow-up] Stream response status:', resp.status, resp.ok);
 
       if (!resp.ok || !resp.body) {
+        const errorText = !resp.ok ? await resp.text().catch(() => "") : "";
+        console.error("[Follow-up] Stream request failed", {
+          url: `${CHAT_BASE_URL}/stream`,
+          status: resp.status,
+          statusText: resp.statusText,
+          hasBody: !!resp.body,
+          responseText: errorText
+        });
         console.error('[Follow-up] Stream response not ok or no body, using fallback');
         messages = [...messages, {
           role: "assistant",
@@ -1222,7 +1239,7 @@
     let codexDetectedMidStream = false;  // Flag to stop streaming when CODEX detected
 
     try {
-      const resp = await fetch(`${BASE_URL}/stream`, {
+      const resp = await fetch(`${CHAT_BASE_URL}/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -1230,8 +1247,15 @@
 
       // Check for error response before trying to read as stream
       if (!resp.ok) {
+        const errorText = await resp.text().catch(() => "");
+        console.error("[Chat] Stream request failed", {
+          url: `${CHAT_BASE_URL}/stream`,
+          status: resp.status,
+          statusText: resp.statusText,
+          responseText: errorText
+        });
         try {
-          const errorData = await resp.json();
+          const errorData = errorText ? JSON.parse(errorText) : {};
           console.error("Stream error:", errorData);
           const errorMessage = errorData.error || "Our streaming service is experiencing technical difficulties. Please try again.";
           messages = [...messages, {
@@ -1392,7 +1416,7 @@
         const messagesForApi = messages.filter(m => !m.shimmer);
         const intentPayload = { messages: messagesForApi };
 
-        const intentResp = await fetch(`${BASE_URL}/intent`, {
+        const intentResp = await fetch(`${CHAT_BASE_URL}/intent`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(intentPayload),
@@ -1415,7 +1439,7 @@
 
         // Call recommendations API
         // IMPORTANT: Filter out shimmer messages (UI-only, not for API)
-        const recResp = await fetch(`${BASE_URL}/recommendations`, {
+        const recResp = await fetch(`${CHAT_BASE_URL}/recommendations`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1522,7 +1546,7 @@
   iconSrc={chatIcon}
   showBadge={false}
   onClearChat={handleClearChat}
-  hasMessages={messages.length > 0}
+  hasMessages={activePanel === null && messages.length > 0}
   clearButtonIcon="erase"
   mode={mode}
   onModeToggle={activePanel === null ? handleModeToggle : undefined}
@@ -1697,8 +1721,8 @@
     display: flex;
     justify-content: space-between;
     gap: 6px;
-    margin-top: 10px;
-    margin-bottom: 14px;
+    margin-top: 6px;
+    margin-bottom: 10px;
     padding-right: 54px;
   }
 
@@ -1746,13 +1770,13 @@
 
   .feedback-form {
     display: grid;
-    gap: 10px;
-    margin-top: 12px;
+    gap: 8px;
+    margin-top: 8px;
   }
 
   .feedback-form label {
     display: grid;
-    gap: 4px;
+    gap: 3px;
     font-size: 0.78rem;
     color: #d8d8d8;
   }
@@ -1775,8 +1799,8 @@
   }
 
   .feedback-form textarea {
-    min-height: 82px;
-    max-height: 100px;
+    min-height: 68px;
+    max-height: 96px;
     resize: vertical;
   }
 
@@ -1858,14 +1882,22 @@
   }
 
   .widget-panel--feedback h3 {
-    margin-top: 2px;
-    margin-bottom: 10px;
+    margin-top: 0;
+    margin-bottom: 8px;
   }
 
   .widget-panel--feedback > p {
     margin-top: 0;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
     line-height: 1.4;
+  }
+
+  .widget-panel--feedback {
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-bottom: 18px;
+    min-height: 0;
+    overscroll-behavior: contain;
   }
 
   /* Mobile: move shimmer closer to left edge to match assistant messages */

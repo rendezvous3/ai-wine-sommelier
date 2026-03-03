@@ -399,7 +399,7 @@ npx wrangler deploy
 - Deploys backend to Cloudflare Workers
 - Creates/updates Worker at `https://ecom-chat-backend.andresmeona.workers.dev`
 - Binds to Vectorize index specified in `wrangler.toml`
-- Uses environment variables from `backend/.env` and `wrangler.toml`
+- Uses variables from `wrangler.toml` and Worker secrets configured via Wrangler
 
 **Configuration** (`backend/wrangler.toml`):
 ```toml
@@ -416,6 +416,30 @@ index_name = "products-prod"
 ```
 
 **Deployed API URL**: `https://ecom-chat-backend.andresmeona.workers.dev/chat`
+
+**Feedback Email Secret (Resend)**
+
+The feedback form (`POST /feedback`) sends email via Resend and requires `RESEND_API_KEY` on the **backend Worker**.
+
+Set production secret:
+```bash
+cd backend
+npx wrangler secret put RESEND_API_KEY
+```
+
+Verify configured secrets:
+```bash
+npx wrangler secret list
+```
+
+For local `wrangler dev`, create `backend/.dev.vars`:
+```env
+RESEND_API_KEY=your_resend_api_key
+```
+
+Notes:
+- `RESEND_API_KEY` should be configured in `backend` (Worker runtime), not in `client/.env`.
+- Feedback emails currently send from `Cannavita Feedback <noreply@xtscale.com>` to `hq@algophase.com`.
 
 ---
 

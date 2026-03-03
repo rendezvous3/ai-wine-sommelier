@@ -92,7 +92,7 @@ function buildTokenUsageResponse(
 const app = new Hono<{ Bindings: Bindings }>();
 
 const FEEDBACK_FROM = "Cannavita Feedback <noreply@xtscale.com>";
-const FEEDBACK_TO = "hq@algohase.com";
+const FEEDBACK_TO = "hq@algophase.com";
 const FEEDBACK_MAX_MESSAGE_LEN = 4000;
 const FEEDBACK_MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const FEEDBACK_RATE_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
