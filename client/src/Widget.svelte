@@ -4,6 +4,7 @@
   import ChatMessage from "../../Svelte-Component-Library/src/lib/custom/ChatMessage/ChatMessage.svelte";
   import ShimmerText from "../../Svelte-Component-Library/src/lib/custom/ShimmerText/ShimmerText.svelte";
   import WelcomeQuickStart from "../../Svelte-Component-Library/src/lib/custom/WelcomeQuickStart/WelcomeQuickStart.svelte";
+  import GuideAccordionTable from "../../Svelte-Component-Library/src/lib/custom/GuideAccordionTable/GuideAccordionTable.svelte";
   import type { QuickStartRequest } from "../../Svelte-Component-Library/src/lib/custom/QuickStartPanel/QuickStartPanel.svelte";
   import type { GuidedFlowConfig } from "../../Svelte-Component-Library/src/lib/custom/GuidedFlow/types.js";
   import { getTHCScaleForCategory } from "../../Svelte-Component-Library/src/lib/custom/GuidedFlow/thcScales.js";
@@ -177,13 +178,35 @@
     <path d="M10 6V14M6 10H14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
   </svg>`;
 
+  const terpeneIcon = `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M10 17C10 13.6 12.1 11.2 15.5 10.3C13.7 13.1 12.1 15.2 10 17Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M10 17C10 13.6 7.9 11.2 4.5 10.3C6.3 13.1 7.9 15.2 10 17Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M10 4V17" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+  </svg>`;
+
+  const cannabinoidIcon = `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="10" cy="10" r="2" stroke="currentColor" stroke-width="1.4"/>
+    <circle cx="5" cy="7" r="1.5" stroke="currentColor" stroke-width="1.2"/>
+    <circle cx="14.5" cy="6" r="1.5" stroke="currentColor" stroke-width="1.2"/>
+    <circle cx="15" cy="13.5" r="1.5" stroke="currentColor" stroke-width="1.2"/>
+    <path d="M8.5 9L6.3 7.8M11.5 8.8L13.4 6.9M11.4 11.2L13.7 12.7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+  </svg>`;
+
   const menuItems = [
     { id: 'ai-disclosure', label: 'AI Disclosure', icon: 'about', iconType: 'svg' as const },
     { id: 'medical-disclosure', label: 'Medical Disclosure', icon: medicalDisclosureIcon, iconType: 'svg' as const },
-    { id: 'feedback', label: 'Send Feedback', icon: 'feedback', iconType: 'svg' as const }
+    { id: 'feedback', label: 'Send Feedback', icon: 'feedback', iconType: 'svg' as const },
+    { id: 'menu-section-guides', label: 'Guides', type: 'section' as const },
+    { id: 'terpenes-guide', label: 'Terpenes Guide', icon: terpeneIcon, iconType: 'svg' as const },
+    { id: 'cannabinoids-guide', label: 'Cannabinoids Guide', icon: cannabinoidIcon, iconType: 'svg' as const }
   ];
 
-  type PanelId = 'ai-disclosure' | 'medical-disclosure' | 'feedback';
+  type PanelId =
+    | 'ai-disclosure'
+    | 'medical-disclosure'
+    | 'feedback'
+    | 'terpenes-guide'
+    | 'cannabinoids-guide';
   let activePanel = $state<PanelId | null>(null);
   let feedbackName = $state('');
   let feedbackEmail = $state('');
@@ -206,12 +229,62 @@
   const menuRoutes: Record<string, string> = {
     'ai-disclosure': '/disclosures/ai-disclosure.html',
     'medical-disclosure': '/disclosures/medical-disclosure.html',
-    feedback: '/support/feedback.html'
+    feedback: '/support/feedback.html',
+    'terpenes-guide': '/guides/terpenes.html',
+    'cannabinoids-guide': '/guides/cannabinoids.html'
   };
 
+  type GuideItem = {
+    id: string;
+    name: string;
+    flavor: string;
+    effects: string;
+    benefits: string;
+    summary: string;
+  };
+
+  const terpeneItems: GuideItem[] = [
+    { id: 'caryophyllene', name: 'Caryophyllene', flavor: 'Peppery / Spicy', effects: 'Grounding', benefits: 'Stress support', summary: 'Known for a pepper-forward profile and a balanced, grounding feel. Often chosen by shoppers looking for evening calm without heavy sedation.' },
+    { id: 'limonene', name: 'Limonene', flavor: 'Citrus', effects: 'Uplifting', benefits: 'Mood support', summary: 'Bright citrus-forward terpene commonly associated with energetic, daytime-friendly experiences and positive mood support.' },
+    { id: 'myrcene', name: 'Myrcene', flavor: 'Earthy / Hoppy', effects: 'Relaxing', benefits: 'Body ease', summary: 'One of the most common terpenes in cannabis, typically linked to deeper body relaxation and wind-down support.' },
+    { id: 'linalool', name: 'Linalool', flavor: 'Lavender / Floral', effects: 'Calming', benefits: 'Rest support', summary: 'Floral terpene associated with calmer sessions and nighttime routines, often selected for stress-heavy days.' },
+    { id: 'pinene', name: 'Pinene', flavor: 'Pine / Herbal', effects: 'Clear-headed', benefits: 'Focus support', summary: 'Fresh pine aroma and a crisp profile often preferred for clearer, alert, daytime product experiences.' },
+    { id: 'terpinolene', name: 'Terpinolene', flavor: 'Floral / Citrus', effects: 'Energizing', benefits: 'Creative support', summary: 'Complex aromatic terpene often found in lively profiles and selected by shoppers who want a brighter, more active experience.' },
+    { id: 'ocimene', name: 'Ocimene', flavor: 'Sweet / Herbal', effects: 'Bright', benefits: 'Daytime support', summary: 'A lighter terpene profile often associated with daytime products and a clean, upbeat character.' },
+    { id: 'humulene', name: 'Humulene', flavor: 'Woody / Earthy', effects: 'Centered', benefits: 'Balance support', summary: 'Earthy and grounding terpene commonly found in hops and cannabis, often chosen for more measured sessions.' },
+    { id: 'bisabolol', name: 'Bisabolol', flavor: 'Floral / Soft', effects: 'Soothing', benefits: 'Comfort support', summary: 'Gentle floral terpene known for a softer profile and supportive calming characteristics.' },
+    { id: 'nerolidol', name: 'Nerolidol', flavor: 'Woody / Floral', effects: 'Settling', benefits: 'Evening support', summary: 'Typically found in slower, heavier profiles and often selected for nighttime or low-key routines.' }
+  ];
+
+  const cannabinoidItems: GuideItem[] = [
+    { id: 'thc', name: 'THC', flavor: 'Varies by strain', effects: 'Euphoric / Potent', benefits: 'Symptom relief support', summary: 'Primary psychoactive cannabinoid. Usually drives intensity, mood shift, and overall strength of a product experience.' },
+    { id: 'cbd', name: 'CBD', flavor: 'Mild / Earthy', effects: 'Balancing', benefits: 'Calm support', summary: 'Non-intoxicating cannabinoid often used to soften intensity and support balance, comfort, and a more controlled experience.' },
+    { id: 'cbg', name: 'CBG', flavor: 'Herbal', effects: 'Steady / Focused', benefits: 'Daytime support', summary: 'Often described as clear and centered. Commonly selected in products designed for daytime use and functional calm.' },
+    { id: 'cbn', name: 'CBN', flavor: 'Mild', effects: 'Settling', benefits: 'Sleep support', summary: 'Frequently included in nighttime formulas and products aimed at wind-down routines and deeper relaxation.' },
+    { id: 'thcv', name: 'THCV', flavor: 'Varies', effects: 'Light / Energetic', benefits: 'Focus support', summary: 'Can feel lighter and more activating than classic THC-dominant products, often used in daytime or productivity-focused offerings.' },
+    { id: 'cbc', name: 'CBC', flavor: 'Subtle', effects: 'Supportive', benefits: 'Recovery support', summary: 'Minor cannabinoid typically used alongside others to round out broad-spectrum formulations and wellness-focused effects.' },
+    { id: 'cbda', name: 'CBDA', flavor: 'Mild / Green', effects: 'Balancing', benefits: 'Comfort support', summary: 'Acidic precursor to CBD found in raw plant material and some minimally processed formulations.' },
+    { id: 'thca', name: 'THCA', flavor: 'Mild / Herbal', effects: 'Non-intoxicating', benefits: 'Wellness support', summary: 'Acidic precursor to THC that is not intoxicating until heated; appears in raw flower and extract contexts.' },
+    { id: 'delta-8-thc', name: 'Delta-8 THC', flavor: 'Varies', effects: 'Milder euphoria', benefits: 'Calm support', summary: 'Alternative THC isomer often described as gentler than Delta-9 with a softer psychoactive profile.' },
+    { id: 'delta-9-thc', name: 'Delta-9 THC', flavor: 'Varies', effects: 'Classic potency', benefits: 'Mood and symptom support', summary: 'Primary THC form in most adult-use products and the main contributor to classic cannabis intensity.' }
+  ];
+
+
   function handleMenuItemClick(itemId: string) {
-    if (itemId === 'ai-disclosure' || itemId === 'medical-disclosure' || itemId === 'feedback') {
+    if (itemId === 'menu-section-guides') return;
+    if (
+      itemId === 'ai-disclosure' ||
+      itemId === 'medical-disclosure' ||
+      itemId === 'feedback' ||
+      itemId === 'terpenes-guide' ||
+      itemId === 'cannabinoids-guide'
+    ) {
       activePanel = itemId;
+      requestAnimationFrame(() => {
+        const shadowRoot = document.getElementById('AiChatBot-Widget-Root')?.shadowRoot;
+        const container = shadowRoot?.querySelector('.chat-window__messages') as HTMLElement | null;
+        if (container) container.scrollTop = 0;
+      });
     }
   }
 
@@ -1556,6 +1629,8 @@
   darkMode={true}
   noAssistantBubble={true}
   showInput={activePanel === null}
+  showScrollButton={activePanel === null}
+  panelOpen={activePanel !== null}
 >
   {#snippet children()}
     {#if activePanel === null}
@@ -1593,20 +1668,24 @@
         {/if}
       {/each}
     {:else}
-      <section class="widget-panel" class:widget-panel--feedback={activePanel === 'feedback'}>
+      <section
+        class="widget-panel"
+        class:widget-panel--feedback={activePanel === 'feedback'}
+        class:widget-panel--scrollable={activePanel === 'terpenes-guide' || activePanel === 'cannabinoids-guide'}
+      >
         <div class="widget-panel__top">
           <button type="button" class="widget-panel__back" onclick={closePanel} aria-label="Back to chat">
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 14L8 10L12 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </button>
-          <button type="button" class="widget-panel__external-link" onclick={() => openExternalPanelPage(activePanel)}>
-            Full Page
-          </button>
         </div>
 
         {#if activePanel === 'ai-disclosure'}
-          <h3>AI Assistant Disclosure</h3>
+          <div class="widget-panel__title-row">
+            <h3>AI Assistant Disclosure</h3>
+            <button type="button" class="widget-panel__external-link" onclick={() => openExternalPanelPage(activePanel)}>Full Page</button>
+          </div>
           <p>This assistant is experimental. Responses are generated automatically and may be incomplete, inaccurate, or outdated.</p>
           <ul>
             <li>Use guidance as informational, not guaranteed advice.</li>
@@ -1615,7 +1694,10 @@
           </ul>
           <p class="widget-panel__note">For urgent health concerns, contact a licensed medical professional or call 911.</p>
         {:else if activePanel === 'medical-disclosure'}
-          <h3>Medical and Recreational Disclosure</h3>
+          <div class="widget-panel__title-row">
+            <h3>Medical and Recreational Disclosure</h3>
+            <button type="button" class="widget-panel__external-link" onclick={() => openExternalPanelPage(activePanel)}>Full Page</button>
+          </div>
           <p>Cannavita is a recreational dispensary. Content in this widget is for retail and educational purposes only.</p>
           <ul>
             <li>No statements here diagnose, treat, cure, or prevent disease.</li>
@@ -1624,7 +1706,10 @@
             <li>Keep all cannabis products away from children and pets.</li>
           </ul>
         {:else if activePanel === 'feedback'}
-          <h3>Send Feedback</h3>
+          <div class="widget-panel__title-row">
+            <h3>Send Feedback</h3>
+            <button type="button" class="widget-panel__external-link" onclick={() => openExternalPanelPage(activePanel)}>Full Page</button>
+          </div>
           <p>Share bugs, safety concerns, or recommendation quality issues.</p>
 
           <form class="feedback-form" onsubmit={(event) => { event.preventDefault(); submitFeedback(); }}>
@@ -1669,6 +1754,20 @@
           {#if feedbackNotice}
             <p class="widget-panel__note" class:widget-panel__note--error={feedbackNoticeType === 'error'}>{feedbackNotice}</p>
           {/if}
+        {:else if activePanel === 'terpenes-guide'}
+          <div class="widget-panel__title-row">
+            <h3>Terpenes Guide</h3>
+            <button type="button" class="widget-panel__external-link" onclick={() => openExternalPanelPage(activePanel)}>Full Page</button>
+          </div>
+          <p>Terpenes are aromatic compounds that shape flavor and can influence how a product feels. They work alongside cannabinoids to create a broader effect profile.</p>
+          <GuideAccordionTable rows={terpeneItems} />
+        {:else if activePanel === 'cannabinoids-guide'}
+          <div class="widget-panel__title-row">
+            <h3>Cannabinoids Guide</h3>
+            <button type="button" class="widget-panel__external-link" onclick={() => openExternalPanelPage(activePanel)}>Full Page</button>
+          </div>
+          <p>Cannabinoids are active compounds in cannabis that influence intensity, mood, and body feel. Product outcomes depend on cannabinoid balance, terpene profile, and dose.</p>
+          <GuideAccordionTable rows={cannabinoidItems} />
         {/if}
       </section>
     {/if}
@@ -1691,12 +1790,13 @@
   }
 
   .widget-panel {
-    height: 100%;
-    padding: 14px 12px 14px;
+    min-height: 100%;
+    height: auto;
+    padding: 14px 12px 20px;
     color: #ebebeb;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .widget-panel h3 {
@@ -1719,11 +1819,23 @@
 
   .widget-panel__top {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 6px;
     margin-top: 6px;
-    margin-bottom: 10px;
-    padding-right: 54px;
+    margin-bottom: 8px;
+    padding-right: 0;
+  }
+
+  .widget-panel__title-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 2px;
+  }
+
+  .widget-panel__title-row h3 {
+    margin: 0;
   }
 
   .widget-panel__back,
@@ -1756,12 +1868,13 @@
     border: none;
     background: transparent;
     color: #71d0c2;
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     line-height: 1;
-    padding: 8px 2px;
+    padding: 4px 2px;
     text-decoration: underline;
     text-underline-offset: 2px;
     cursor: pointer;
+    white-space: nowrap;
   }
 
   .widget-panel__external-link:hover {
@@ -1893,11 +2006,11 @@
   }
 
   .widget-panel--feedback {
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding-bottom: 18px;
-    min-height: 0;
-    overscroll-behavior: contain;
+    padding-bottom: 24px;
+  }
+
+  .widget-panel--scrollable {
+    padding-bottom: 28px;
   }
 
   /* Mobile: move shimmer closer to left edge to match assistant messages */

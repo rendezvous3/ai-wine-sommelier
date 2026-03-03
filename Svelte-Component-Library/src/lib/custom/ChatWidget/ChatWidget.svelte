@@ -11,6 +11,7 @@
     label: string;
     icon?: string;
     iconType?: 'svg' | 'emoji';
+    type?: 'item' | 'section';
     onClick?: () => void;
   }
 
@@ -40,6 +41,8 @@
     onClearChat?: () => void;
     hasMessages?: boolean;
     clearButtonIcon?: 'trash' | 'x-circle' | 'refresh' | 'erase' | 'cross';
+    showScrollButton?: boolean;
+    panelOpen?: boolean;
     mode?: 'chat' | 'guided-flow';
     onModeToggle?: () => void;
     modeTogglePosition?: 'upper-left' | 'upper-right' | 'lower-left';
@@ -76,6 +79,8 @@
     onClearChat,
     hasMessages = true,
     clearButtonIcon,
+    showScrollButton = true,
+    panelOpen = false,
     mode = 'chat',
     onModeToggle,
     modeTogglePosition = 'upper-left',
@@ -187,7 +192,7 @@
         expanded={isExpanded}
         onExpand={handleExpand}
         subheader={subheader}
-        showScrollButton={true}
+        {showScrollButton}
         expandIcon={expandIcon}
         onClearChat={onClearChat}
         {hasMessages}
@@ -199,6 +204,7 @@
         messagesCount={messagesCount}
         onSend={onSend}
         noAssistantBubble={noAssistantBubble}
+        {panelOpen}
       >
         {#if children}
           {@render children()}

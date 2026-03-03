@@ -25,6 +25,7 @@
     messagesCount?: number;
     onSend?: (message: string) => void;
     noAssistantBubble?: boolean;
+    panelOpen?: boolean;
   }
 
   let {
@@ -44,7 +45,8 @@
     guidedFlowConfig,
     messagesCount = 0,
     onSend,
-    noAssistantBubble
+    noAssistantBubble,
+    panelOpen = false
   }: ChatWindowProps = $props();
 
   // Get noAssistantBubble from parent context (ChatWidget) or use prop
@@ -138,11 +140,13 @@
       <GuidedFlow config={guidedFlowConfig} />
     </div>
   {:else}
-    <div class="chat-window__messages" bind:this={messagesContainerRef} onscroll={handleScroll}>
+    <div class="chat-window__messages" class:chat-window__messages--panel-open={panelOpen} bind:this={messagesContainerRef} onscroll={handleScroll}>
       {#if children}
         {@render children()}
       {/if}
-      <div bind:this={messagesEndRef} class="chat-window__messages-end"></div>
+      {#if !panelOpen}
+        <div bind:this={messagesEndRef} class="chat-window__messages-end"></div>
+      {/if}
     </div>
   {/if}
 
@@ -449,6 +453,11 @@
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     background: #f9fafa;
+  }
+
+  .chat-window__messages--panel-open {
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .chat-window__messages::-webkit-scrollbar {

@@ -6,6 +6,7 @@
     label: string;
     icon?: string;
     iconType?: 'svg' | 'emoji';
+    type?: 'item' | 'section';
     onClick?: () => void;
   }
 
@@ -329,26 +330,30 @@
         </div>
       {/if}
       {#each menuItems as item (item.id)}
-        <button
-          class="chat-header__menu-item"
-          onclick={() => handleMenuItemClick(item)}
-          type="button"
-        >
-          {#if item.icon}
-            {@const iconContent = renderIcon(item.icon, item.iconType)}
-            {@const isSvg = iconContent && typeof iconContent === 'string' && iconContent.trim().startsWith('<svg')}
-            {#if iconContent}
-              <span class="chat-header__menu-item-icon" class:chat-header__menu-item-icon--svg={isSvg}>
-                {#if isSvg}
-                  {@html iconContent}
-                {:else}
-                  {iconContent}
-                {/if}
-              </span>
+        {#if item.type === 'section'}
+          <div class="chat-header__menu-section">{item.label}</div>
+        {:else}
+          <button
+            class="chat-header__menu-item"
+            onclick={() => handleMenuItemClick(item)}
+            type="button"
+          >
+            {#if item.icon}
+              {@const iconContent = renderIcon(item.icon, item.iconType)}
+              {@const isSvg = iconContent && typeof iconContent === 'string' && iconContent.trim().startsWith('<svg')}
+              {#if iconContent}
+                <span class="chat-header__menu-item-icon" class:chat-header__menu-item-icon--svg={isSvg}>
+                  {#if isSvg}
+                    {@html iconContent}
+                  {:else}
+                    {iconContent}
+                  {/if}
+                </span>
+              {/if}
             {/if}
-          {/if}
-          <span class="chat-header__menu-item-label">{item.label}</span>
-        </button>
+            <span class="chat-header__menu-item-label">{item.label}</span>
+          </button>
+        {/if}
       {/each}
     </div>
   {/if}
@@ -1060,6 +1065,17 @@
     flex: 1;
   }
 
+  .chat-header__menu-section {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+    color: #7f8ca6;
+    padding: 10px 18px 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    margin-top: 4px;
+  }
+
   /* Dark mode for menu */
   :global(.dark) .chat-header__menu-dropdown,
   :global([data-theme="dark"]) .chat-header__menu-dropdown {
@@ -1105,6 +1121,12 @@
     color: #cccccc;
   }
 
+  :global(.dark) .chat-header__menu-section,
+  :global([data-theme="dark"]) .chat-header__menu-section {
+    color: #8f9ab0;
+    border-top-color: rgba(255, 255, 255, 0.08);
+  }
+
   :global(.dark) .chat-header__menu-item:hover,
   :global([data-theme="dark"]) .chat-header__menu-item:hover {
     background: rgba(45, 45, 48, 1);
@@ -1132,4 +1154,3 @@
     color: #cccccc;
   }
 </style>
-
