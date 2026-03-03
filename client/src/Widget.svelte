@@ -1790,12 +1790,12 @@
   }
 
   .widget-panel {
-    min-height: 100%;
+    min-height: auto;
     height: auto;
+    flex: 0 0 auto;
     padding: 14px 12px 20px;
     color: #ebebeb;
-    display: flex;
-    flex-direction: column;
+    display: block;
     overflow: visible;
   }
 

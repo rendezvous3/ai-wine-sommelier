@@ -456,6 +456,7 @@
   }
 
   .chat-window__messages--panel-open {
+    display: block;
     overflow-y: auto;
     overscroll-behavior: contain;
   }

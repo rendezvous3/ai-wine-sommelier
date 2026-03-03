@@ -71,6 +71,7 @@
 <style>
   .guide-table {
     margin-top: 8px;
+    flex-shrink: 0;
     border: 1px solid #2f3542;
     border-radius: 10px;
     overflow: hidden;
