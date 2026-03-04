@@ -45,6 +45,7 @@
   let menuOpen = $state(false);
   let menuButtonRef: HTMLButtonElement | null = $state(null);
   let menuDropdownRef: HTMLDivElement | null = $state(null);
+  const menuPanelId = `chat-header-menu-${Math.random().toString(36).slice(2, 10)}`;
 
   let headerClasses = $derived(
     [
@@ -105,8 +106,52 @@
     return '#1f2937';
   });
 
+  function getMenuFocusableElements(): HTMLElement[] {
+    if (!menuDropdownRef) return [];
+    const selectors = [
+      'button:not([disabled])',
+      'a[href]',
+      'input:not([disabled])',
+      'select:not([disabled])',
+      'textarea:not([disabled])',
+      '[tabindex]:not([tabindex="-1"])'
+    ].join(',');
+
+    return Array.from(menuDropdownRef.querySelectorAll<HTMLElement>(selectors)).filter((el) => {
+      return !el.hasAttribute('disabled') && el.getAttribute('aria-hidden') !== 'true';
+    });
+  }
+
+  function focusFirstMenuItem() {
+    requestAnimationFrame(() => {
+      const [first] = getMenuFocusableElements();
+      first?.focus();
+    });
+  }
+
+  function closeMenu(restoreFocus = false) {
+    menuOpen = false;
+    if (restoreFocus) {
+      requestAnimationFrame(() => menuButtonRef?.focus());
+    }
+  }
+
+  function getCurrentActiveElement(): HTMLElement | null {
+    if (!menuDropdownRef) return document.activeElement as HTMLElement | null;
+    const root = menuDropdownRef.getRootNode();
+    if (root instanceof ShadowRoot) {
+      return root.activeElement as HTMLElement | null;
+    }
+    return document.activeElement as HTMLElement | null;
+  }
+
   function toggleMenu() {
-    menuOpen = !menuOpen;
+    if (menuOpen) {
+      closeMenu(true);
+      return;
+    }
+    menuOpen = true;
+    focusFirstMenuItem();
   }
 
   function handleMenuItemClick(item: MenuItem) {
@@ -116,7 +161,7 @@
     if (onMenuItemClick) {
       onMenuItemClick(item.id);
     }
-    menuOpen = false;
+    closeMenu(false);
   }
 
   // Close menu when clicking outside
@@ -128,7 +173,7 @@
       if (menuMode === 'sidebar') {
         // For sidebar, close on overlay click
         if (target instanceof HTMLElement && target.classList.contains('chat-header__menu-overlay')) {
-          menuOpen = false;
+          closeMenu(false);
         }
       } else {
         // For dropdown, close on outside click
@@ -138,14 +183,39 @@
           !menuButtonRef.contains(target) &&
           !menuDropdownRef.contains(target)
         ) {
-          menuOpen = false;
+          closeMenu(false);
         }
       }
     }
 
     function handleEscape(event: KeyboardEvent) {
       if (event.key === 'Escape') {
-        menuOpen = false;
+        event.preventDefault();
+        closeMenu(true);
+      }
+
+      if (event.key === 'Tab' && menuDropdownRef) {
+        const focusable = getMenuFocusableElements();
+        if (focusable.length === 0) return;
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const activeElement = getCurrentActiveElement();
+        const activeWithinMenu = activeElement ? menuDropdownRef.contains(activeElement) : false;
+
+        if (!activeWithinMenu) {
+          event.preventDefault();
+          (event.shiftKey ? last : first).focus();
+          return;
+        }
+
+        if (!event.shiftKey && activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        } else if (event.shiftKey && activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        }
       }
     }
 
@@ -218,6 +288,8 @@
         onclick={toggleMenu}
         aria-label="Open menu"
         aria-expanded={menuOpen}
+        aria-controls={menuPanelId}
+        aria-haspopup={menuMode === 'sidebar' ? 'dialog' : 'menu'}
         type="button"
       >
         <svg
@@ -255,6 +327,8 @@
           onclick={toggleMenu}
           aria-label="Open menu"
           aria-expanded={menuOpen}
+          aria-controls={menuPanelId}
+          aria-haspopup={menuMode === 'sidebar' ? 'dialog' : 'menu'}
           type="button"
         >
           <svg
@@ -302,8 +376,8 @@
   {#if menuOpen && menuMode === 'sidebar'}
     <button
       class="chat-header__menu-overlay"
-      onclick={() => menuOpen = false}
-      onkeydown={(e) => e.key === 'Enter' && (menuOpen = false)}
+      onclick={() => closeMenu(false)}
+      onkeydown={(e) => e.key === 'Enter' && closeMenu(false)}
       aria-label="Close menu"
       type="button"
     ></button>
@@ -312,14 +386,18 @@
   {#if menuOpen && hasMenuItems}
     <div
       bind:this={menuDropdownRef}
+      id={menuPanelId}
       class={menuDropdownClasses}
+      role={menuMode === 'sidebar' ? 'dialog' : 'menu'}
+      aria-modal={menuMode === 'sidebar' ? 'true' : undefined}
+      aria-label="Chat menu"
     >
       {#if menuMode === 'sidebar'}
         <div class="chat-header__sidebar-header">
           <span class="chat-header__sidebar-title">Menu</span>
           <button
             class="chat-header__sidebar-close"
-            onclick={() => menuOpen = false}
+            onclick={() => closeMenu(true)}
             aria-label="Close menu"
             type="button"
           >
@@ -1152,5 +1230,13 @@
   :global([data-theme="dark"]) .chat-header__menu-item:active {
     background: rgba(45, 45, 48, 1);
     color: #cccccc;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chat-header,
+    .chat-header * {
+      animation: none !important;
+      transition: none !important;
+    }
   }
 </style>

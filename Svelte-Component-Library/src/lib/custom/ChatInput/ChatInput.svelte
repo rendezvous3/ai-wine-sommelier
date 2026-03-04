@@ -75,6 +75,13 @@
   let selectedModel = $state('gpt-4');
   let selectedTemperature = $state('balanced');
   let selectedSpeed = $state('1x');
+  const dropdownIdPrefix = `chat-input-${Math.random().toString(36).slice(2, 10)}`;
+  let agentTriggerRef: HTMLButtonElement | null = $state(null);
+  let modelTriggerRef: HTMLButtonElement | null = $state(null);
+  let temperatureTriggerRef: HTMLButtonElement | null = $state(null);
+  let speedTriggerRef: HTMLButtonElement | null = $state(null);
+
+  type DropdownName = 'agent' | 'model' | 'temperature' | 'speed';
 
   // Get themeBackgroundColor from context (provided by ChatWidget) as fallback
   let contextThemeStore = getContext<{ value: string | undefined } | undefined>('themeBackgroundColor');
@@ -185,6 +192,85 @@
     else if (dropdown === 'speed') speedDropdownOpen = !speedDropdownOpen;
     else if (dropdown === 'formatting') formattingMenuOpen = !formattingMenuOpen;
     else if (dropdown === 'emoji') emojiPickerOpen = !emojiPickerOpen;
+  }
+
+  function isDropdownOpen(dropdown: DropdownName): boolean {
+    if (dropdown === 'agent') return agentDropdownOpen;
+    if (dropdown === 'model') return modelDropdownOpen;
+    if (dropdown === 'temperature') return temperatureDropdownOpen;
+    return speedDropdownOpen;
+  }
+
+  function setDropdownOpen(dropdown: DropdownName, open: boolean) {
+    if (dropdown === 'agent') agentDropdownOpen = open;
+    else if (dropdown === 'model') modelDropdownOpen = open;
+    else if (dropdown === 'temperature') temperatureDropdownOpen = open;
+    else speedDropdownOpen = open;
+  }
+
+  function getDropdownId(dropdown: DropdownName): string {
+    return `${dropdownIdPrefix}-${dropdown}-listbox`;
+  }
+
+  function getDropdownTrigger(dropdown: DropdownName): HTMLButtonElement | null {
+    if (dropdown === 'agent') return agentTriggerRef;
+    if (dropdown === 'model') return modelTriggerRef;
+    if (dropdown === 'temperature') return temperatureTriggerRef;
+    return speedTriggerRef;
+  }
+
+  function focusDropdownOption(dropdown: DropdownName, index: number) {
+    const listbox = document.getElementById(getDropdownId(dropdown));
+    if (!listbox) return;
+    const options = Array.from(listbox.querySelectorAll<HTMLButtonElement>('.chat-input__dropdown-option'));
+    const target = options[index];
+    target?.focus();
+  }
+
+  function handleDropdownTriggerKeydown(event: KeyboardEvent, dropdown: DropdownName) {
+    if (disabled) return;
+    if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      if (!isDropdownOpen(dropdown)) {
+        toggleDropdown(dropdown);
+        requestAnimationFrame(() => {
+          focusDropdownOption(dropdown, 0);
+        });
+      } else {
+        focusDropdownOption(dropdown, 0);
+      }
+    }
+    if (event.key === 'Escape' && isDropdownOpen(dropdown)) {
+      event.preventDefault();
+      setDropdownOpen(dropdown, false);
+    }
+  }
+
+  function handleDropdownOptionKeydown(
+    event: KeyboardEvent,
+    dropdown: DropdownName,
+    optionIndex: number,
+    optionCount: number
+  ) {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      focusDropdownOption(dropdown, (optionIndex + 1) % optionCount);
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      focusDropdownOption(dropdown, (optionIndex - 1 + optionCount) % optionCount);
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setDropdownOpen(dropdown, false);
+      getDropdownTrigger(dropdown)?.focus();
+      return;
+    }
+    if (event.key === 'Tab') {
+      setDropdownOpen(dropdown, false);
+    }
   }
 
   // Remove auto-resize effects - they cause infinite loops
@@ -332,9 +418,14 @@
             {#if showAgent}
               <div class="chat-input__dropdown-wrapper">
                 <button
+                  bind:this={agentTriggerRef}
                   class="chat-input__dropdown-button"
                   onclick={() => toggleDropdown('agent')}
                   aria-label="Select agent"
+                  aria-haspopup="listbox"
+                  aria-expanded={agentDropdownOpen}
+                  aria-controls={getDropdownId('agent')}
+                  onkeydown={(event) => handleDropdownTriggerKeydown(event, 'agent')}
                   type="button"
                   {disabled}
                 >
@@ -345,12 +436,15 @@
                   </svg>
                 </button>
                 {#if agentDropdownOpen}
-                  <div class="chat-input__dropdown">
-                    {#each agents as agent (agent.id)}
+                  <div class="chat-input__dropdown" id={getDropdownId('agent')} role="listbox" aria-label="Select agent">
+                    {#each agents as agent, optionIndex (agent.id)}
                       <button
                         class="chat-input__dropdown-option"
                         class:chat-input__dropdown-option--active={selectedAgent === agent.id}
                         onclick={() => { selectedAgent = agent.id; agentDropdownOpen = false; }}
+                        onkeydown={(event) => handleDropdownOptionKeydown(event, 'agent', optionIndex, agents.length)}
+                        role="option"
+                        aria-selected={selectedAgent === agent.id}
                         type="button"
                       >
                         <span class="chat-input__dropdown-option-icon">{agent.icon}</span>
@@ -365,9 +459,14 @@
             {#if showModel}
               <div class="chat-input__dropdown-wrapper">
                 <button
+                  bind:this={modelTriggerRef}
                   class="chat-input__dropdown-button"
                   onclick={() => toggleDropdown('model')}
                   aria-label="Select model"
+                  aria-haspopup="listbox"
+                  aria-expanded={modelDropdownOpen}
+                  aria-controls={getDropdownId('model')}
+                  onkeydown={(event) => handleDropdownTriggerKeydown(event, 'model')}
                   type="button"
                   {disabled}
                 >
@@ -377,12 +476,15 @@
                   </svg>
                 </button>
                 {#if modelDropdownOpen}
-                  <div class="chat-input__dropdown">
-                    {#each models as model (model.id)}
+                  <div class="chat-input__dropdown" id={getDropdownId('model')} role="listbox" aria-label="Select model">
+                    {#each models as model, optionIndex (model.id)}
                       <button
                         class="chat-input__dropdown-option"
                         class:chat-input__dropdown-option--active={selectedModel === model.id}
                         onclick={() => { selectedModel = model.id; modelDropdownOpen = false; }}
+                        onkeydown={(event) => handleDropdownOptionKeydown(event, 'model', optionIndex, models.length)}
+                        role="option"
+                        aria-selected={selectedModel === model.id}
                         type="button"
                       >
                         <div class="chat-input__dropdown-option-content">
@@ -399,9 +501,14 @@
             {#if showTemperature}
               <div class="chat-input__dropdown-wrapper">
                 <button
+                  bind:this={temperatureTriggerRef}
                   class="chat-input__dropdown-button chat-input__dropdown-button--compact"
                   onclick={() => toggleDropdown('temperature')}
                   aria-label="Select temperature"
+                  aria-haspopup="listbox"
+                  aria-expanded={temperatureDropdownOpen}
+                  aria-controls={getDropdownId('temperature')}
+                  onkeydown={(event) => handleDropdownTriggerKeydown(event, 'temperature')}
                   type="button"
                   {disabled}
                 >
@@ -411,12 +518,15 @@
                   </svg>
                 </button>
                 {#if temperatureDropdownOpen}
-                  <div class="chat-input__dropdown">
-                    {#each temperatures as temp (temp.id)}
+                  <div class="chat-input__dropdown" id={getDropdownId('temperature')} role="listbox" aria-label="Select temperature">
+                    {#each temperatures as temp, optionIndex (temp.id)}
                       <button
                         class="chat-input__dropdown-option"
                         class:chat-input__dropdown-option--active={selectedTemperature === temp.id}
                         onclick={() => { selectedTemperature = temp.id; temperatureDropdownOpen = false; }}
+                        onkeydown={(event) => handleDropdownOptionKeydown(event, 'temperature', optionIndex, temperatures.length)}
+                        role="option"
+                        aria-selected={selectedTemperature === temp.id}
                         type="button"
                       >
                         <span class="chat-input__dropdown-option-label">{temp.label}</span>
@@ -430,9 +540,14 @@
             {#if showSpeed}
               <div class="chat-input__dropdown-wrapper">
                 <button
+                  bind:this={speedTriggerRef}
                   class="chat-input__dropdown-button chat-input__dropdown-button--compact"
                   onclick={() => toggleDropdown('speed')}
                   aria-label="Select speed"
+                  aria-haspopup="listbox"
+                  aria-expanded={speedDropdownOpen}
+                  aria-controls={getDropdownId('speed')}
+                  onkeydown={(event) => handleDropdownTriggerKeydown(event, 'speed')}
                   type="button"
                   {disabled}
                 >
@@ -442,12 +557,15 @@
                   </svg>
                 </button>
                 {#if speedDropdownOpen}
-                  <div class="chat-input__dropdown">
-                    {#each speeds as speed (speed.id)}
+                  <div class="chat-input__dropdown" id={getDropdownId('speed')} role="listbox" aria-label="Select speed">
+                    {#each speeds as speed, optionIndex (speed.id)}
                       <button
                         class="chat-input__dropdown-option"
                         class:chat-input__dropdown-option--active={selectedSpeed === speed.id}
                         onclick={() => { selectedSpeed = speed.id; speedDropdownOpen = false; }}
+                        onkeydown={(event) => handleDropdownOptionKeydown(event, 'speed', optionIndex, speeds.length)}
+                        role="option"
+                        aria-selected={selectedSpeed === speed.id}
                         type="button"
                       >
                         <div class="chat-input__dropdown-option-content">
@@ -1392,6 +1510,18 @@
     cursor: not-allowed;
   }
 
+  .chat-input__field:focus-visible,
+  .chat-input__button:focus-visible,
+  .chat-input__action-button:focus-visible,
+  .chat-input__send-button-bottom:focus-visible,
+  .chat-input__dropdown-button:focus-visible,
+  .chat-input__dropdown-option:focus-visible,
+  .chat-input__emoji-item:focus-visible,
+  .chat-input__formatting-option:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+
   .chat-input__button--send {
     background: var(--send-button-bg, linear-gradient(135deg, #3b82f6 0%, #2563eb 100%));
     color: #ffffff;
@@ -1646,5 +1776,13 @@
       grid-template-columns: repeat(6, 1fr);
     }
   }
-</style>
 
+  @media (prefers-reduced-motion: reduce) {
+    .chat-input,
+    .chat-input * {
+      animation: none !important;
+      transition: none !important;
+      scroll-behavior: auto !important;
+    }
+  }
+</style>

@@ -26,6 +26,9 @@
     onSend?: (message: string) => void;
     noAssistantBubble?: boolean;
     panelOpen?: boolean;
+    ariaMessageLogLabel?: string;
+    announceStreamingMode?: 'final-only' | 'incremental';
+    announcementText?: string;
   }
 
   let {
@@ -46,7 +49,10 @@
     messagesCount = 0,
     onSend,
     noAssistantBubble,
-    panelOpen = false
+    panelOpen = false,
+    ariaMessageLogLabel = 'Chat messages',
+    announceStreamingMode = 'final-only',
+    announcementText = ''
   }: ChatWindowProps = $props();
 
   // Get noAssistantBubble from parent context (ChatWidget) or use prop
@@ -66,6 +72,8 @@
   let messagesEndRef: HTMLDivElement | null = $state(null);
   let showScrollToBottom = $state(false);
   let messagesContainerRef: HTMLDivElement | null = $state(null);
+  let previousMessagesCount = $state(messagesCount);
+  let liveAnnouncement = $state('');
 
   // Sync internal state with prop changes
   $effect(() => {
@@ -122,6 +130,27 @@
       });
     }
   });
+
+  // In final-only mode, announce additions once per completed message
+  // instead of announcing every streaming token update.
+  $effect(() => {
+    if (mode !== 'chat' || panelOpen || announceStreamingMode !== 'final-only') {
+      previousMessagesCount = messagesCount;
+      return;
+    }
+
+    if (messagesCount > previousMessagesCount) {
+      const added = messagesCount - previousMessagesCount;
+      liveAnnouncement = added === 1 ? 'New chat message received.' : `${added} new chat messages received.`;
+    }
+    previousMessagesCount = messagesCount;
+  });
+
+  $effect(() => {
+    if (announcementText) {
+      liveAnnouncement = announcementText;
+    }
+  });
 </script>
 
 <div class={windowClasses}>
@@ -140,7 +169,17 @@
       <GuidedFlow config={guidedFlowConfig} />
     </div>
   {:else}
-    <div class="chat-window__messages" class:chat-window__messages--panel-open={panelOpen} bind:this={messagesContainerRef} onscroll={handleScroll}>
+    <div
+      class="chat-window__messages"
+      class:chat-window__messages--panel-open={panelOpen}
+      bind:this={messagesContainerRef}
+      onscroll={handleScroll}
+      role="log"
+      aria-live={announceStreamingMode === 'incremental' ? 'polite' : 'off'}
+      aria-relevant="additions text"
+      aria-atomic="false"
+      aria-label={ariaMessageLogLabel}
+    >
       {#if children}
         {@render children()}
       {/if}
@@ -149,6 +188,8 @@
       {/if}
     </div>
   {/if}
+
+  <div class="chat-window__sr-only" role="status" aria-live="polite" aria-atomic="true">{liveAnnouncement}</div>
 
   {#if expanded && mode === 'chat' && onSend}
     <div class="chat-window__input-wrapper">
@@ -386,6 +427,18 @@
     transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     margin-top: -2px; /* Overlap wavy border to prevent background showing */
+  }
+
+  .chat-window__sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .chat-window--expanded {
@@ -757,6 +810,15 @@
 
     .chat-window--expanded .chat-window__mode-toggle--lower-left {
       bottom: 100px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chat-window,
+    .chat-window * {
+      animation: none !important;
+      transition: none !important;
+      scroll-behavior: auto !important;
     }
   }
 </style>

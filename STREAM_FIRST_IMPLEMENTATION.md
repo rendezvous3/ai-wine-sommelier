@@ -548,6 +548,20 @@ console.log('[RECOMMENDATIONS]', 'Pre-rank:', preRankCount, 'Post-rank:', postRa
 
 ---
 
+## Accessibility Addendum (WCAG 2.1 AA)
+
+The stream-first widget now includes accessibility compliance work scoped to the embedded experience:
+
+- Chat message rendering is exposed as an assistive-friendly message log with live announcements.
+- Streaming announcements are constrained to final-message mode to reduce screen reader noise.
+- Widget panels use modal dialog semantics with keyboard focus trapping and Escape-to-close.
+- Focus is restored to the originating control when panel closes.
+- Feedback form success/error responses are announced via status/alert semantics.
+- Chat input custom dropdowns include listbox/option ARIA semantics plus arrow-key navigation.
+- Reduced-motion fallback rules were added across key animated components.
+
+---
+
 ## Success Metrics
 
 **Launch Criteria (All Must Pass):**

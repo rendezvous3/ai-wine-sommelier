@@ -217,6 +217,10 @@
   let feedbackSending = $state(false);
   let feedbackScreenshotFile = $state<File | null>(null);
   let feedbackScreenshotPreview = $state('');
+  let panelRef = $state<HTMLElement | null>(null);
+  let panelBackButtonRef = $state<HTMLButtonElement | null>(null);
+  let lastFocusedElement = $state<HTMLElement | null>(null);
+  let a11yAnnouncement = $state('');
   const popularRequests: QuickStartRequest[] = [
     { label: 'Potent Flower', prompt: 'potent flower', icon: flowerIcon },
     { label: 'Uplifting Vape', prompt: 'uplifting vape', icon: vapeIcon },
@@ -279,11 +283,16 @@
       itemId === 'terpenes-guide' ||
       itemId === 'cannabinoids-guide'
     ) {
+      if (document.activeElement instanceof HTMLElement) {
+        lastFocusedElement = document.activeElement;
+      }
       activePanel = itemId;
+      a11yAnnouncement = `${menuItems.find((item) => item.id === itemId)?.label ?? 'Panel'} opened.`;
       requestAnimationFrame(() => {
         const shadowRoot = document.getElementById('AiChatBot-Widget-Root')?.shadowRoot;
         const container = shadowRoot?.querySelector('.chat-window__messages') as HTMLElement | null;
         if (container) container.scrollTop = 0;
+        panelBackButtonRef?.focus();
       });
     }
   }
@@ -303,10 +312,16 @@
   }
 
   function closePanel() {
+    const closingPanel = activePanel;
     activePanel = null;
     feedbackNotice = '';
     feedbackNoticeType = null;
     removeFeedbackScreenshot();
+    a11yAnnouncement = `${closingPanel ? menuItems.find((item) => item.id === closingPanel)?.label ?? 'Panel' : 'Panel'} closed.`;
+    requestAnimationFrame(() => {
+      lastFocusedElement?.focus();
+      lastFocusedElement = null;
+    });
   }
 
   function handleFeedbackScreenshotChange(event: Event) {
@@ -340,6 +355,7 @@
     if (!feedbackMessage.trim()) {
       feedbackNotice = 'Please add a message before sending feedback.';
       feedbackNoticeType = 'error';
+      a11yAnnouncement = feedbackNotice;
       return;
     }
 
@@ -373,6 +389,7 @@
 
       feedbackNotice = 'Thanks, your feedback has been sent successfully.';
       feedbackNoticeType = 'success';
+      a11yAnnouncement = feedbackNotice;
       feedbackName = '';
       feedbackEmail = '';
       feedbackType = 'quality';
@@ -381,6 +398,7 @@
     } catch (err) {
       feedbackNotice = err instanceof Error ? err.message : 'Unable to send feedback right now.';
       feedbackNoticeType = 'error';
+      a11yAnnouncement = feedbackNotice;
     } finally {
       feedbackSending = false;
     }
@@ -415,6 +433,70 @@
     if (feedbackScreenshotPreview) {
       URL.revokeObjectURL(feedbackScreenshotPreview);
     }
+  });
+
+  function getPanelFocusableElements(): HTMLElement[] {
+    if (!panelRef) return [];
+    const selectors = [
+      'a[href]',
+      'button:not([disabled])',
+      'input:not([disabled])',
+      'select:not([disabled])',
+      'textarea:not([disabled])',
+      '[tabindex]:not([tabindex="-1"])'
+    ].join(',');
+
+    return Array.from(panelRef.querySelectorAll<HTMLElement>(selectors)).filter((el) => {
+      return !el.hasAttribute('disabled') && el.getAttribute('aria-hidden') !== 'true';
+    });
+  }
+
+  $effect(() => {
+    if (!activePanel) return;
+    const shadowRoot = document.getElementById('AiChatBot-Widget-Root')?.shadowRoot;
+    if (!shadowRoot) return;
+
+    function handlePanelKeydown(event: KeyboardEvent) {
+      if (!activePanel) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closePanel();
+        return;
+      }
+
+      if (event.key !== 'Tab') return;
+      const focusable = getPanelFocusableElements();
+      if (focusable.length === 0) {
+        event.preventDefault();
+        panelBackButtonRef?.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const activeElement = shadowRoot.activeElement as HTMLElement | null;
+      const isShift = event.shiftKey;
+      const activeWithinPanel = activeElement ? panelRef?.contains(activeElement) : false;
+
+      if (!activeWithinPanel) {
+        event.preventDefault();
+        (isShift ? last : first).focus();
+        return;
+      }
+
+      if (!isShift && activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      } else if (isShift && (activeElement === first || !activeElement)) {
+        event.preventDefault();
+        last.focus();
+      }
+    }
+
+    shadowRoot.addEventListener('keydown', handlePanelKeydown);
+    return () => {
+      shadowRoot.removeEventListener('keydown', handlePanelKeydown);
+    };
   });
 
   // Body scroll lock for mobile fullscreen.
@@ -1631,6 +1713,9 @@
   showInput={activePanel === null}
   showScrollButton={activePanel === null}
   panelOpen={activePanel !== null}
+  ariaMessageLogLabel="Cannavita chat messages"
+  announceStreamingMode="final-only"
+  announcementText={a11yAnnouncement}
 >
   {#snippet children()}
     {#if activePanel === null}
@@ -1672,9 +1757,14 @@
         class="widget-panel"
         class:widget-panel--feedback={activePanel === 'feedback'}
         class:widget-panel--scrollable={activePanel === 'terpenes-guide' || activePanel === 'cannabinoids-guide'}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={activePanel ? `widget-panel-title-${activePanel}` : undefined}
+        tabindex="-1"
+        bind:this={panelRef}
       >
         <div class="widget-panel__top">
-          <button type="button" class="widget-panel__back" onclick={closePanel} aria-label="Back to chat">
+          <button type="button" class="widget-panel__back" onclick={closePanel} aria-label="Back to chat" bind:this={panelBackButtonRef}>
             <svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M12 14L8 10L12 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
@@ -1683,7 +1773,7 @@
 
         {#if activePanel === 'ai-disclosure'}
           <div class="widget-panel__title-row">
-            <h3>AI Assistant Disclosure</h3>
+            <h3 id="widget-panel-title-ai-disclosure">AI Assistant Disclosure</h3>
             <button type="button" class="widget-panel__external-link" onclick={() => openExternalPanelPage(activePanel)}>Full Page</button>
           </div>
           <p>This assistant is experimental. Responses are generated automatically and may be incomplete, inaccurate, or outdated.</p>
@@ -1695,7 +1785,7 @@
           <p class="widget-panel__note">For urgent health concerns, contact a licensed medical professional or call 911.</p>
         {:else if activePanel === 'medical-disclosure'}
           <div class="widget-panel__title-row">
-            <h3>Medical and Recreational Disclosure</h3>
+            <h3 id="widget-panel-title-medical-disclosure">Medical and Recreational Disclosure</h3>
             <button type="button" class="widget-panel__external-link" onclick={() => openExternalPanelPage(activePanel)}>Full Page</button>
           </div>
           <p>Cannavita is a recreational dispensary. Content in this widget is for retail and educational purposes only.</p>
@@ -1707,7 +1797,7 @@
           </ul>
         {:else if activePanel === 'feedback'}
           <div class="widget-panel__title-row">
-            <h3>Send Feedback</h3>
+            <h3 id="widget-panel-title-feedback">Send Feedback</h3>
             <button type="button" class="widget-panel__external-link" onclick={() => openExternalPanelPage(activePanel)}>Full Page</button>
           </div>
           <p>Share bugs, safety concerns, or recommendation quality issues.</p>
@@ -1752,18 +1842,26 @@
           </form>
 
           {#if feedbackNotice}
-            <p class="widget-panel__note" class:widget-panel__note--error={feedbackNoticeType === 'error'}>{feedbackNotice}</p>
+            <p
+              class="widget-panel__note"
+              class:widget-panel__note--error={feedbackNoticeType === 'error'}
+              role={feedbackNoticeType === 'error' ? 'alert' : 'status'}
+              aria-live={feedbackNoticeType === 'error' ? 'assertive' : 'polite'}
+              aria-atomic="true"
+            >
+              {feedbackNotice}
+            </p>
           {/if}
         {:else if activePanel === 'terpenes-guide'}
           <div class="widget-panel__title-row">
-            <h3>Terpenes Guide</h3>
+            <h3 id="widget-panel-title-terpenes-guide">Terpenes Guide</h3>
             <button type="button" class="widget-panel__external-link" onclick={() => openExternalPanelPage(activePanel)}>Full Page</button>
           </div>
           <p>Terpenes are aromatic compounds that shape flavor and can influence how a product feels. They work alongside cannabinoids to create a broader effect profile.</p>
           <GuideAccordionTable rows={terpeneItems} />
         {:else if activePanel === 'cannabinoids-guide'}
           <div class="widget-panel__title-row">
-            <h3>Cannabinoids Guide</h3>
+            <h3 id="widget-panel-title-cannabinoids-guide">Cannabinoids Guide</h3>
             <button type="button" class="widget-panel__external-link" onclick={() => openExternalPanelPage(activePanel)}>Full Page</button>
           </div>
           <p>Cannabinoids are active compounds in cannabis that influence intensity, mood, and body feel. Product outcomes depend on cannabinoid balance, terpene profile, and dose.</p>
@@ -1862,6 +1960,17 @@
 
   .widget-panel__back:hover {
     filter: brightness(1.1);
+  }
+
+  .widget-panel__back:focus-visible,
+  .widget-panel__external-link:focus-visible,
+  .feedback-form__submit:focus-visible,
+  .feedback-screenshot__remove:focus-visible,
+  .feedback-form input:focus-visible,
+  .feedback-form select:focus-visible,
+  .feedback-form textarea:focus-visible {
+    outline: 2px solid #71d0c2;
+    outline-offset: 2px;
   }
 
   .widget-panel__external-link {
@@ -2017,6 +2126,15 @@
   @media (max-width: 640px) {
     .shimmer-message {
       padding-left: 4px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .widget-panel,
+    .widget-panel * {
+      animation: none !important;
+      transition: none !important;
+      scroll-behavior: auto !important;
     }
   }
 </style>

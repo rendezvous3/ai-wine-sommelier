@@ -91,5 +91,12 @@
       padding: 6px 10px;
     }
   }
-</style>
 
+  @media (prefers-reduced-motion: reduce) {
+    .typing-indicator__dot {
+      animation: none !important;
+      opacity: 1;
+      transform: none;
+    }
+  }
+</style>

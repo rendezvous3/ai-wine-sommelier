@@ -47,3 +47,15 @@ This repository should be treated with a strict development-only context window.
   - Disclosure panels
   - Feedback form panel
 - Prefer shared chat primitives (`ChatMessage`, chat bubble patterns) for welcome/disclosure messaging to keep visual consistency.
+
+## Accessibility Compliance (Mandatory)
+
+- Treat accessibility as a release requirement, not a polish task.
+- Preserve WCAG 2.1 AA behavior for all widget changes.
+- Do not remove or regress:
+  - Chat live-region/log semantics
+  - Dialog focus trap/restore behavior
+  - Keyboard navigation for custom controls
+  - Reduced-motion support
+  - Visible focus indicators
+- Any UI-affecting change must include accessibility verification notes in testing output.

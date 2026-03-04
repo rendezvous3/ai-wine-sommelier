@@ -62,3 +62,14 @@ Use only files required for coding, debugging, testing, and architecture decisio
 - Feedback should be implemented as its own reusable component.
 - Prefer existing shared components for message rendering (for example `ChatMessage`/chat bubble patterns) over ad-hoc HTML blocks.
 - Keep `Widget.svelte` as orchestration/composition only (state wiring + callbacks), not a monolithic UI file.
+
+## Accessibility Rules (Mandatory)
+
+- Maintain WCAG 2.1 AA widget compliance in all frontend changes.
+- Any change to interactive UI must preserve:
+  - keyboard-only operation,
+  - visible focus states,
+  - assistive announcements for important state changes,
+  - and reduced-motion behavior where animations exist.
+- Panel/disclosure experiences must remain accessible dialog flows (focus trap, Escape close, focus restore).
+- Custom controls (dropdowns/cards/toggles) must keep ARIA roles/states synchronized with behavior.

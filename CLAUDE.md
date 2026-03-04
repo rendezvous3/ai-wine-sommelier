@@ -928,6 +928,17 @@ This fix took multiple attempts to solve. Respect the solution and don't modify 
 - **Always pass filters and semantic_search from `/intent` to `/recommendations`** — The intent endpoint extracts structured filters and semantic search query that must be passed to the recommendations endpoint for optimal results
 - **Handle product-question intent correctly** — When intent is "product-question", do NOT call `/recommendations`. Instead use two-phase lookup: (1) fuzzy match in frontend conversation history, (2) fallback to `/product-lookup` semantic search. Pass full product context to `/stream` when found.
 
+### Accessibility Initiative (Mandatory)
+- **WCAG 2.1 AA is required** for widget UI releases.
+- **Do not regress accessibility foundations**:
+  - Chat log/live announcements for assistive tech
+  - Dialog semantics for side panels (`role="dialog"`, focus trap, Escape close, focus restore)
+  - Keyboard operation for all custom controls (including custom dropdowns)
+  - Visible focus indicators on interactive elements
+  - Reduced-motion support via `prefers-reduced-motion`
+- **Feedback states must be announced** with assistive-friendly status/alert semantics.
+- **Any UI change must include an accessibility verification pass** (keyboard + screen reader + reduced motion + reflow).
+
 ### Prompt Engineering Philosophy
 - **Examine root causes, don't bloat context** — When a prompt isn't working, analyze WHY it fails before adding more text. Modify existing instructions slightly rather than adding many new examples.
 - **New examples only when absolutely necessary** — Most prompt improvements should clarify existing instructions, not add more bulk. New examples only if the issue can't be fixed by refining current text.

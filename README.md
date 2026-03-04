@@ -9,6 +9,61 @@ The project consists of three microservices:
 - **Backend**: TypeScript API (Hono on Cloudflare Workers) for intent classification, streaming chat, and recommendations.
 - **Client**: Svelte 5 widget for the UI, embeddable via a script tag.
 
+## Accessibility Compliance (WCAG 2.1 AA)
+
+This project now treats accessibility as a required release standard for the embedded widget.
+
+- **Compliance target**: WCAG 2.1 Level AA
+- **Legal alignment**: ADA Title III expectations for public-facing private business web experiences
+- **Current scope**: Widget UI and widget panels (`client/src/Widget.svelte` + shared component library)
+
+### Implemented Accessibility Features
+
+- Chat message region now uses an accessible log/live-region pattern for assistive technology announcements.
+- Streaming chat announcements are controlled to avoid token-by-token screen reader spam (final-message announcement mode).
+- In-widget panels now use modal dialog semantics (`role="dialog"`, `aria-modal`, `aria-labelledby`).
+- Panel keyboard behavior includes:
+  - Focus moved into panel on open
+  - Focus trap while panel is open
+  - `Escape` closes panel
+  - Focus restore to the previously focused control on close
+- Feedback status messages now announce success/errors with appropriate live semantics (`role="status"` / `role="alert"`).
+- Custom dropdown controls in chat input now include:
+  - `aria-expanded`, `aria-controls`, `aria-haspopup`
+  - `role="listbox"` and `role="option"` semantics
+  - Arrow key navigation + Escape close behavior
+- Reduced-motion support was added for key animated components using `@media (prefers-reduced-motion: reduce)`.
+- Explicit keyboard focus-visible styles were added for panel controls and form fields.
+
+### Accessibility Testing Instructions (Required)
+
+Run these checks before merging UI changes:
+
+1. **Keyboard-only flow**
+- Open widget with keyboard.
+- Send a message.
+- Open each panel (disclosure/feedback/guides), then close via back button and `Escape`.
+- Submit feedback form with both valid and invalid states.
+- Confirm focus remains visible and never gets lost.
+
+2. **Screen reader flow**
+- Verify new assistant messages are announced once meaningfully.
+- Verify opening a panel announces its dialog title/context.
+- Verify feedback success and error messages are announced.
+
+3. **Visual checks**
+- Test at 200% zoom.
+- Test mobile width (`<= 640px`).
+- Verify no loss of functionality and no clipped critical controls.
+
+4. **Reduced motion**
+- Enable reduced-motion at OS/browser level.
+- Verify shimmer/typing/animated transitions are disabled or minimized.
+
+5. **Contrast/focus**
+- Confirm all interactive controls have visible focus indicators.
+- Confirm key text and control contrast meets WCAG AA minimums.
+
 ## Prerequisites
 
 - **Node.js** (v20+): For client and backend.

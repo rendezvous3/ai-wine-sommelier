@@ -438,5 +438,12 @@
       right: 10px;
     }
   }
-</style>
 
+  @media (prefers-reduced-motion: reduce) {
+    .chat-bubble,
+    .chat-bubble * {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+</style>

@@ -38,6 +38,77 @@ window.fetch = function(...args) {
 
 ---
 
+## Accessibility Compliance Testing (Required)
+
+These tests are mandatory for widget UI releases.
+
+### Standard
+
+- Target: **WCAG 2.1 AA** (widget scope)
+- Coverage: vision, hearing, and speech-impaired access requirements for web interaction
+
+### A11y Test Matrix
+
+### 1. Keyboard Navigation and Focus
+
+1. Open widget using keyboard.
+2. Move through header controls, chat controls, and panel controls using `Tab`/`Shift+Tab`.
+3. Open a panel from menu, then verify:
+   - Focus moves into the panel.
+   - Focus is trapped inside the panel while open.
+   - `Escape` closes the panel.
+   - Focus returns to the control that opened the panel.
+4. In feedback form, verify all fields and buttons are keyboard reachable and operable.
+
+Pass criteria:
+- No keyboard trap outside intended modal behavior.
+- No hidden or lost focus.
+- All interactive controls show a visible focus indicator.
+
+### 2. Screen Reader Announcements
+
+Use VoiceOver (macOS) or NVDA (Windows).
+
+1. Send a user message and wait for assistant response.
+2. Confirm chat updates are announced from the message log region.
+3. Open each widget panel and confirm dialog context/title is announced.
+4. Submit feedback with:
+   - empty required message (error path)
+   - valid message (success path)
+5. Confirm error/success notices are announced automatically.
+
+Pass criteria:
+- No silent critical state changes.
+- Announcements are meaningful and not excessively noisy.
+
+### 3. Reduced Motion
+
+1. Enable `prefers-reduced-motion` in OS/browser settings.
+2. Open widget and interact with chat/panels.
+3. Verify animations/transitions are disabled or minimized.
+
+Pass criteria:
+- No continuous or distracting non-essential animations in reduced motion mode.
+
+### 4. Reflow/Zoom
+
+1. Test at 200% browser zoom.
+2. Test narrow/mobile width (`<= 640px`).
+3. Verify chat input, panel controls, and submit actions remain usable.
+
+Pass criteria:
+- No loss of function, hidden required controls, or clipped critical content.
+
+### 5. Speech/Hearing Access
+
+1. Verify all actions can be completed without voice input.
+2. Verify there is no audio-only instruction required to complete core flows.
+
+Pass criteria:
+- Widget remains fully operable using text and keyboard interaction.
+
+---
+
 ## Test Scenarios
 
 ### 1. Complete Query → CODEX:RECOMMEND

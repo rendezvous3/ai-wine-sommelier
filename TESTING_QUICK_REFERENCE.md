@@ -62,6 +62,14 @@ Turn 3: "edibles"
 Expected: Clarifications → CODEX → Products
 ```
 
+## ♿ Accessibility Smoke Test (Required)
+
+1. Keyboard only: open widget, send message, open panel, close with `Escape`, verify focus return.
+2. Screen reader: verify new chat message announcements and panel dialog title announcement.
+3. Feedback form: verify error and success notices are announced.
+4. Reduced motion: enable system reduced motion and confirm animations are minimized.
+5. Zoom/reflow: test 200% zoom and mobile width without losing required controls.
+
 ## 🔍 CODEX Patterns
 
 **RECOMMEND:**

@@ -51,6 +51,9 @@
     noAssistantBubble?: boolean;
     iconSrc?: string;
     showInput?: boolean;
+    ariaMessageLogLabel?: string;
+    announceStreamingMode?: 'final-only' | 'incremental';
+    announcementText?: string;
   }
 
   let {
@@ -88,7 +91,10 @@
     messagesCount = 0,
     noAssistantBubble = false,
     iconSrc,
-    showInput = true
+    showInput = true,
+    ariaMessageLogLabel = 'Chat messages',
+    announceStreamingMode = 'final-only',
+    announcementText = ''
   }: ChatWidgetProps = $props();
 
   // Provide themeBackgroundColor to child components via context
@@ -113,6 +119,11 @@
   // Use prop directly when parent controls it, otherwise use internal state
   let internalIsOpen = $state(false);
   let internalIsExpanded = $state(false);
+  let widgetRootRef: HTMLDivElement | null = $state(null);
+  let widgetWindowRef: HTMLDivElement | null = $state(null);
+  let widgetButtonRef: HTMLButtonElement | null = $state(null);
+  let previouslyFocusedElement: HTMLElement | null = $state(null);
+  let wasWidgetOpen = $state(false);
   
   // If onToggle is provided, we're in controlled mode - use prop directly
   // Otherwise use internal state
@@ -133,6 +144,9 @@
   );
 
   function toggleWidget() {
+    if (!isWidgetOpen && typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
+      previouslyFocusedElement = document.activeElement;
+    }
     if (onToggle) {
       // Controlled mode: update parent via callback
       onToggle();
@@ -163,17 +177,97 @@
         internalIsExpanded = false;
       }
       onClose?.();
+      requestAnimationFrame(() => {
+        (previouslyFocusedElement ?? widgetButtonRef)?.focus();
+        previouslyFocusedElement = null;
+      });
     }, 200);
   }
 
   function handleSend(message: string) {
     onSend?.(message);
   }
+
+  function getWidgetFocusableElements(): HTMLElement[] {
+    if (!widgetWindowRef) return [];
+    const selectors = [
+      'button:not([disabled])',
+      'a[href]',
+      'input:not([disabled])',
+      'select:not([disabled])',
+      'textarea:not([disabled])',
+      '[tabindex]:not([tabindex="-1"])'
+    ].join(',');
+    return Array.from(widgetWindowRef.querySelectorAll<HTMLElement>(selectors)).filter((el) => {
+      return !el.hasAttribute('disabled') && el.getAttribute('aria-hidden') !== 'true';
+    });
+  }
+
+  $effect(() => {
+    if (!isWidgetOpen || panelOpen) return;
+    const root = widgetRootRef?.getRootNode();
+    if (!(root instanceof ShadowRoot)) return;
+
+    requestAnimationFrame(() => {
+      const focusables = getWidgetFocusableElements();
+      focusables[0]?.focus();
+    });
+
+    function handleKeydown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        handleClose();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+
+      const focusables = getWidgetFocusableElements();
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const activeElement = root.activeElement as HTMLElement | null;
+      const activeWithinWidget = activeElement ? widgetWindowRef?.contains(activeElement) : false;
+
+      if (!activeWithinWidget) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+        return;
+      }
+      if (!event.shiftKey && activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      } else if (event.shiftKey && activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      }
+    }
+
+    root.addEventListener('keydown', handleKeydown);
+    return () => {
+      root.removeEventListener('keydown', handleKeydown);
+    };
+  });
+
+  $effect(() => {
+    if (!isWidgetOpen && wasWidgetOpen) {
+      requestAnimationFrame(() => {
+        (previouslyFocusedElement ?? widgetButtonRef)?.focus();
+        previouslyFocusedElement = null;
+      });
+    }
+    wasWidgetOpen = isWidgetOpen;
+  });
 </script>
 
-  <div class={widgetClasses} data-theme={darkMode ? 'dark' : 'light'}>
+  <div class={widgetClasses} data-theme={darkMode ? 'dark' : 'light'} bind:this={widgetRootRef}>
   {#if isWidgetOpen}
-    <div class="chat-widget__window">
+    <div
+      class="chat-widget__window"
+      bind:this={widgetWindowRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
       <ChatHeader
         title={title}
         style={headerStyle}
@@ -205,6 +299,9 @@
         onSend={onSend}
         noAssistantBubble={noAssistantBubble}
         {panelOpen}
+        {ariaMessageLogLabel}
+        {announceStreamingMode}
+        {announcementText}
       >
         {#if children}
           {@render children()}
@@ -223,6 +320,7 @@
   {/if}
   
   <button
+    bind:this={widgetButtonRef}
     class="chat-widget__button"
     onclick={toggleWidget}
     aria-label={isWidgetOpen ? 'Close chat' : 'Open chat'}
@@ -521,6 +619,14 @@
       border: none;
       transform: none;
       overscroll-behavior: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chat-widget,
+    .chat-widget * {
+      animation: none !important;
+      transition: none !important;
     }
   }
 </style>

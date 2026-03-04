@@ -197,5 +197,12 @@
   :global([data-theme="dark"]) .flow-progress__back-button:hover {
     background: rgba(45, 45, 48, 1);
   }
-</style>
 
+  @media (prefers-reduced-motion: reduce) {
+    .flow-progress,
+    .flow-progress * {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+</style>

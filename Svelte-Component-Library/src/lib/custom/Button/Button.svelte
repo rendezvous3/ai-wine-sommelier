@@ -328,4 +328,12 @@
   button.btn--outline:focus-visible {
     outline-color: var(--btn-outline-border);
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    button.btn,
+    button.btn * {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
 </style>

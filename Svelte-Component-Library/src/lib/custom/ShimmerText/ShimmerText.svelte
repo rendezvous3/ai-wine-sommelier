@@ -45,4 +45,11 @@
       background-position: -200% 0;
     }
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    .shimmer-text {
+      animation: none !important;
+      background-position: 0 0;
+    }
+  }
 </style>
