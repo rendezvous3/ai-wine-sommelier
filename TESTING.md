@@ -775,6 +775,23 @@ Before deploying to production, manually verify:
 - [ ] No console errors
 - [ ] No broken product cards
 - [ ] No duplicate messages
+
+## Vectorizer Data Quality Checks
+
+- Run dry-run full pull:
+  - `cd vectorizer/src && python vectorize.py -x products-test --category EDIBLES --limit none`
+- Run stock filter check:
+  - `python vectorize.py -x products-test --category EDIBLES --limit 100 --min-quantity 5`
+- Run upload with D1 dedup enabled (default):
+  - `python vectorize.py -x products-prod --category EDIBLES --limit 100 --upload`
+- Run stale cleanup preview:
+  - `python reconcile_stale.py -x products-prod --stale-hours 48 --dry-run`
+- Run stale cleanup:
+  - `python reconcile_stale.py -x products-prod --stale-hours 48`
+- Verify summary reports:
+  - low-stock exclusions
+  - in-run duplicate exclusions (`id`, normalized `name`)
+  - D1 duplicate exclusions
 - [ ] Persistence works
 - [ ] Loading states clear properly
 - [ ] CODEX detection is 100% accurate

@@ -73,3 +73,13 @@ Use only files required for coding, debugging, testing, and architecture decisio
   - and reduced-motion behavior where animations exist.
 - Panel/disclosure experiences must remain accessible dialog flows (focus trap, Escape close, focus restore).
 - Custom controls (dropdowns/cards/toggles) must keep ARIA roles/states synchronized with behavior.
+
+## Vectorizer Data Quality Rules (Mandatory)
+
+- Keep vectorizer commands and docs aligned with current ingestion controls:
+  - full pull via `--limit none` / `all-products`
+  - optional stock filter via `--min-quantity`
+  - dedup by product `id` and normalized `name`
+  - per-index D1 uniqueness ledger table
+  - stale reconciliation by `last_seen_at` to remove vectors no longer in catalog
+- Sync jobs must be resilient: duplicates are skipped and logged, not fatal.

@@ -18,6 +18,7 @@ import argparse
 import requests
 from typing import List, Dict, Optional
 from dotenv import load_dotenv
+from d1_uniques import D1UniqueStore, build_uniques_table_name
 
 # Load environment variables
 env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
@@ -27,6 +28,8 @@ load_dotenv(env_path)
 ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID")
 API_TOKEN = os.getenv("CF_VECTORIZE_API_TOKEN")
 MODEL_WORKERSAI = "@cf/baai/bge-large-en-v1.5"
+CF_D1_DATABASE_ID = os.getenv("CF_D1_DATABASE_ID")
+CF_D1_API_TOKEN = os.getenv("CF_D1_API_TOKEN") or API_TOKEN
 
 # Cloudflare Vectorize API endpoint
 VECTORIZE_API_BASE = f"https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/vectorize/v2"
@@ -116,6 +119,21 @@ def create_index(index_name: str, wait: bool = True) -> bool:
             if wait:
                 print(f"  Index ID: {result.get('id', 'N/A')}")
                 print(f"  Status: {result.get('status', 'N/A')}")
+
+            d1_store = D1UniqueStore(
+                account_id=ACCOUNT_ID,
+                database_id=CF_D1_DATABASE_ID,
+                api_token=CF_D1_API_TOKEN,
+            )
+            if d1_store.configured:
+                try:
+                    table_name = build_uniques_table_name(index_name)
+                    d1_store.ensure_table(table_name)
+                    print(f"  D1 uniqueness table ready: {table_name}")
+                except Exception as e:
+                    print(f"  ⚠️  Could not initialize D1 uniqueness table (non-fatal): {e}")
+            else:
+                print("  ⚠️  D1 uniqueness table not initialized (missing D1 env vars)")
             return True
         else:
             error_text = response.text

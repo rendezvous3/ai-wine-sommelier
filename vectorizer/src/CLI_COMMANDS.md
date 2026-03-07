@@ -34,6 +34,7 @@ python manage_indexes.py --create products-demo-3 --no-wait
 ✓ Successfully created index 'products-demo-3'
   Index ID: abc123...
   Status: ready
+  D1 uniqueness table ready: vector_uniques_products_demo_3
 ```
 
 ### Delete Index
@@ -128,7 +129,9 @@ python vectorize.py -x products-demo-3 --category EDIBLES --limit 20
 - `--category CATEGORY` - Category to vectorize (EDIBLES, FLOWER, PRE_ROLLS, VAPORIZERS, CONCENTRATES, CBD, TOPICALS, ACCESSORIES)
 - `--subcategory SUBCATEGORY` - Subcategory to filter (GUMMIES, CHOCOLATES, COOKING_BAKING, DRINKS, etc.)
 - `--strain STRAIN` - Strain type to filter (INDICA, SATIVA, HYBRID)
-- `--limit N` - Total number of products to fetch (default: 50)
+- `--limit N|none` - Total number of products to fetch (default: 50). Use `none` to fetch all.
+- `--min-quantity N` - Exclude products when quantity exists and is below threshold.
+- `--skip-d1-dedup` - Disable D1 cross-run dedup checks and ledger writes.
 - `--offset N` - Starting offset for pagination (default: 0)
 - `--local` - Use local JSON files instead of API
 
@@ -145,6 +148,12 @@ python vectorize.py -x products-demo-X --category EDIBLES --subcategory CHOCOLAT
 
 # Test with offset
 python vectorize.py -x products-demo-X --category EDIBLES --offset 100 --limit 50
+
+# Test full catalog pull
+python vectorize.py -x products-demo-X --category EDIBLES --limit none
+
+# Test low-stock exclusion
+python vectorize.py -x products-demo-X --category EDIBLES --limit 100 --min-quantity 5
 ```
 
 **Output:**
@@ -366,7 +375,7 @@ python vectorize.py -x products-prod --category CONCENTRATES --subcategory DEFAU
 
 Upload CBD products (wellness products with high CBD and minimal/no THC) to Vectorize.
 
-**Important**: CBD products are all HIGH_CBD strain type with mg-based potency. Only one subcategory (DEFAULT).
+**Important**: CBD products are all HIGH_CBD strain type with mg-based potency. Subcategories are inferred during normalization.
 
 ```bash
 # Test 20 CBD products
@@ -375,12 +384,17 @@ python vectorize.py -x products-test --category CBD --limit 20
 # Upload CBD products
 python vectorize.py -x products-prod --category CBD --limit 25 --upload
 
-# Upload specific CBD products
-python vectorize.py -x products-prod --category CBD --subcategory DEFAULT --limit 15 --upload
+# Upload CBD products while excluding known low stock
+python vectorize.py -x products-prod --category CBD --limit none --min-quantity 5 --upload
 ```
 
 **CBD Subcategories:**
-- `DEFAULT` - All CBD products (creams, roll-ons, chews, peanut butter, etc.)
+- `DEFAULT` - Fallback when no specific form is detected
+- `OIL` - Oils and drops
+- `CREAM` - Creams, lotions, salves, and roll-ons
+- `TINCTURE` - Tinctures
+- `CHEWS` - Chews, treats, gummies
+- `PET-FOOD` - Pet-focused products
 
 **Note**: CBD products have mg-based CBD (150mg-3000mg range), minimal/no THC, and are wellness-focused (pain relief, anxiety, pet products).
 
@@ -523,7 +537,7 @@ Sync all products from a category:
 python vectorize.py --index products-demo-3 --category EDIBLES --upload
 ```
 
-**Note:** Without `--limit`, the script will fetch all available products. Use with caution for large catalogs.
+**Note:** Use `--limit none` to fetch all available products. Use with caution for large catalogs.
 
 ### Incremental Sync
 
@@ -584,8 +598,11 @@ Use preset scripts to sync multiple subcategories at once.
 # All CONCENTRATES subcategories
 ./preset_sync.sh all-subcategories CONCENTRATES products-demo-x 15
 
-# All 5 categories
+# All categories
 ./preset_sync.sh all-subcategories ALL products-demo-x 15
+
+# Full-catalog sync (all categories, no subcategory filter), exclude known low stock
+./preset_sync.sh all-products ALL products-prod none 5
 ```
 
 **EDIBLES subcategories (7 total):**
@@ -608,6 +625,7 @@ Use preset scripts to sync multiple subcategories at once.
 | Preset | Description | Example |
 |--------|-------------|---------|
 | `all-subcategories` | All subcategories for a category | `./preset_sync.sh all-subcategories CONCENTRATES products-demo-x 15` |
+| `all-products` | Full category pull with no subcategory filter | `./preset_sync.sh all-products ALL products-prod none 5` |
 | `gummies-all` | All gummy types × all strains | `./preset_sync.sh gummies-all EDIBLES products-demo-x 15` |
 | `gummies-indica` | All gummy types × INDICA | `./preset_sync.sh gummies-indica EDIBLES products-demo-x 20` |
 | `chocolates` | Chocolates × all strains | `./preset_sync.sh chocolates EDIBLES products-prod 10` |
@@ -636,6 +654,22 @@ Preset sync complete!
 - Scripts automatically handle rate limiting (2s delay between requests)
 - Failed/empty categories are skipped
 - Run from `vectorizer/src/` directory
+
+---
+
+## Stale Reconciliation (`reconcile_stale.py`)
+
+Delete vectors that have not been seen recently, based on D1 `last_seen_at`.
+
+```bash
+# Dry run preview (no deletes)
+python reconcile_stale.py -x products-prod --stale-hours 48 --dry-run
+
+# Execute stale cleanup
+python reconcile_stale.py -x products-prod --stale-hours 48
+```
+
+**Important:** Stale cleanup should run after sync, not before.
 
 ---
 
@@ -765,6 +799,11 @@ CANNAVITA_API_KEY=your_api_key_here
 # Cloudflare Vectorize
 CF_ACCOUNT_ID=your_account_id
 CF_VECTORIZE_API_TOKEN=your_api_token
+
+# Cloudflare D1 (required for cross-run dedup ledger)
+CF_D1_DATABASE_ID=your_d1_database_id
+# Optional if different from CF_VECTORIZE_API_TOKEN
+# CF_D1_API_TOKEN=your_d1_api_token
 ```
 
 ---
@@ -785,7 +824,11 @@ CF_VECTORIZE_API_TOKEN=your_api_token
 | Command | Description |
 |---------|-------------|
 | `python vectorize.py --index INDEX --category CATEGORY --limit N` | Dry run (test) |
+| `python vectorize.py --index INDEX --category CATEGORY --limit none` | Full pull dry run |
 | `python vectorize.py --index INDEX --category CATEGORY --limit N --upload` | Upload products |
+| `python vectorize.py --index INDEX --category CATEGORY --limit N --min-quantity 5 --upload` | Upload with low-stock exclusion |
+| `python reconcile_stale.py --index INDEX --stale-hours 48` | Delete stale vectors + D1 rows |
+| `./cron_sync_and_reconcile.sh INDEX 5 48 none` | One-shot cron workflow |
 | `python vectorize.py --index INDEX --category CATEGORY --offset N --limit N` | With offset |
 | `python vectorize.py --index INDEX --category CATEGORY --local` | Use local files |
 | `python vectorize.py --list-categories` | List categories |
@@ -796,5 +839,7 @@ CF_VECTORIZE_API_TOKEN=your_api_token
 
 - **Batch Size:** Internally uses batch size of 50 for API efficiency. The `--limit` parameter is the total number of products to fetch, not batch size.
 - **Index Creation:** Indexes are created with 1024 dimensions (for `@cf/baai/bge-large-en-v1.5` embedding model) and cosine similarity metric.
+- **Per-index D1 Ledger:** Index creation initializes a matching D1 uniqueness table (`vector_uniques_<index>` when D1 is configured).
+- **Dedup Behavior:** Duplicate `id` or normalized `name` entries are skipped/logged (cron-safe, non-fatal).
 - **Dry Run:** Always test with dry run first to verify data transformation before uploading.
 - **Offset:** Useful for resuming interrupted syncs or paginating through large catalogs.

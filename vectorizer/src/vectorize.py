@@ -11,7 +11,6 @@ All business logic is delegated to normalize_products.py.
 """
 
 import os
-import sys
 import json
 import asyncio
 import argparse
@@ -32,6 +31,11 @@ from normalize_products import (
     is_real_data_format,
 )
 from dutchie_client import DutchieClient, DutchieAPIError
+from d1_uniques import (
+    D1UniqueStore,
+    build_uniques_table_name,
+    normalize_product_name,
+)
 
 env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
 load_dotenv(env_path)
@@ -49,6 +53,8 @@ except FileNotFoundError:
 ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID")
 API_TOKEN = os.getenv("CF_VECTORIZE_API_TOKEN")
 MODEL_WORKERSAI = "@cf/baai/bge-large-en-v1.5"
+CF_D1_DATABASE_ID = os.getenv("CF_D1_DATABASE_ID")
+CF_D1_API_TOKEN = os.getenv("CF_D1_API_TOKEN") or API_TOKEN
 
 
 # ============================================================================
@@ -365,9 +371,11 @@ async def vectorize_products(
     subcategory: Optional[str] = None,
     strain_type: Optional[str] = None,
     offset: int = 0,
-    limit: int = 50,
+    limit: Optional[int] = 50,
     dry_run: bool = True,
-    use_api: bool = True
+    use_api: bool = True,
+    min_quantity: Optional[int] = None,
+    use_d1_dedup: bool = True,
 ) -> List[Document]:
     """
     Main vectorization pipeline.
@@ -377,10 +385,13 @@ async def vectorize_products(
         subcategory: Optional subcategory filter (e.g., "GUMMIES", "CHOCOLATES").
         strain_type: Optional strain type filter (e.g., "INDICA", "SATIVA", "HYBRID").
         offset: Starting offset for pagination (default 0).
-        limit: Total limit of products to fetch (default 50). This is NOT batch size.
+        limit: Total limit of products to fetch (default 50). If None, fetches all.
         index_name: Cloudflare Vectorize index name.
         dry_run: If True, don't upload to Vectorize (just transform and print).
         use_api: If True, fetch from API; if False, use local files only.
+        min_quantity: Optional stock threshold. If provided, products with known
+            quantity lower than threshold are excluded.
+        use_d1_dedup: If True, perform cross-run duplicate checks using D1.
 
     Returns:
         List of Document objects ready for vectorization.
@@ -394,7 +405,8 @@ async def vectorize_products(
     print(f"Subcategory: {subcategory or 'ALL'}")
     print(f"Strain Type: {strain_type or 'ALL'}")
     print(f"Offset: {offset}")
-    print(f"Limit: {limit}")
+    print(f"Limit: {limit if limit is not None else 'ALL'}")
+    print(f"Min Quantity Filter: {min_quantity if min_quantity is not None else 'OFF'}")
     print(f"Index: {index_name}")
     print(f"Mode: {'DRY RUN' if dry_run else 'LIVE UPLOAD'}")
     print(f"{'='*60}\n")
@@ -418,12 +430,22 @@ async def vectorize_products(
     print(f"\nTransforming {len(raw_products)} products...")
     products = []
     errors = []
+    stats = {
+        "transform_errors": 0,
+        "low_stock_excluded": 0,
+        "duplicate_id_excluded": 0,
+        "duplicate_name_excluded": 0,
+        "d1_existing_ids_allowed": 0,
+        "d1_name_excluded": 0,
+        "missing_id_excluded": 0,
+    }
 
     for i, product in enumerate(tqdm(raw_products, desc="Transforming")):
         try:
             normalized = transform_product(product, schema)
             products.append(normalized)
         except Exception as e:
+            stats["transform_errors"] += 1
             errors.append({
                 "index": i,
                 "name": product.get("name", "Unknown"),
@@ -438,6 +460,101 @@ async def vectorize_products(
             print(f"  ... and {len(errors) - 5} more")
 
     print(f"\nSuccessfully transformed {len(products)} products")
+
+    # Step 2b: Optional low-stock filtering
+    if min_quantity is not None:
+        stock_filtered = []
+        for product in products:
+            quantity = product.get("quantity")
+            if quantity is None:
+                stock_filtered.append(product)
+                continue
+            try:
+                quantity_int = int(quantity)
+            except (TypeError, ValueError):
+                stock_filtered.append(product)
+                continue
+            if quantity_int < min_quantity:
+                stats["low_stock_excluded"] += 1
+                continue
+            stock_filtered.append(product)
+        products = stock_filtered
+        print(f"After low-stock filter: {len(products)} products (excluded: {stats['low_stock_excluded']})")
+
+    # Step 2c: In-memory dedup by ID and normalized name
+    unique_products = []
+    seen_ids = set()
+    seen_names = set()
+    for product in products:
+        product_id = str(product.get("id") or "").strip()
+        if not product_id:
+            stats["missing_id_excluded"] += 1
+            continue
+
+        normalized_name = normalize_product_name(str(product.get("name") or ""))
+        if product_id in seen_ids:
+            stats["duplicate_id_excluded"] += 1
+            continue
+        if normalized_name and normalized_name in seen_names:
+            stats["duplicate_name_excluded"] += 1
+            continue
+
+        seen_ids.add(product_id)
+        if normalized_name:
+            seen_names.add(normalized_name)
+        unique_products.append(product)
+    products = unique_products
+    print(
+        "After in-memory dedup: "
+        f"{len(products)} products "
+        f"(duplicate IDs: {stats['duplicate_id_excluded']}, duplicate names: {stats['duplicate_name_excluded']})"
+    )
+
+    # Step 2d: Cross-run dedup via D1 (upload mode only)
+    d1_store = D1UniqueStore(
+        account_id=ACCOUNT_ID,
+        database_id=CF_D1_DATABASE_ID,
+        api_token=CF_D1_API_TOKEN,
+    )
+    d1_table_name = build_uniques_table_name(index_name)
+    if not dry_run and use_d1_dedup:
+        if d1_store.configured:
+            try:
+                d1_store.ensure_table(d1_table_name)
+                existing = d1_store.get_existing(
+                    d1_table_name,
+                    product_ids=[str(p.get("id", "")) for p in products],
+                    normalized_names=[normalize_product_name(str(p.get("name", ""))) for p in products],
+                )
+                existing_ids = existing.get("ids", set())
+                existing_names = existing.get("names", set())
+
+                filtered_by_d1 = []
+                for product in products:
+                    product_id = str(product.get("id", ""))
+                    normalized_name = normalize_product_name(str(product.get("name", "")))
+                    # Existing IDs are allowed (normal upsert refresh path).
+                    if product_id in existing_ids:
+                        stats["d1_existing_ids_allowed"] += 1
+                        filtered_by_d1.append(product)
+                        continue
+                    # New ID + existing normalized name => likely duplicate listing.
+                    if normalized_name and normalized_name in existing_names:
+                        stats["d1_name_excluded"] += 1
+                        continue
+                    filtered_by_d1.append(product)
+                products = filtered_by_d1
+                print(
+                    "After D1 dedup: "
+                    f"{len(products)} products "
+                    f"(existing IDs allowed: {stats['d1_existing_ids_allowed']}, "
+                    f"duplicate names excluded: {stats['d1_name_excluded']})"
+                )
+            except Exception as e:
+                # Cron resilience: continue even if D1 is temporarily unavailable.
+                print(f"⚠️  D1 dedup check unavailable, continuing without cross-run dedup: {e}")
+        else:
+            print("⚠️  D1 dedup is enabled but D1 env vars are not configured. Continuing without D1 checks.")
 
     # Step 3: Build documents
     print("\nBuilding documents...")
@@ -491,6 +608,26 @@ async def vectorize_products(
             cfVect = CloudflareVectorize(embedding=embedder)
             cfVect.add_documents(index_name=index_name, documents=documents, ids=ids)
             print("Upload complete!")
+
+            if use_d1_dedup and d1_store.configured and products:
+                rows = []
+                for product in products:
+                    rows.append({
+                        "product_id": str(product.get("id", "")),
+                        "normalized_name": normalize_product_name(str(product.get("name", ""))),
+                        "raw_name": str(product.get("name", "")),
+                        "category": str(product.get("category", "")),
+                        "subcategory": str(product.get("subcategory", "")),
+                    })
+                try:
+                    d1_store.ensure_table(d1_table_name)
+                    d1_result = d1_store.upsert_seen(d1_table_name, rows)
+                    print(
+                        "D1 uniqueness ledger updated "
+                        f"(upserted: {d1_result.get('upserted', 0)}, skipped: {d1_result.get('skipped', 0)})"
+                    )
+                except Exception as e:
+                    print(f"⚠️  D1 uniqueness ledger update failed (non-fatal): {e}")
         except Exception as e:
             print(f"\n✗ Upload failed: {e}")
             if hasattr(e, 'response') and e.response is not None:
@@ -537,7 +674,33 @@ async def vectorize_products(
     except Exception as e:
         print(f"  Error fetching indexes: {e}")
 
+    print("\n" + "=" * 60)
+    print("PIPELINE SUMMARY")
+    print("=" * 60)
+    print(f"Final documents: {len(documents)}")
+    print(f"Transform errors: {stats['transform_errors']}")
+    print(f"Excluded (low stock): {stats['low_stock_excluded']}")
+    print(f"Excluded (missing ID): {stats['missing_id_excluded']}")
+    print(f"Excluded (duplicate ID in run): {stats['duplicate_id_excluded']}")
+    print(f"Excluded (duplicate name in run): {stats['duplicate_name_excluded']}")
+    print(f"Allowed (D1 existing IDs): {stats['d1_existing_ids_allowed']}")
+    print(f"Excluded (D1 duplicate name): {stats['d1_name_excluded']}")
+
     return documents
+
+
+def parse_limit_arg(value: str) -> Optional[int]:
+    """Parse --limit argument, supporting integer values or 'none' for unlimited."""
+    normalized = (value or "").strip().lower()
+    if normalized in {"none", "all", "unlimited"}:
+        return None
+    try:
+        parsed = int(normalized)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("limit must be an integer or one of: none, all, unlimited") from exc
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("limit must be > 0 when provided as an integer")
+    return parsed
 
 
 # ============================================================================
@@ -617,9 +780,20 @@ Examples:
     )
     parser.add_argument(
         "--limit",
-        type=int,
+        type=parse_limit_arg,
         default=50,
-        help="Total limit of products to fetch (default: 50). This is NOT batch size."
+        help="Total limit of products to fetch (default: 50). Use 'none' to fetch all."
+    )
+    parser.add_argument(
+        "--min-quantity",
+        type=int,
+        default=None,
+        help="Optional stock threshold: exclude products when quantity exists and is below this value."
+    )
+    parser.add_argument(
+        "--skip-d1-dedup",
+        action="store_true",
+        help="Skip D1 cross-run deduplication checks and ledger writes."
     )
     parser.add_argument(
         "--list-categories",
@@ -649,7 +823,9 @@ Examples:
         limit=args.limit,
         index_name=args.index,
         dry_run=not args.upload,
-        use_api=not args.local
+        use_api=not args.local,
+        min_quantity=args.min_quantity,
+        use_d1_dedup=not args.skip_d1_dedup,
     ))
 
 

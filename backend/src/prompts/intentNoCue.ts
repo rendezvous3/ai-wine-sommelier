@@ -77,8 +77,8 @@ SUBCATEGORY → Category Mapping:
 - prerolls subcategories (blunts, singles, infused-prerolls, etc.) → category: "prerolls"
 - important for infused, if infused prerolls are mentioned add both ["infused-prerolls", "infused-preroll-packs"]
 - flower subcategories (premium-flower, whole-flower, small-buds, etc.) → category: "flower"
-- concentrates subcategories (badder, hash, live-resin, live-rosin, tinctures) → category: "concentrates"
-- cbd subcategories (default) → category: "cbd"
+- concentrates subcategories (badder, hash, live-resin, live-rosin, rosin, unflavored) → category: "concentrates"
+- cbd subcategories (default, oil, cream, tincture, chews, pet-food) → category: "cbd"
 - accessories subcategories (batteries, glassware, grinders, lighters, papers-rolling-supplies) → category: "accessories"
 - topicals subcategories (balms) → category: "topicals"
 

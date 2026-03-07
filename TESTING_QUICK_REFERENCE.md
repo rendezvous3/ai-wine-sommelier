@@ -154,6 +154,15 @@ Check CODEX_PATTERNS in client/src/Widget.svelte
 # Run vectorizer
 cd vectorizer
 python vectorize.py -x products-prod --category FLOWER --limit 50 --upload
+
+# Full pull dry run
+python vectorize.py -x products-test --category EDIBLES --limit none
+
+# Exclude known low stock
+python vectorize.py -x products-test --category EDIBLES --limit 100 --min-quantity 5
+
+# Preview stale cleanup
+python reconcile_stale.py -x products-prod --stale-hours 48 --dry-run
 ```
 
 ## 📝 Test Data

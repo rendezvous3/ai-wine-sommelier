@@ -59,3 +59,13 @@ This repository should be treated with a strict development-only context window.
   - Reduced-motion support
   - Visible focus indicators
 - Any UI-affecting change must include accessibility verification notes in testing output.
+
+## Vectorizer Data Quality (Mandatory)
+
+- Preserve vectorizer ingestion safeguards:
+  - `--limit none` for full-catalog runs
+  - optional `--min-quantity` low-stock filtering
+  - duplicate prevention by `id` and normalized `name`
+  - per-index D1 uniqueness tables (`vector_uniques_<index>`) for cross-run protection
+  - stale reconciliation (`reconcile_stale.py`) to remove vectors no longer present
+- Duplicate hits must be skipped/logged without crashing scheduled sync jobs.

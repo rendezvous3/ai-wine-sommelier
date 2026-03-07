@@ -28,6 +28,7 @@ The system is built as **four loosely coupled components** for maximum flexibili
 - `vectorize.py` - Main vectorization pipeline (orchestrates fetch → transform → embed → upload)
 - `normalize_products.py` - Product transformation engine (200+ lines of normalization, extraction, and mapping logic)
 - `manage_indexes.py` - Index lifecycle management (create, delete, list, exists operations)
+- `d1_uniques.py` - Per-index D1 uniqueness ledger for dedup (`id` + normalized name)
 - `dutchie_client.py` - Dutchie GraphQL API client (handles authentication, pagination, filtering)
 - `preset_sync.sh` - Batch sync automation (predefined presets for common sync patterns)
 
@@ -146,6 +147,7 @@ Automates multi-subcategory/multi-strain sync operations with predefined presets
 | Preset | Description | Example |
 |--------|-------------|---------|
 | `all-subcategories` | All subcategories for a category (no strain filter) | `./preset_sync.sh all-subcategories EDIBLES products-prod 15` |
+| `all-products` | Full category pull (or ALL) with no subcategory filter | `./preset_sync.sh all-products ALL products-prod none 5` |
 | `gummies-all` | All gummy types × all strains [EDIBLES only] | `./preset_sync.sh gummies-all EDIBLES products-prod 15` |
 | `gummies-indica` | All gummy types × INDICA [EDIBLES only] | `./preset_sync.sh gummies-indica EDIBLES products-prod 20` |
 | `gummies-sativa` | All gummy types × SATIVA [EDIBLES only] | `./preset_sync.sh gummies-sativa EDIBLES products-prod 20` |
@@ -167,6 +169,9 @@ Automates multi-subcategory/multi-strain sync operations with predefined presets
 # Sync all categories and subcategories (comprehensive sync)
 ./preset_sync.sh all-subcategories ALL products-prod 15
 
+# Full-catalog sync (all categories), exclude known low stock
+./preset_sync.sh all-products ALL products-prod none 5
+
 # Sync all gummy types x all strains (INDICA, SATIVA, HYBRID)
 ./preset_sync.sh gummies-all EDIBLES products-prod 15
 ```
@@ -178,6 +183,7 @@ Automates multi-subcategory/multi-strain sync operations with predefined presets
 - `--delete INDEX_NAME` - Delete existing index (warning: permanent)
 - `--list` - List all indexes with vector counts and status
 - `--exists INDEX_NAME` - Check if index exists (exit code 0/1)
+- `--create` also initializes per-index D1 uniqueness table when D1 env vars are configured
 
 **Examples**:
 ```bash
@@ -258,6 +264,8 @@ python vectorize.py -x products-prod --category EDIBLES --offset 100 --limit 100
 - **Cron-ready**: Use with `--upload` flag for scheduled syncs
 - **Pagination support**: `--offset` and `--limit` for large catalogs
 - **Rate limiting**: Built into preset_sync.sh (2s delay)
+- **Dedup safety**: In-run + D1 cross-run dedup by ID/name
+- **Stale cleanup**: `reconcile_stale.py` deletes vectors not seen within cutoff window
 - **Dry run mode**: Test transformations before uploading (default behavior)
 - **Comprehensive logging**: Detailed output for debugging transformation issues
 - **Schema validation**: Validates categories/subcategories against schema.json before processing

@@ -594,6 +594,10 @@ The Stream-First Architecture with CODEX cues successfully addresses all the pro
 
 The implementation is complete, tested, and ready for production deployment.
 
+### Vectorizer Dependency Note
+
+- Recommendation quality depends on ingestion quality; keep vectorizer dedup (`id` + normalized `name`) and optional low-stock filtering active during production syncs.
+
 ---
 
 **Implementation Date:** January 30, 2026

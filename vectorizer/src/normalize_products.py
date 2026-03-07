@@ -4,8 +4,8 @@ from typing import Dict, Any, Optional, List
 
 # Load schema at module level (can be overridden)
 try:
-with open("schema.json", "r") as f:
-    schema = json.load(f)
+    with open("schema.json", "r") as f:
+        schema = json.load(f)
 except FileNotFoundError:
     schema = {}
 
@@ -25,7 +25,7 @@ SUBCATEGORY_MAPPING = {
     "Cartridges": "cartridges",
     "Disposables": "disposables",
     "Live Resin": "live-resin",
-    "Tinctures": "tinctures",
+    "Tinctures": "default",
     "Badder": "badder",
     "Hash": "hash",
     # Dutchie API uppercase formats
@@ -53,7 +53,7 @@ SUBCATEGORY_MAPPING = {
     "CARTRIDGES": "cartridges",
     "DISPOSABLES": "disposables",
     "UNFLAVORED": "unflavored",
-    "TINCTURES": "tinctures",
+    "TINCTURES": "default",
     "BADDER": "badder",
     "HASH": "hash",
     "ROSIN": "rosin",
@@ -379,7 +379,7 @@ def assign_subcategory(product: Dict[str, Any], schema_data: Optional[Dict] = No
     elif category == "concentrates":
         # Check if it's a tincture
         if "tincture" in name.lower():
-            display_subcategory = "Tinctures"
+            display_subcategory = "Default"
         elif product.get("texture") == "badder":
             display_subcategory = "Badder"
         elif "live resin" in description.lower():
@@ -1355,7 +1355,7 @@ class ProductTransformer:
             if isinstance(first_image, dict) and first_image.get("url"):
                 normalized["imageLink"] = first_image["url"]
 
-        # Price (from variants)
+        # Price and quantity (from variants)
         variants = product.get("variants", [])
         if variants and isinstance(variants, list) and len(variants) > 0:
             first_variant = variants[0]
@@ -1364,9 +1364,22 @@ class ProductTransformer:
                 if price is not None:
                     normalized["price"] = float(price)
 
-                quantity = first_variant.get("quantity")
-                if quantity is not None:
-                    normalized["quantity"] = int(quantity)
+            # Use max variant quantity for stock-aware filtering across multi-variant products.
+            max_quantity = None
+            for variant in variants:
+                if not isinstance(variant, dict):
+                    continue
+                quantity = variant.get("quantity")
+                if quantity is None:
+                    continue
+                try:
+                    quantity_int = int(quantity)
+                except (TypeError, ValueError):
+                    continue
+                if max_quantity is None or quantity_int > max_quantity:
+                    max_quantity = quantity_int
+            if max_quantity is not None:
+                normalized["quantity"] = max_quantity
 
         # Staff pick
         if product.get("staffPick"):
@@ -1748,7 +1761,38 @@ class CBDTransformer(ProductTransformer):
         if product_form:
             normalized["product_form"] = product_form
 
+        normalized["subcategory"] = self._infer_cbd_subcategory(product)
+
         return normalized
+
+    def _infer_cbd_subcategory(self, product: Dict[str, Any]) -> str:
+        """Infer CBD subcategory from text and fallback to default."""
+        name = str(product.get("name", "")).lower()
+        description = str(product.get("description", "")).lower()
+        brand_name = ""
+        if isinstance(product.get("brand"), dict):
+            brand_name = str(product["brand"].get("name", "")).lower()
+        combined = f"{name} {description} {brand_name}"
+
+        # Order matters: pet-food should win before generic chew/treat matching.
+        if re.search(r"\b(pet|dog|cat|puppy|feline|canine|peanut butter|biscuit|pet treat)\b", combined):
+            candidate = "pet-food"
+        elif re.search(r"\b(tincture)\b", combined):
+            candidate = "tincture"
+        elif re.search(r"\b(roll[\s-]?on|cream|lotion|balm|salve|ointment|topical)\b", combined):
+            candidate = "cream"
+        elif re.search(r"\b(chew|chews|gummy|gummies|treat|treats)\b", combined):
+            candidate = "chews"
+        elif re.search(r"\b(oil|drops|dropper)\b", combined):
+            candidate = "oil"
+        else:
+            candidate = "default"
+
+        # Validate against schema; fallback hard to default.
+        valid = self.schema.get("subcategories", {}).get("cbd", [])
+        if candidate in valid:
+            return candidate
+        return "default"
 
     def _parse_weight(self, option: str) -> Optional[float]:
         """Parse weight from variant option string."""

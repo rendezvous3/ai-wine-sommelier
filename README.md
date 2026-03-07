@@ -191,6 +191,7 @@ The vectorizer is an ETL pipeline that fetches products from Dutchie API, transf
 - `vectorize.py` - Main pipeline orchestrator
 - `normalize_products.py` - 200+ lines of transformation logic (THC extraction, weight parsing, effects mapping, etc.)
 - `manage_indexes.py` - Index lifecycle management (create, delete, list)
+- `d1_uniques.py` - Per-index D1 uniqueness ledger for dedup by `id` and normalized `name`
 - `preset_sync.sh` - Batch sync automation with presets
 - `CLI_COMMANDS.md` - Complete CLI reference guide
 
@@ -295,6 +296,9 @@ python vectorize.py -x products-prod --category EDIBLES --offset 100 --limit 50 
 # Sync all categories and subcategories
 ./preset_sync.sh all-subcategories ALL products-prod 15
 
+# Full-catalog sync (all categories, no subcategory filter), skip known low stock
+./preset_sync.sh all-products ALL products-prod none 5
+
 # Sync all gummy types x all strains
 ./preset_sync.sh gummies-all EDIBLES products-prod 15
 
@@ -322,6 +326,38 @@ Create `vectorizer/.env` with:
 CANNAVITA_API_KEY=your_dutchie_api_key
 CF_ACCOUNT_ID=your_cloudflare_account_id
 CF_VECTORIZE_API_TOKEN=your_vectorize_api_token
+CF_D1_DATABASE_ID=your_d1_database_id
+# Optional if different from CF_VECTORIZE_API_TOKEN:
+# CF_D1_API_TOKEN=your_d1_api_token
+```
+
+### Vectorizer Data Quality Controls (March 2026)
+
+- Full-catalog sync is supported with `--limit none` and preset `all-products`.
+- Optional low-stock exclusion is supported via `--min-quantity N` (only excludes when quantity is present and below threshold).
+- Duplicate prevention is enforced by `id` and normalized `name`:
+  - in-run dedup before upload
+  - cross-run dedup using a per-index D1 uniqueness table
+- New Vectorize index initialization now prepares a matching D1 uniqueness table.
+- Duplicate collisions are skipped/logged and the sync continues (cron-safe behavior).
+
+### Cron Deployment (Recommended: GitHub Actions)
+
+This repo now includes a scheduled workflow at `.github/workflows/vectorizer-cron.yml` and a cron-ready script:
+- `vectorizer/src/cron_sync_and_reconcile.sh`
+- `vectorizer/src/reconcile_stale.py`
+
+**Required GitHub Secrets:**
+- `CANNAVITA_API_KEY`
+- `CF_ACCOUNT_ID`
+- `CF_VECTORIZE_API_TOKEN`
+- `CF_D1_DATABASE_ID`
+- `CF_D1_API_TOKEN` (optional if same token as Vectorize)
+
+**Manual run command (local/server):**
+```bash
+cd vectorizer/src
+./cron_sync_and_reconcile.sh products-prod 5 48 none
 ```
 
 **Update backend wrangler.toml**:
