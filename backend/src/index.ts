@@ -584,11 +584,6 @@ app.post("/chat/intent", async (c) => {
       normalizedFilters.price_max = Number(response.filters.price_max);
     }
 
-    // Strip subcategory if category is CBD (Dutchie data doesn't support CBD subcategories for filtering)
-    if (normalizedFilters.category === 'cbd' && normalizedFilters.subcategory) {
-      delete normalizedFilters.subcategory;
-    }
-
     // Validate THC fields based on category
     const category = normalizedFilters.category;
     if (category) {

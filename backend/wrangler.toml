@@ -4,7 +4,7 @@ compatibility_date = "2025-11-24"
 
 [[vectorize]]
 binding = "VECTORIZE_INDEX"
-index_name = "products-demo-1"
+index_name = "products-prod"
 
 [ai]
 binding = "AI"

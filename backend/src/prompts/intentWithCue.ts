@@ -235,6 +235,11 @@ When extracting THC preferences (match the category word from the CODEX message 
 - "drinks" → subcategory: ["drinks"], category: "edibles" ⚠️ ALWAYS set both
 - "chocolates" → subcategory: ["chocolates"], category: "edibles"
 - "gummies" → subcategory: ["gummies"], category: "edibles"
+- "oil" (CBD context) → subcategory: ["oil"], category: "cbd"
+- "cream" (CBD context) → subcategory: ["cream"], category: "cbd"
+- "tincture" (CBD context) → subcategory: ["tincture"], category: "cbd"
+- "chews" (CBD context) → subcategory: ["chews"], category: "cbd"
+- "pet food" / "pet treats" (CBD context) → subcategory: ["pet-food"], category: "cbd"
 - "cartridges" or "carts" → subcategory: ["cartridges"], category: "vaporizers"
 - "infused prerolls" → subcategory: ["infused-prerolls", "infused-preroll-packs"], category: "prerolls"
 - "premium flower" → subcategory: ["premium-flower"], category: "flower"
@@ -251,6 +256,8 @@ When extracting THC preferences (match the category word from the CODEX message 
 - "potent flower and fruity drinks" → category: ["flower", "edibles"], subcategory: ["drinks"], flavor: ["fruity"], thc_percentage_min: 28 (only for flower)
 - "strong vapes" → category: "vaporizers", NO subcategory, thc_percentage_min: 85
 - "infused pre rolls" → category: "prerolls", subcategory: ["infused-prerolls", "infused-preroll-packs"]
+- "cbd oil" → category: "cbd", subcategory: ["oil"]
+- "cbd pet treats" → category: "cbd", subcategory: ["pet-food"]
 
 Effects Notes:
 - Valid canonical effects: calm, happy, relaxed, energetic, clear-mind, creative, focused, inspired, sleepy, uplifted
