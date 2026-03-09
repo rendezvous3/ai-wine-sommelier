@@ -34,8 +34,7 @@ echo "CRON SYNC + RECONCILE"
 echo "Index: $INDEX | Min Qty: $MIN_QTY | Stale Hours: $STALE_HOURS | Limit: $LIMIT"
 echo "============================================================"
 
-"$PYTHON_BIN" vectorize.py -x "$INDEX" --limit "$LIMIT" --min-quantity "$MIN_QTY" --upload
-"$PYTHON_BIN" reconcile_stale.py -x "$INDEX" --stale-hours "$STALE_HOURS"
+"$PYTHON_BIN" run_sync_cycle.py "$INDEX" "$MIN_QTY" "$STALE_HOURS" "$LIMIT"
 
 echo "============================================================"
 echo "Cron workflow complete."

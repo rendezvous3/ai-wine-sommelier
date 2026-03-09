@@ -81,8 +81,8 @@ Run these checks before merging UI changes:
 
 ```bash
 cd vectorizer
-pip install -r requirements.txt  # (create requirements.txt with langchain-cloudflare, sentence-transformers, etc.)
-# Load .env with Cloudflare/Groq keys
+pip install -r requirements.txt
+# Load vectorizer/.env with Dutchie + Cloudflare keys
 ```
 
 ### Backend
@@ -185,13 +185,17 @@ The vectorizer transforms raw Dutchie API data into vector-ready documents:
 ### Vectorizer Workflow (Embed & Upload Products)
 The vectorizer is an ETL pipeline that fetches products from Dutchie API, transforms them using category-specific logic, and uploads embeddings to Cloudflare Vectorize. It uses the canonical schema (`vectorizer/src/schema.json`) as the source of truth.
 
-**Architecture**: Fetch (Dutchie API) → Transform (`normalize_products.py`) → Embed (Workers AI) → Upload (Vectorize)
+**Architecture**: Fetch (Dutchie API) → Transform (`normalize_products.py`) → Build page content/metadata → Embed (Workers AI) → Upload (Vectorize) → Reconcile stale vectors
 
 **Key Scripts**:
-- `vectorize.py` - Main pipeline orchestrator
+- `core/pipeline.py` - Shared sync orchestration used by local CLI and Worker
+- `core/reconcile.py` - Shared stale-delete orchestration
+- `vectorize.py` - Local sync CLI
 - `normalize_products.py` - 200+ lines of transformation logic (THC extraction, weight parsing, effects mapping, etc.)
 - `manage_indexes.py` - Index lifecycle management (create, delete, list)
 - `d1_uniques.py` - Per-index D1 uniqueness ledger for dedup by `id` and normalized `name`
+- `run_sync_cycle.py` - Shared sync + reconcile entrypoint
+- `worker_entry.py` - Dedicated Cloudflare Worker entrypoint
 - `preset_sync.sh` - Batch sync automation with presets
 - `CLI_COMMANDS.md` - Complete CLI reference guide
 
@@ -341,31 +345,50 @@ CF_D1_DATABASE_ID=your_d1_database_id
 - New Vectorize index initialization now prepares a matching D1 uniqueness table.
 - Duplicate collisions are skipped/logged and the sync continues (cron-safe behavior).
 
-### Cron Deployment (Recommended: GitHub Actions)
+### Cron Deployment (Cloudflare Native)
 
-This repo now includes a scheduled workflow at `.github/workflows/vectorizer-cron.yml` and a cron-ready script:
-- `vectorizer/src/cron_sync_and_reconcile.sh`
-- `vectorizer/src/reconcile_stale.py`
+Production scheduling now belongs to the dedicated vectorizer Worker in `vectorizer/`, not the backend Worker.
 
-**Required GitHub Secrets:**
-- `CANNAVITA_API_KEY`
-- `CF_ACCOUNT_ID`
-- `CF_VECTORIZE_API_TOKEN`
-- `CF_D1_DATABASE_ID`
-- `CF_D1_API_TOKEN` (optional if same token as Vectorize)
+Primary files:
+- `vectorizer/wrangler.toml`
+- `vectorizer/src/worker_entry.py`
+- `vectorizer/src/run_sync_cycle.py`
 
-**Manual run command (local/server):**
+One-time setup:
+
 ```bash
-cd vectorizer/src
-./cron_sync_and_reconcile.sh products-prod 5 48 none
+cd vectorizer
+uv sync --group dev
+pywrangler secret put CANNAVITA_API_KEY
+pywrangler secret put CF_ACCOUNT_ID
+pywrangler secret put CF_VECTORIZE_API_TOKEN
+pywrangler secret put CF_D1_DATABASE_ID
+pywrangler secret put CF_D1_API_TOKEN
+pywrangler secret put ADMIN_TOKEN
+pywrangler deploy
 ```
 
-**Update backend wrangler.toml**:
+Local manual cycle:
 
-```toml
-[[vectorize]]
-binding = "VECTORIZE_INDEX"
-index_name = "products-prod"  # Update to your index name
+```bash
+cd vectorizer/src
+python run_sync_cycle.py products-prod 5 48 none
+```
+
+Local worker testing:
+
+```bash
+cd vectorizer
+pywrangler dev --test-scheduled
+```
+
+Manual authenticated worker trigger:
+
+```bash
+curl -X POST http://127.0.0.1:8787/run \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"index_name":"products-prod","min_quantity":5,"stale_hours":48,"limit":"20"}'
 ```
 
 ## Development & Deployment

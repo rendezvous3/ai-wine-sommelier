@@ -651,7 +651,7 @@ Preset sync complete!
 ```
 
 **Notes:**
-- Scripts automatically handle rate limiting (2s delay between requests)
+- Scripts retry Dutchie API rate-limit and transient HTTP failures automatically
 - Failed/empty categories are skipped
 - Run from `vectorizer/src/` directory
 
@@ -673,59 +673,39 @@ python reconcile_stale.py -x products-prod --stale-hours 48
 
 ---
 
-## Cronjob Scheduling Examples
+## Cloudflare Scheduler Workflow
 
-### Daily Product Sync
+Production scheduling is handled by the dedicated Cloudflare Python Worker in `vectorizer/`.
 
-Sync EDIBLES products daily at 2 AM:
+### Daily Scheduled Run
 
-```bash
-0 2 * * * cd /path/to/vectorizer/src && python vectorize.py --index products-demo-3 --category EDIBLES --limit 1000 --upload
+The Worker cron is configured in `vectorizer/wrangler.toml`:
+
+```toml
+[triggers]
+crons = ["17 7 * * *"]
 ```
 
-### Hourly Incremental Sync
-
-Sync new products every hour (assuming products are added incrementally):
+The scheduled Worker executes the same shared sync + reconcile cycle used locally:
 
 ```bash
-0 * * * * cd /path/to/vectorizer/src && python vectorize.py --index products-demo-3 --category EDIBLES --offset 0 --limit 50 --upload
+python run_sync_cycle.py products-prod 5 48 none
 ```
 
-### Weekly Full Sync
-
-Full sync of all categories weekly on Sunday at 3 AM:
+### Local Worker Test
 
 ```bash
-0 3 * * 0 cd /path/to/vectorizer/src && python vectorize.py --index products-demo-3 --upload
+cd vectorizer
+pywrangler dev --test-scheduled
 ```
 
-### Multiple Categories
-
-Sync different categories at different times:
+### Manual Authenticated Trigger
 
 ```bash
-# EDIBLES at 2 AM
-0 2 * * * cd /path/to/vectorizer/src && python vectorize.py --index products-demo-3 --category EDIBLES --upload
-
-# FLOWER at 3 AM
-0 3 * * * cd /path/to/vectorizer/src && python vectorize.py --index products-demo-3 --category FLOWER --upload
-
-# PRE_ROLLS at 4 AM
-0 4 * * * cd /path/to/vectorizer/src && python vectorize.py --index products-demo-3 --category PRE_ROLLS --upload
-
-# VAPORIZERS at 5 AM
-0 5 * * * cd /path/to/vectorizer/src && python vectorize.py --index products-demo-3 --category VAPORIZERS --upload
-
-# CONCENTRATES at 6 AM
-0 6 * * * cd /path/to/vectorizer/src && python vectorize.py --index products-demo-3 --category CONCENTRATES --upload
-```
-
-### With Logging
-
-Redirect output to log files:
-
-```bash
-0 2 * * * cd /path/to/vectorizer/src && python vectorize.py --index products-demo-3 --category EDIBLES --upload >> /var/log/vectorize.log 2>&1
+curl -X POST http://127.0.0.1:8787/run \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"index_name":"products-prod","min_quantity":5,"stale_hours":48,"limit":"20"}'
 ```
 
 ---
@@ -828,7 +808,8 @@ CF_D1_DATABASE_ID=your_d1_database_id
 | `python vectorize.py --index INDEX --category CATEGORY --limit N --upload` | Upload products |
 | `python vectorize.py --index INDEX --category CATEGORY --limit N --min-quantity 5 --upload` | Upload with low-stock exclusion |
 | `python reconcile_stale.py --index INDEX --stale-hours 48` | Delete stale vectors + D1 rows |
-| `./cron_sync_and_reconcile.sh INDEX 5 48 none` | One-shot cron workflow |
+| `python run_sync_cycle.py INDEX 5 48 none` | One-shot sync + reconcile workflow |
+| `./cron_sync_and_reconcile.sh INDEX 5 48 none` | Shell wrapper for the shared sync cycle |
 | `python vectorize.py --index INDEX --category CATEGORY --offset N --limit N` | With offset |
 | `python vectorize.py --index INDEX --category CATEGORY --local` | Use local files |
 | `python vectorize.py --list-categories` | List categories |

@@ -5,31 +5,26 @@ Async client for fetching product data from Dutchie's GraphQL API.
 Supports pagination, category filtering, and proper error handling.
 """
 
-import os
 import asyncio
-import json
-from typing import Optional, Dict, Any, List, AsyncGenerator
-import ssl
+import os
+from typing import Any, AsyncGenerator, Dict, List, Optional
 
-import aiohttp
 import certifi
+import httpx
 from dotenv import load_dotenv
 
-# Load environment variables
+
 env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
 load_dotenv(env_path)
-# load_dotenv("../.env")
 
-# Configuration
 DUTCHIE_ENDPOINT = "https://plus.dutchie.com/plus/2021-07/graphql"
 DEFAULT_RETAILER_ID = "ca181286-eb0d-4b6d-a4d2-2e9c8ea9e446"
 DEFAULT_LIMIT = 50
 MAX_RETRIES = 3
-RETRY_BACKOFF_BASE = 2  # seconds
+RETRY_BACKOFF_BASE = 2
 
 
 class DutchieCategory:
-    """Category enum values as used in Dutchie API."""
     FLOWER = "FLOWER"
     PRE_ROLLS = "PRE_ROLLS"
     EDIBLES = "EDIBLES"
@@ -41,149 +36,96 @@ class DutchieCategory:
 
 
 class DutchieAPIError(Exception):
-    """Base exception for Dutchie API errors."""
     pass
 
 
 class AuthenticationError(DutchieAPIError):
-    """Raised when API authentication fails."""
     pass
 
 
 class APIError(DutchieAPIError):
-    """Raised for general API errors."""
     pass
 
 
 class DutchieClient:
-    """Async GraphQL client for Dutchie API."""
+    """Async GraphQL client for Dutchie."""
 
     def __init__(
         self,
         api_key: Optional[str] = None,
-        retailer_id: str = DEFAULT_RETAILER_ID
-    ):
-        """
-        Initialize the Dutchie client.
-
-        Args:
-            api_key: Bearer token for authentication. If not provided,
-                     reads from CANNAVITA_API_KEY environment variable.
-            retailer_id: The retailer ID to query products for.
-        """
+        retailer_id: str = DEFAULT_RETAILER_ID,
+        ssl_verify: bool = True,
+    ) -> None:
         self.api_key = api_key or os.getenv("CANNAVITA_API_KEY")
         if not self.api_key:
             raise AuthenticationError(
                 "API key not provided. Set CANNAVITA_API_KEY in .env or pass api_key parameter."
             )
         self.retailer_id = retailer_id
-        self._session: Optional[aiohttp.ClientSession] = None
+        self.ssl_verify = ssl_verify
+        self._client: Optional[httpx.AsyncClient] = None
 
     @property
     def headers(self) -> Dict[str, str]:
-        """Get HTTP headers for API requests."""
         return {
             "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
 
-    def _get_ssl_context(self) -> ssl.SSLContext:
-        """
-        Get SSL context with proper certificate handling.
-
-        Uses certifi certificates by default for secure connections.
-        Set VECTORIZER_SSL_VERIFY=false to disable SSL verification (dev only).
-        """
-        if os.getenv("VECTORIZER_SSL_VERIFY", "true").lower() == "false":
-            print("WARNING: SSL verification disabled. Do not use in production.")
-            ssl_context = ssl.create_default_context()
-            ssl_context.check_hostname = False
-            ssl_context.verify_mode = ssl.CERT_NONE
-            return ssl_context
-
-        # Use certifi certificates for proper SSL verification
-        return ssl.create_default_context(cafile=certifi.where())
-
-    async def _get_session(self) -> aiohttp.ClientSession:
-        """Get or create an aiohttp session with proper SSL handling."""
-        if self._session is None or self._session.closed:
-            ssl_context = self._get_ssl_context()
-            self._session = aiohttp.ClientSession(
+    async def _get_client(self) -> httpx.AsyncClient:
+        if self._client is None:
+            verify_value: bool | str = certifi.where() if self.ssl_verify else False
+            self._client = httpx.AsyncClient(
                 headers=self.headers,
-                connector=aiohttp.TCPConnector(ssl=ssl_context)
+                timeout=30.0,
+                verify=verify_value,
             )
-        return self._session
+        return self._client
 
-    async def close(self):
-        """Close the HTTP session."""
-        if self._session and not self._session.closed:
-            await self._session.close()
+    async def close(self) -> None:
+        if self._client is not None:
+            await self._client.aclose()
+            self._client = None
 
-    async def __aenter__(self):
-        """Context manager entry."""
+    async def __aenter__(self) -> "DutchieClient":
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit."""
+    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         await self.close()
 
-    async def _execute_query(
-        self,
-        query: str,
-        variables: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """
-        Execute a GraphQL query with error handling and retries.
-
-        Args:
-            query: The GraphQL query string.
-            variables: Query variables.
-
-        Returns:
-            The JSON response from the API.
-
-        Raises:
-            AuthenticationError: If API key is invalid.
-            APIError: If the request fails after all retries.
-        """
-        session = await self._get_session()
+    async def _execute_query(self, query: str, variables: Dict[str, Any]) -> Dict[str, Any]:
+        client = await self._get_client()
 
         for attempt in range(MAX_RETRIES):
             try:
-                async with session.post(
+                response = await client.post(
                     DUTCHIE_ENDPOINT,
                     json={"query": query, "variables": variables},
-                    timeout=aiohttp.ClientTimeout(total=30)
-                ) as response:
-                    if response.status == 401:
-                        raise AuthenticationError("Invalid API key - received 401 Unauthorized")
+                )
 
-                    if response.status == 429:
-                        # Rate limited - exponential backoff
-                        wait_time = RETRY_BACKOFF_BASE ** attempt
-                        print(f"Rate limited, waiting {wait_time}s before retry...")
-                        await asyncio.sleep(wait_time)
-                        continue
+                if response.status_code == 401:
+                    raise AuthenticationError("Invalid API key - received 401 Unauthorized")
 
-                    if response.status >= 400:
-                        error_text = await response.text()
-                        raise APIError(f"API error {response.status}: {error_text}")
+                if response.status_code == 429:
+                    wait_time = RETRY_BACKOFF_BASE ** attempt
+                    print(f"Rate limited, waiting {wait_time}s before retry...")
+                    await asyncio.sleep(wait_time)
+                    continue
 
-                    result = await response.json()
+                if response.status_code >= 400:
+                    raise APIError(f"API error {response.status_code}: {response.text}")
 
-                    # Check for GraphQL errors
-                    if "errors" in result:
-                        errors = result["errors"]
-                        error_messages = [e.get("message", str(e)) for e in errors]
-                        raise APIError(f"GraphQL errors: {'; '.join(error_messages)}")
+                result = response.json()
+                if "errors" in result:
+                    error_messages = [entry.get("message", str(entry)) for entry in result["errors"]]
+                    raise APIError(f"GraphQL errors: {'; '.join(error_messages)}")
+                return result
 
-                    return result
-
-            except aiohttp.ClientError as e:
+            except httpx.HTTPError as exc:
                 if attempt == MAX_RETRIES - 1:
-                    raise APIError(f"API request failed after {MAX_RETRIES} attempts: {e}")
+                    raise APIError(f"API request failed after {MAX_RETRIES} attempts: {exc}") from exc
                 wait_time = RETRY_BACKOFF_BASE ** attempt
-                print(f"Request failed ({e}), retrying in {wait_time}s...")
+                print(f"Request failed ({exc}), retrying in {wait_time}s...")
                 await asyncio.sleep(wait_time)
 
         raise APIError("Max retries exceeded")
@@ -194,55 +136,27 @@ class DutchieClient:
         subcategory: Optional[str] = None,
         strain_type: Optional[str] = None,
         limit: int = DEFAULT_LIMIT,
-        offset: int = 0
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
-        """
-        Fetch products, optionally filtered by category, subcategory, and/or strain type.
-
-        Args:
-            category: Optional category filter (e.g., "EDIBLES", "FLOWER").
-                      Can be a string or an Enum with a .value attribute.
-            subcategory: Optional subcategory filter (e.g., "GUMMIES", "CHOCOLATES").
-            strain_type: Optional strain type filter (e.g., "INDICA", "SATIVA", "HYBRID").
-            limit: Maximum number of products to fetch per request.
-            offset: Starting offset for pagination.
-
-        Returns:
-            List of product dictionaries.
-        """
-        # Convert Enum to string if needed
-        category_str = None
-        if category is not None:
-            # Handle both Enum and string inputs
-            if hasattr(category, 'value'):
-                category_str = category.value  # It's an Enum
-            else:
-                category_str = str(category).upper()  # It's a string
-
+        category_str = category.value if hasattr(category, "value") else (str(category).upper() if category else None)
         subcategory_str = str(subcategory).upper() if subcategory else None
         strain_type_str = str(strain_type).upper() if strain_type else None
 
-        # Build query with filters embedded directly (not as variables)
-        # This is because Dutchie API uses enum values directly, not typed variables
         query = self._build_menu_query(
             category=category_str,
             subcategory=subcategory_str,
-            strain_type=strain_type_str
+            strain_type=strain_type_str,
         )
         variables = {
             "retailerId": self.retailer_id,
             "limit": limit,
-            "offset": offset
+            "offset": offset,
         }
 
         result = await self._execute_query(query, variables)
-
-        # Navigate the response structure
         data = result.get("data", {})
         menu = data.get("menu", {})
-        products = menu.get("products", [])
-
-        return products
+        return menu.get("products", [])
 
     async def fetch_all_products_paginated(
         self,
@@ -251,306 +165,114 @@ class DutchieClient:
         strain_type: Optional[str] = None,
         offset: int = 0,
         total_limit: Optional[int] = None,
-        batch_size: int = DEFAULT_LIMIT
+        batch_size: int = DEFAULT_LIMIT,
     ) -> AsyncGenerator[List[Dict[str, Any]], None]:
-        """
-        Fetch products with pagination (yields batches).
-
-        Args:
-            category: Optional category filter.
-            subcategory: Optional subcategory filter (e.g., "GUMMIES", "CHOCOLATES").
-            strain_type: Optional strain type filter (e.g., "INDICA", "SATIVA", "HYBRID").
-            offset: Starting offset for pagination (default 0).
-            total_limit: Optional total limit of products to fetch. If None, fetches all.
-            batch_size: Batch size for each API request (default 50).
-
-        Yields:
-            Lists of product dictionaries (one batch per yield).
-        """
         current_offset = offset
-        total_fetched = 0
+        remaining = total_limit
 
         while True:
-            # Calculate how many to fetch in this batch
-            if total_limit is not None:
-                remaining = total_limit - total_fetched
-                if remaining <= 0:
-                    break
-                batch_limit = min(batch_size, remaining)
-            else:
-                batch_limit = batch_size
-
-            products = await self.fetch_products_by_category(
+            current_limit = batch_size if remaining is None else min(batch_size, remaining)
+            batch = await self.fetch_products_by_category(
                 category=category,
                 subcategory=subcategory,
                 strain_type=strain_type,
-                limit=batch_limit,
-                offset=current_offset
+                limit=current_limit,
+                offset=current_offset,
             )
+            if not batch:
+                return
 
-            if not products:
-                break
+            yield batch
 
-            yield products
-            total_fetched += len(products)
-            current_offset += len(products)
+            fetched = len(batch)
+            current_offset += fetched
 
-            # If we got fewer products than requested, we've reached the end
-            if len(products) < batch_limit:
-                break
+            if remaining is not None:
+                remaining -= fetched
+                if remaining <= 0:
+                    return
 
-            # Stop if we've reached the total limit
-            if total_limit is not None and total_fetched >= total_limit:
-                break
-
-        print(f"Total products fetched: {total_fetched}")
-
-    async def fetch_all_products(
-        self,
-        category: Optional[str] = None,
-        subcategory: Optional[str] = None,
-        strain_type: Optional[str] = None,
-        offset: int = 0,
-        total_limit: Optional[int] = None,
-        batch_size: int = DEFAULT_LIMIT
-    ) -> List[Dict[str, Any]]:
-        """
-        Fetch all products as a single list.
-
-        Args:
-            category: Optional category filter.
-            subcategory: Optional subcategory filter (e.g., "GUMMIES", "CHOCOLATES").
-            strain_type: Optional strain type filter (e.g., "INDICA", "SATIVA", "HYBRID").
-            offset: Starting offset for pagination (default 0).
-            total_limit: Optional total limit of products to fetch. If None, fetches all.
-            batch_size: Batch size for each API request (default 50).
-
-        Returns:
-            List of all product dictionaries.
-        """
-        all_products = []
-        async for batch in self.fetch_all_products_paginated(
-            category=category,
-            subcategory=subcategory,
-            strain_type=strain_type,
-            offset=offset,
-            total_limit=total_limit,
-            batch_size=batch_size
-        ):
-            all_products.extend(batch)
-        return all_products
+            if fetched < current_limit:
+                return
 
     def _build_menu_query(
         self,
         category: Optional[str] = None,
         subcategory: Optional[str] = None,
-        strain_type: Optional[str] = None
+        strain_type: Optional[str] = None,
     ) -> str:
-        """
-        Build the menu query with all fragments.
-
-        Args:
-            category: Optional category to filter by (e.g., "EDIBLES", "FLOWER").
-                      Will be embedded directly as enum value in query.
-            subcategory: Optional subcategory to filter by (e.g., "GUMMIES", "CHOCOLATES").
-            strain_type: Optional strain type to filter by (e.g., "INDICA", "SATIVA", "HYBRID").
-
-        Returns:
-            Complete GraphQL query string.
-        """
-        # Build filter parts dynamically
-        # NOTE: Values are embedded directly as enum values (no quotes, no variable)
-        # This is because Dutchie API expects enum values like EDIBLES, not "EDIBLES"
-        filter_parts = []
+        filters = []
         if category:
-            filter_parts.append(f"category: {category}")
+            filters.append(f"category: {category}")
         if subcategory:
-            filter_parts.append(f"subcategory: {subcategory}")
+            filters.append(f"subcategory: {subcategory}")
         if strain_type:
-            filter_parts.append(f"strainType: {strain_type}")
+            filters.append(f"strainType: {strain_type}")
 
-        filter_arg = f"\n    filter: {{ {', '.join(filter_parts)} }}" if filter_parts else ""
-        pagination_arg = "\n    pagination: { offset: $offset, limit: $limit }"
+        filter_section = ""
+        if filters:
+            filter_section = ", filter: {" + ", ".join(filters) + "}"
 
-        return f'''
-fragment terpeneFragment on Terpene {{
-  aliasList
-  aromas
-  description
-  effects
-  id
-  name
-  potentialHealthBenefits
-  unitSymbol
-}}
+        return f"""
+        query MenuProducts($retailerId: ID!, $limit: Int!, $offset: Int!) {{
+          menu(retailerId: $retailerId) {{
+            products(limit: $limit, offset: $offset{filter_section}) {{
+              id
+              name
+              category
+              subcategory
+              strainType
+              description
+              brand {{
+                name
+              }}
+              effects
+              flavor
+              potency {{
+                thc
+                cbd
+                cbg
+              }}
+              variants {{
+                id
+                priceMed
+                priceRec
+                option
+                quantity
+              }}
+              image
+              slug
+              staffPick
+              weight
+              packCount
+              percentCBD
+              percentTHC
+              cbdContent
+              thcContent
+              primaryTerpene {{
+                name
+              }}
+              terpenes {{
+                name
+                aromas
+                potentialHealthBenefits
+              }}
+              cannabinoids {{
+                name
+                description
+              }}
+              brand {{
+                name
+                tagline
+              }}
+              inventory
+              prices {{
+                price
+                medicalPrice
+                specialPrice
+              }}
+            }}
+          }}
+        }}
+        """
 
-fragment activeTerpeneFragment on ActiveTerpene {{
-  id
-  terpene {{
-    ...terpeneFragment
-  }}
-  name
-  terpeneId
-  unit
-  unitSymbol
-  value
-}}
-
-fragment activeCannabinoidFragment on ActiveCannabinoid {{
-  cannabinoidId
-  cannabinoid {{
-    description
-    id
-    name
-  }}
-  unit
-  value
-}}
-
-fragment variantFragment on ProductVariant {{
-  id
-  option
-  priceMed
-  priceRec
-  specialPriceMed
-  specialPriceRec
-  quantity
-  flowerEquivalent {{
-    unit
-    value
-  }}
-}}
-
-fragment productFragment on Product {{
-  brand {{
-    description
-    id
-    imageUrl
-    name
-  }}
-  category
-  description
-  descriptionHtml
-  effects
-  enterpriseProductId
-  id
-  productBatchId
-  image
-  images {{
-    id
-    url
-    label
-    description
-  }}
-  menuTypes
-  name
-  slug
-  posId
-  potencyCbd {{
-    formatted
-    range
-    unit
-  }}
-  potencyThc {{
-    formatted
-    range
-    unit
-  }}
-  posMetaData {{
-    id
-    category
-    sku
-  }}
-  staffPick
-  strainType
-  subcategory
-  tags
-  variants {{
-    ...variantFragment
-  }}
-  terpenes {{
-    ...activeTerpeneFragment
-  }}
-  cannabinoids {{
-    ...activeCannabinoidFragment
-  }}
-}}
-
-query MenuQuery($retailerId: ID!, $limit: Int!, $offset: Int!) {{
-  menu(
-    retailerId: $retailerId{filter_arg}{pagination_arg}
-  ) {{
-    products {{
-      ...productFragment
-    }}
-  }}
-}}
-'''
-
-
-# Convenience function for simple usage
-async def fetch_products(
-    category: Optional[str] = None,
-    subcategory: Optional[str] = None,
-    strain_type: Optional[str] = None,
-    api_key: Optional[str] = None,
-    retailer_id: str = DEFAULT_RETAILER_ID
-) -> List[Dict[str, Any]]:
-    """
-    Convenience function to fetch all products.
-
-    Args:
-        category: Optional category filter.
-        subcategory: Optional subcategory filter (e.g., "GUMMIES", "CHOCOLATES").
-        strain_type: Optional strain type filter (e.g., "INDICA", "SATIVA", "HYBRID").
-        api_key: Optional API key (uses env var if not provided).
-        retailer_id: Retailer ID.
-
-    Returns:
-        List of all product dictionaries.
-    """
-    async with DutchieClient(api_key=api_key, retailer_id=retailer_id) as client:
-        return await client.fetch_all_products(
-            category=category,
-            subcategory=subcategory,
-            strain_type=strain_type,
-            offset=0,
-            total_limit=None
-        )
-
-
-# Test function
-async def test_connection():
-    """Test the API connection by fetching a few products."""
-    try:
-        client = DutchieClient()
-        products = await client.fetch_products_by_category(category="EDIBLES", limit=3)
-        print(f"Successfully fetched {len(products)} EDIBLES products")
-
-        if products:
-            print(f"\nFirst product: {products[0].get('name', 'Unknown')}")
-            print(f"Category: {products[0].get('category', 'Unknown')}")
-            print(f"Subcategory: {products[0].get('subcategory', 'Unknown')}")
-
-        await client.close()
-        return True
-
-    except AuthenticationError as e:
-        print(f"Authentication failed: {e}")
-        return False
-    except APIError as e:
-        print(f"API error: {e}")
-        return False
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-        return False
-
-
-if __name__ == "__main__":
-    # Run test when executed directly
-    print("Testing Dutchie API connection...")
-    success = asyncio.run(test_connection())
-    if success:
-        print("\nAPI connection test passed!")
-    else:
-        print("\nAPI connection test failed!")
