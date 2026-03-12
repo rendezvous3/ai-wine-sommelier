@@ -800,7 +800,7 @@ python manage_indexes.py --create products-demo-3
 **Solution:**
 1. Check `.env` file exists in `vectorizer/` directory
 2. Verify `CANNAVITA_API_KEY` is set
-3. Verify `CF_ACCOUNT_ID` and `CF_VECTORIZE_API_TOKEN` are set
+3. Verify `CF_ACCOUNT_ID`, `CF_VECTORIZE_API_TOKEN`, and `CF_AI_API_TOKEN` are set
 
 ### SSL Certificate Error
 
@@ -851,6 +851,7 @@ CANNAVITA_API_KEY=your_api_key_here
 # Cloudflare Vectorize
 CF_ACCOUNT_ID=your_account_id
 CF_VECTORIZE_API_TOKEN=your_api_token
+CF_AI_API_TOKEN=your_ai_api_token
 
 # Cloudflare D1 (required for cross-run dedup ledger)
 CF_D1_DATABASE_ID=your_d1_database_id

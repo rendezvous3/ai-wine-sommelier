@@ -1,13 +1,73 @@
 import json
+import os
 import re
 from typing import Dict, Any, Optional, List
 
+FALLBACK_SCHEMA = {
+    "subcategories": {
+        "edibles": [
+            "default",
+            "chews",
+            "chocolates",
+            "cooking-baking",
+            "drinks",
+            "gummies",
+            "live-resin-gummies",
+            "live-rosin-gummies",
+        ],
+        "vaporizers": [
+            "default",
+            "all-in-one",
+            "cartridges",
+            "disposables",
+            "live-resin",
+            "live-rosin",
+        ],
+        "prerolls": [
+            "default",
+            "blunts",
+            "infused-prerolls",
+            "infused-preroll-packs",
+            "pre-roll-packs",
+            "singles",
+        ],
+        "flower": [
+            "default",
+            "bulk-flower",
+            "pre-ground",
+            "premium-flower",
+            "small-buds",
+            "whole-flower",
+        ],
+        "cbd": ["default", "oil", "cream", "tincture", "chews", "pet-food"],
+        "concentrates": [
+            "default",
+            "badder",
+            "hash",
+            "live-resin",
+            "live-rosin",
+            "rosin",
+            "unflavored",
+        ],
+        "topicals": ["default", "balms"],
+        "accessories": [
+            "default",
+            "batteries",
+            "glassware",
+            "grinders",
+            "lighters",
+            "papers-rolling-supplies",
+        ],
+    }
+}
+
 # Load schema at module level (can be overridden)
 try:
-    with open("schema.json", "r") as f:
+    SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "schema.json")
+    with open(SCHEMA_PATH, "r") as f:
         schema = json.load(f)
 except FileNotFoundError:
-    schema = {}
+    schema = FALLBACK_SCHEMA
 
 # Mapping from display names AND Dutchie API formats to schema subcategory values (lowercase kebab-case)
 SUBCATEGORY_MAPPING = {

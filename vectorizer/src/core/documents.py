@@ -5,14 +5,17 @@ import os
 from functools import lru_cache
 from typing import Any, Dict
 
-from normalize_products import get_potency_label
+from normalize_products import FALLBACK_SCHEMA, get_potency_label
 
 
 @lru_cache(maxsize=1)
 def load_schema() -> Dict[str, Any]:
     schema_path = os.path.join(os.path.dirname(__file__), "..", "schema.json")
-    with open(schema_path, "r") as handle:
-        return json.load(handle)
+    try:
+        with open(schema_path, "r") as handle:
+            return json.load(handle)
+    except FileNotFoundError:
+        return FALLBACK_SCHEMA
 
 
 def build_page_content(product: Dict[str, Any]) -> str:
@@ -159,4 +162,3 @@ def build_metadata(product: Dict[str, Any]) -> Dict[str, Any]:
 
     metadata["page_content"] = build_page_content(product)
     return metadata
-

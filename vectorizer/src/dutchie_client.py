@@ -142,18 +142,25 @@ class DutchieClient:
         subcategory_str = str(subcategory).upper() if subcategory else None
         strain_type_str = str(strain_type).upper() if strain_type else None
 
-        query = self._build_menu_query(
-            category=category_str,
-            subcategory=subcategory_str,
-            strain_type=strain_type_str,
-        )
         variables = {
             "retailerId": self.retailer_id,
-            "limit": limit,
-            "offset": offset,
+            "pagination": {
+                "limit": limit,
+                "offset": offset,
+            },
+            "filter": {
+                key: value
+                for key, value in {
+                    "category": category_str,
+                    "subcategory": subcategory_str,
+                    "strainType": strain_type_str,
+                }.items()
+                if value is not None
+            }
+            or None,
         }
 
-        result = await self._execute_query(query, variables)
+        result = await self._execute_query(self._build_menu_query(), variables)
         data = result.get("data", {})
         menu = data.get("menu", {})
         return menu.get("products", [])
@@ -195,28 +202,11 @@ class DutchieClient:
             if fetched < current_limit:
                 return
 
-    def _build_menu_query(
-        self,
-        category: Optional[str] = None,
-        subcategory: Optional[str] = None,
-        strain_type: Optional[str] = None,
-    ) -> str:
-        filters = []
-        if category:
-            filters.append(f"category: {category}")
-        if subcategory:
-            filters.append(f"subcategory: {subcategory}")
-        if strain_type:
-            filters.append(f"strainType: {strain_type}")
-
-        filter_section = ""
-        if filters:
-            filter_section = ", filter: {" + ", ".join(filters) + "}"
-
+    def _build_menu_query(self) -> str:
         return f"""
-        query MenuProducts($retailerId: ID!, $limit: Int!, $offset: Int!) {{
-          menu(retailerId: $retailerId) {{
-            products(limit: $limit, offset: $offset{filter_section}) {{
+        query MenuProducts($retailerId: ID!, $pagination: Pagination!, $filter: MenuFilter) {{
+          menu(retailerId: $retailerId, pagination: $pagination, filter: $filter) {{
+            products {{
               id
               name
               category
@@ -225,54 +215,55 @@ class DutchieClient:
               description
               brand {{
                 name
+                description
               }}
               effects
-              flavor
-              potency {{
-                thc
-                cbd
-                cbg
+              potencyThc {{
+                formatted
+                range
+                unit
+              }}
+              potencyCbd {{
+                formatted
+                range
+                unit
               }}
               variants {{
                 id
                 priceMed
                 priceRec
+                specialPriceMed
+                specialPriceRec
                 option
                 quantity
               }}
-              image
+              images {{
+                url
+              }}
               slug
               staffPick
-              weight
-              packCount
-              percentCBD
-              percentTHC
-              cbdContent
-              thcContent
-              primaryTerpene {{
-                name
-              }}
               terpenes {{
-                name
-                aromas
-                potentialHealthBenefits
+                value
+                unitSymbol
+                terpene {{
+                  id
+                  name
+                  aromas
+                  effects
+                  potentialHealthBenefits
+                  description
+                }}
               }}
               cannabinoids {{
-                name
-                description
-              }}
-              brand {{
-                name
-                tagline
-              }}
-              inventory
-              prices {{
-                price
-                medicalPrice
-                specialPrice
+                value
+                unit
+                cannabinoid {{
+                  id
+                  name
+                  description
+                }}
               }}
             }}
           }}
         }}
         """
-
