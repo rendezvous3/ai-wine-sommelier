@@ -82,10 +82,11 @@ Use only files required for coding, debugging, testing, and architecture decisio
 - `products-qa` must stay full-catalog only when stale reconciliation is enabled.
 - For the current QA-to-prod cron promotion procedure, refer to [QA_TO_PROD_INSTR.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/QA_TO_PROD_INSTR.md).
 - Local `.env` files are CLI-only. Deployed Workers use Cloudflare Worker secrets.
+- On localhost, the client does not choose the Vectorize index. The backend chooses it via `backend/wrangler.toml` (`products-prod`) or `backend/wrangler.qa.toml` (`products-qa`). The client only chooses which backend URL to call.
 - `wrangler --config ...` and `pywrangler --config ...` resolve relative to the current working directory. Always run deploy commands from the correct service directory or use absolute config paths.
 - Pages deploys from feature branches create preview aliases; use `--branch=main` for the stable project root URL.
 - QA vectorizer Worker secrets must include `CF_AI_API_TOKEN`. `CF_D1_API_TOKEN` must have D1 edit permission.
-- Known current limitation: some tincture/CBD products still fail vectorizer transform coverage.
+- Tinctures are now a first-class category. Plain `tincture` / `tinctures` maps to category `tinctures`; `CBD tincture` remains category `cbd` with subcategory `tincture`.
 
 ## UI Architecture Rules (Mandatory)
 

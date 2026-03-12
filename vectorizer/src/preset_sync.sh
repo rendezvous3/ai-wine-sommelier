@@ -13,7 +13,7 @@
 #   edibles-quick     - Popular subcategories only (gummies, chocolates) [EDIBLES only]
 #
 # Categories:
-#   EDIBLES, FLOWER, PRE_ROLLS, VAPORIZERS, CONCENTRATES, CBD, TOPICALS, ACCESSORIES, ALL
+#   EDIBLES, FLOWER, PRE_ROLLS, VAPORIZERS, CONCENTRATES, TINCTURES, CBD, TOPICALS, ACCESSORIES, ALL
 #
 # Examples:
 #   ./preset_sync.sh all-subcategories EDIBLES products-demo-x 15
@@ -37,7 +37,7 @@ if [ $# -lt 4 ]; then
     echo "  edibles-full      - All edibles x all strains [EDIBLES only]"
     echo "  edibles-quick     - Gummies + chocolates [EDIBLES only]"
     echo ""
-    echo "Categories: EDIBLES, FLOWER, PRE_ROLLS, VAPORIZERS, CONCENTRATES, CBD, TOPICALS, ACCESSORIES, ALL"
+    echo "Categories: EDIBLES, FLOWER, PRE_ROLLS, VAPORIZERS, CONCENTRATES, TINCTURES, CBD, TOPICALS, ACCESSORIES, ALL"
     echo ""
     echo "Examples:"
     echo "  $0 all-subcategories EDIBLES products-demo-x 15"
@@ -124,6 +124,14 @@ case "$PRESET" in
                     sleep $SLEEP
                 done
                 ;;
+            TINCTURES)
+                echo "Syncing all TINCTURES subcategories (no strain filter)..."
+                for SUBCAT in DEFAULT UNFLAVORED HERBAL; do
+                    echo "  -> TINCTURES/$SUBCAT"
+                    run_vectorize --category TINCTURES --subcategory "$SUBCAT" || echo "    (skipped or failed)"
+                    sleep $SLEEP
+                done
+                ;;
             CBD)
                 echo "Syncing CBD (no Dutchie subcategory filter; subcategory inferred during normalization)..."
                 echo "  -> CBD/ALL"
@@ -184,6 +192,13 @@ case "$PRESET" in
                     sleep $SLEEP
                 done
                 echo ""
+                echo "--- TINCTURES ---"
+                for SUBCAT in DEFAULT UNFLAVORED HERBAL; do
+                    echo "  -> TINCTURES/$SUBCAT"
+                    run_vectorize --category TINCTURES --subcategory "$SUBCAT" || echo "    (skipped or failed)"
+                    sleep $SLEEP
+                done
+                echo ""
                 echo "--- CBD ---"
                 echo "  -> CBD/ALL"
                 run_vectorize --category CBD || echo "    (skipped or failed)"
@@ -205,7 +220,7 @@ case "$PRESET" in
                 ;;
             *)
                 echo "Error: Invalid category '$CATEGORY' for preset '$PRESET'"
-                echo "Valid categories: EDIBLES, FLOWER, PRE_ROLLS, VAPORIZERS, CONCENTRATES, CBD, TOPICALS, ACCESSORIES, ALL"
+                echo "Valid categories: EDIBLES, FLOWER, PRE_ROLLS, VAPORIZERS, CONCENTRATES, TINCTURES, CBD, TOPICALS, ACCESSORIES, ALL"
                 exit 1
                 ;;
         esac
@@ -217,13 +232,13 @@ case "$PRESET" in
                 echo "Syncing ALL products with no category/subcategory filter..."
                 run_vectorize || echo "    (skipped or failed)"
                 ;;
-            EDIBLES|FLOWER|PRE_ROLLS|VAPORIZERS|CONCENTRATES|CBD|TOPICALS|ACCESSORIES)
+            EDIBLES|FLOWER|PRE_ROLLS|VAPORIZERS|CONCENTRATES|TINCTURES|CBD|TOPICALS|ACCESSORIES)
                 echo "Syncing all products for category $CATEGORY with no subcategory filter..."
                 run_vectorize --category "$CATEGORY" || echo "    (skipped or failed)"
                 ;;
             *)
                 echo "Error: Invalid category '$CATEGORY' for preset '$PRESET'"
-                echo "Valid categories: EDIBLES, FLOWER, PRE_ROLLS, VAPORIZERS, CONCENTRATES, CBD, TOPICALS, ACCESSORIES, ALL"
+                echo "Valid categories: EDIBLES, FLOWER, PRE_ROLLS, VAPORIZERS, CONCENTRATES, TINCTURES, CBD, TOPICALS, ACCESSORIES, ALL"
                 exit 1
                 ;;
         esac

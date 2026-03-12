@@ -122,6 +122,11 @@ python manage_indexes.py --delete products-old
   - `tincture`
   - `chews`
   - `pet-food`
+- Dutchie `TINCTURES` inventory is now ingested as first-class category `tinctures` with:
+  - `default`
+  - `unflavored`
+  - `herbal`
+- Plain `tincture` / `tinctures` is not a CBD synonym. Only explicit `CBD tincture` stays on the CBD path.
 
 ## Environment
 

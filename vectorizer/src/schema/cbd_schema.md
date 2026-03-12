@@ -1,97 +1,75 @@
 # CBD Schema Documentation
 
-Complete schema for **CBD** category products in the vectorizer pipeline.
+Canonical schema reference for **CBD** category products in the vectorizer pipeline.
 
-**Important**: Dutchie CBD data is typically broad (`DEFAULT`/missing subcategory). The vectorizer now infers CBD subcategories from product text.
+## Scope
 
----
+This document covers products whose category is actually `CBD`.
 
-## Input Schema (Dutchie API)
+Important disambiguation:
+- `CBD tincture` is still valid here as `category: cbd`, `subcategory: tincture`
+- plain `tincture` / Dutchie `TINCTURES` inventory is **not** CBD by default and belongs in `tinctures_schema.md`
 
-```typescript
-{
-  "id": string,
-  "name": string,
-  "slug": string,
-  "description": string | null,
-  "category": "CBD",
-  "subcategory": string | null,  // Often DEFAULT or missing
-  "strainType": "HIGH_CBD",
-  "potencyCbd": { "range": number[] | [], "unit": "mg" },
-  "potencyThc": { "range": number[] | [], "unit": "mg" },
-  "variants": Array<{
-    "option": string,
-    "quantity": number | null,
-    "priceRec": number | null,
-    "priceMed": number | null
-  }>
-}
-```
-
----
-
-## Normalized Output Schema
+## Input Shape (Dutchie)
 
 ```typescript
 {
-  "id": string,
-  "name": string,
-  "category": "cbd",
-  "type": "high-cbd",
-  "subcategory": "default" | "oil" | "cream" | "tincture" | "chews" | "pet-food",
-  "cbd_total_mg": number | null,
-  "thc_total_mg": number | null,
-  "total_weight_grams": number | null,
-  "quantity": number | null,
-  "price": number | null,
-  "inStock": boolean,
-  "product_form": string | null,
-  "page_content": string
+  category: "CBD",
+  subcategory: string | null,
+  strainType: "HIGH_CBD",
+  potencyCbd: { range: number[] | [], unit: "mg" },
+  potencyThc: { range: number[] | [], unit: "mg" },
+  variants: Array<{ option: string, quantity: number | null, priceRec: number | null, priceMed: number | null }>
 }
 ```
 
----
+## Normalized Output
+
+```typescript
+{
+  id: string,
+  name: string,
+  category: "cbd",
+  type: "high-cbd",
+  subcategory: "default" | "oil" | "cream" | "tincture" | "chews" | "pet-food",
+  cbd_total_mg?: number,
+  thc_total_mg?: number,
+  total_weight_grams?: number,
+  quantity?: number,
+  price?: number,
+  inStock: boolean,
+  product_form?: string
+}
+```
 
 ## CBD Subcategory Inference
 
-Inference source: `name + description + brand`
+Inference source:
+- `name`
+- `description`
+- `brand`
 
-- `pet-food`: pet/dog/cat/peanut butter/biscuit terms
-- `tincture`: tincture terms
-- `cream`: cream/lotion/balm/salve/roll-on/topical terms
-- `chews`: chew/treat/gummy terms
-- `oil`: oil/drops/dropper terms
-- `default`: fallback when no keyword match
+Priority:
+1. `pet-food`
+2. `tincture`
+3. `cream`
+4. `chews`
+5. `oil`
+6. `default`
 
-The inferred value is validated against `schema.json`.
+All inferred values must validate against `schema.json`.
 
----
-
-## Potency and Inventory Notes
-
-- CBD remains mg-based (`cbd_total_mg`, `thc_total_mg`).
-- `quantity` uses max quantity across variants when available.
-- Low-stock exclusion can be applied in `vectorize.py` with `--min-quantity`.
-
----
-
-## CLI Commands
+## Operator Examples
 
 ```bash
-# Dry run
+# Test CBD products
 python vectorize.py -x products-test --category CBD --limit 20
 
-# Full CBD upload
-python vectorize.py -x products-prod --category CBD --limit none --upload
-
-# Full CBD upload excluding known low stock
-python vectorize.py -x products-prod --category CBD --limit none --min-quantity 5 --upload
+# Upload CBD products
+python vectorize.py -x products-prod --category CBD --limit 25 --upload
 ```
 
----
+## Cross-Reference
 
-## Dedup and Reliability
-
-- In-run dedup: by `id` and normalized `name`
-- Cross-run dedup: per-index D1 uniqueness ledger
-- Duplicate conflicts are skipped/logged and do not crash sync jobs
+- First-class tincture category: `tinctures_schema.md`
+- Non-CBD concentrates: `concentrates_schema.md`

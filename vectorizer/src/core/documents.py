@@ -74,6 +74,19 @@ def build_page_content(product: Dict[str, Any]) -> str:
             parts.append(f"Cannabinoids: {'; '.join(descriptions[:3])}")
 
     category = product.get("category", "")
+
+    if category == "tinctures":
+        if product.get("thc_total_mg") is not None:
+            parts.append(f"THC Total: {product['thc_total_mg']}mg")
+        if product.get("cbd_total_mg") is not None:
+            parts.append(f"CBD Total: {product['cbd_total_mg']}mg")
+        if product.get("thc_percentage") is not None:
+            parts.append(f"THC: {product['thc_percentage']}%")
+        if product.get("cbd_percentage") is not None:
+            parts.append(f"CBD: {product['cbd_percentage']}%")
+        if product.get("total_volume_ml") is not None:
+            parts.append(f"Volume: {product['total_volume_ml']}ml")
+
     thc_value = product.get("thc_per_unit_mg") if category == "edibles" else product.get("thc_percentage")
     if thc_value is not None:
         potency = get_potency_label(category, thc_value)

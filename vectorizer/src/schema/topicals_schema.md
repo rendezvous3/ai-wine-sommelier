@@ -206,7 +206,7 @@ python vectorize.py -x products-prod --category TOPICALS --subcategory BALMS --l
 
 ## Notes
 
-1. **mg-based potency**: Like edibles, CBD, and tinctures, topicals use mg units (not percentages)
+1. **mg-based potency**: Like edibles and CBD, topicals use mg units (not percentages). Tinctures are mixed-unit and handled separately.
 2. **THC:CBD ratios**: Many topicals have balanced ratios (1:1) or favor CBD (3:1)
 3. **Non-psychoactive**: Topicals are applied externally and don't produce psychoactive effects
 4. **Pain relief focus**: Effects are typically "calm" and "relaxed" (pain/inflammation relief)

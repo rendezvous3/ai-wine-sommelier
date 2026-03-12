@@ -1,11 +1,12 @@
 {
-  "categories": ["flower", "prerolls", "edibles", "concentrates", "vaporizers", "cbd", "topicals", "accessories"],
+  "categories": ["flower", "prerolls", "edibles", "concentrates", "vaporizers", "tinctures", "cbd", "topicals", "accessories"],
   "types": ["indica", "sativa", "hybrid", "indica-hybrid", "sativa-hybrid"],
   "subcategories": {
     "edibles": ["default", "chews", "chocolates", "cooking-baking", "drinks", "gummies", "live-resin-gummies", "live-rosin-gummies"],
     "vaporizers": ["default", "all-in-one", "cartridges", "disposables", "live-resin", "live-rosin"],
     "prerolls": ["default", "blunts", "infused-prerolls", "infused-preroll-packs", "pre-roll-packs", "singles"],
     "flower": ["default", "bulk-flower", "pre-ground", "premium-flower", "small-buds", "whole-flower"],
+    "tinctures": ["default", "unflavored", "herbal"],
     "cbd": ["default", "oil", "cream", "tincture", "chews", "pet-food"],
     "concentrates": ["default", "badder", "hash", "live-resin", "live-rosin", "rosin", "unflavored"],
     "topicals": ["default", "balms"],
@@ -70,7 +71,7 @@
       "description": "Use cbd_total_mg for vector DB queries on CBD and topicals"
     },
     "quantity_fields": {
-      "categories": ["flower", "prerolls", "edibles", "concentrates", "vaporizers", "cbd", "topicals", "accessories"],
+      "categories": ["flower", "prerolls", "edibles", "concentrates", "vaporizers", "tinctures", "cbd", "topicals", "accessories"],
       "fields": ["quantity"],
       "description": "Use quantity for inventory tracking"
     }

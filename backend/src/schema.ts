@@ -98,6 +98,10 @@ export function getValidSubcategories(category: string): string[] {
 export function getTHCFieldsForCategory(category: string): string[] {
   if (!category) return [];
   const normalizedCategory = category.toLowerCase();
+
+  // Tinctures intentionally do not map to a single backend THC filter family yet.
+  // Real Dutchie tinctures mix mg and percentage units, so strict numeric filtering
+  // stays disabled until a stable tincture potency model is introduced.
   
   if (schema.categoryFieldMappings.thc_percentage_fields.categories.includes(normalizedCategory)) {
     return schema.categoryFieldMappings.thc_percentage_fields.fields;
@@ -148,4 +152,3 @@ export function getSchemaForPrompt(): string {
   
   return schemaStr;
 }
-

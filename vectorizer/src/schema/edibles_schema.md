@@ -555,7 +555,7 @@ This is the complete structure of a transformed edible product as returned by th
   "thc_per_unit_mg": number | null,  // Calculated: thc_total_mg / pack_count
   "cbd_total_mg": number | null,
   "cbd_per_unit_mg": number | null,  // Calculated: cbd_total_mg / pack_count
-  "cbd_percentage": number | null | undefined,  // For some products (e.g., tinctures)
+  "cbd_percentage": number | null | undefined,  // Rare source-data edge case; not a primary edible field
   "pack_count": number | null,  // Extracted from name/description/slug, NOT from variants.quantity
   "total_weight_grams": number | null | undefined,
   "total_weight_ounce": number | null | undefined,

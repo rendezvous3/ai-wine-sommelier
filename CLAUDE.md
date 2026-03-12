@@ -39,10 +39,11 @@ If a later section conflicts with this section, trust this section first and the
 - `products-qa` must stay full-catalog only when stale reconciliation is enabled.
 - For the current QA-soak-to-prod promotion procedure, refer to [QA_TO_PROD_INSTR.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/QA_TO_PROD_INSTR.md).
 - Deployed Workers do not read local `.env` files. `vectorizer/.env` is CLI-only; optional local QA env files are convenience only.
+- On localhost, the client does not choose the Vectorize index. The backend chooses it via `backend/wrangler.toml` (`products-prod`) or `backend/wrangler.qa.toml` (`products-qa`). The client only chooses which backend URL to call.
 - `wrangler --config ...` and `pywrangler --config ...` resolve relative to the current working directory. Run backend deploy commands from `backend/` and vectorizer deploy commands from `vectorizer/`, or use absolute config paths.
 - `npx wrangler pages deploy ...` from a feature branch creates a preview alias. Use `--branch=main` for the stable Pages root URL.
 - QA vectorizer Worker secrets must include `CF_AI_API_TOKEN`. `CF_D1_API_TOKEN` must have D1 edit permission.
-- Current known limitation: some tincture/CBD products still fail transform with `Subclasses must implement transform()`.
+- Tinctures are now a first-class category. Plain `tincture` / `tinctures` maps to category `tinctures`; `CBD tincture` remains category `cbd` with subcategory `tincture`.
 
 ## Architecture & Components
 

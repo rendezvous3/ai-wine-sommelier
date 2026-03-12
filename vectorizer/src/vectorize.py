@@ -106,6 +106,7 @@ async def async_main() -> None:
             "EDIBLES",
             "VAPORIZERS",
             "CONCENTRATES",
+            "TINCTURES",
             "CBD",
             "TOPICALS",
             "ACCESSORIES",

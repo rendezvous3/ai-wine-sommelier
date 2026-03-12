@@ -39,6 +39,7 @@ FALLBACK_SCHEMA = {
             "small-buds",
             "whole-flower",
         ],
+        "tinctures": ["default", "unflavored", "herbal"],
         "cbd": ["default", "oil", "cream", "tincture", "chews", "pet-food"],
         "concentrates": [
             "default",
@@ -85,7 +86,6 @@ SUBCATEGORY_MAPPING = {
     "Cartridges": "cartridges",
     "Disposables": "disposables",
     "Live Resin": "live-resin",
-    "Tinctures": "default",
     "Badder": "badder",
     "Hash": "hash",
     # Dutchie API uppercase formats
@@ -109,11 +109,11 @@ SUBCATEGORY_MAPPING = {
     "CHEWS": "chews",
     "LIVE_RESIN": "live-resin",
     "LIVE_ROSIN": "live-rosin",
+    "HERBAL": "herbal",
     "ALL_IN_ONE": "all-in-one",
     "CARTRIDGES": "cartridges",
     "DISPOSABLES": "disposables",
     "UNFLAVORED": "unflavored",
-    "TINCTURES": "default",
     "BADDER": "badder",
     "HASH": "hash",
     "ROSIN": "rosin",
@@ -436,11 +436,17 @@ def assign_subcategory(product: Dict[str, Any], schema_data: Optional[Dict] = No
         else:
             display_subcategory = "All-In-One"  # Default
     
+    elif category == "tinctures":
+        raw_subcategory = str(product.get("subcategory", "")).upper()
+        if raw_subcategory == "HERBAL":
+            display_subcategory = "HERBAL"
+        elif raw_subcategory == "UNFLAVORED":
+            display_subcategory = "UNFLAVORED"
+        else:
+            display_subcategory = "DEFAULT"
+
     elif category == "concentrates":
-        # Check if it's a tincture
-        if "tincture" in name.lower():
-            display_subcategory = "Default"
-        elif product.get("texture") == "badder":
+        if product.get("texture") == "badder":
             display_subcategory = "Badder"
         elif "live resin" in description.lower():
             display_subcategory = "Live Resin"
@@ -483,9 +489,9 @@ def normalize_weights_and_thc(product: Dict[str, Any]) -> Dict[str, Any]:
     if "unit" in normalized:
         del normalized["unit"]  # Remove unit field as it's now in property names
     
-    # THC/CBD percentage fields (skip for tinctures - they'll be handled separately)
+    # THC/CBD percentage fields (skip for tinctures - they may use mg or percentages)
     category = normalize_category(normalized.get("category", ""))
-    is_tincture = category == "concentrates" and "tincture" in normalized.get("name", "").lower()
+    is_tincture = category == "tinctures"
     
     if not is_tincture:
         if "thc" in normalized:
@@ -553,67 +559,44 @@ def normalize_weights_and_thc(product: Dict[str, Any]) -> Dict[str, Any]:
                 normalized["cbn_total_mg"] = round(cbn_total, 2)
             del normalized["cbn_total"]
     
+    elif category == "tinctures":
+        if "volume_ml" in normalized:
+            normalized["total_volume_ml"] = normalized.pop("volume_ml")
+
+        if "thc_total" in normalized:
+            normalized["thc_total_mg"] = round(normalized.pop("thc_total"), 2)
+
+        if "cbd_total" in normalized:
+            normalized["cbd_total_mg"] = round(normalized.pop("cbd_total"), 2)
+
+        if "cbg_total" in normalized:
+            normalized["cbg_total_mg"] = round(normalized.pop("cbg_total"), 2)
+
+        if "thc" in normalized:
+            del normalized["thc"]
+        if "cbd" in normalized:
+            del normalized["cbd"]
+
     elif category == "concentrates":
-        # Check if it's a tincture
-        if "tincture" in normalized.get("name", "").lower():
-            # Tinctures: normalize volume and serving fields
-            if "volume_ml" in normalized:
-                normalized["total_volume_ml"] = normalized.pop("volume_ml")
-            
-            if "serving_size_ml" in normalized:
-                # Keep as is
-                pass
-            
-            # Remove thc_percentage and cbd_percentage for tinctures (they don't have percentages)
-            if "thc_percentage" in normalized:
-                del normalized["thc_percentage"]
-            if "cbd_percentage" in normalized:
-                del normalized["cbd_percentage"]
-            
-            # THC/CBG totals are already in mg in the original data
-            if "thc_total" in normalized:
-                thc_total = normalized["thc_total"]
-                # Values like 150.0 are already in mg, not grams
-                normalized["thc_total_mg"] = round(thc_total, 2)
-                del normalized["thc_total"]
-            
-            if "thc_per_serving" in normalized:
-                normalized["thc_per_serving_mg"] = normalized.pop("thc_per_serving")
-            
-            if "cbg_total" in normalized:
-                cbg_total = normalized["cbg_total"]
-                # Values like 600.0 are already in mg
-                normalized["cbg_total_mg"] = round(cbg_total, 2)
-                del normalized["cbg_total"]
-            
-            if "cbg_per_serving" in normalized:
-                normalized["cbg_per_serving_mg"] = normalized.pop("cbg_per_serving")
-            
-            # Remove leftover thc/cbd fields (they're not percentages for tinctures)
-            if "thc" in normalized:
-                del normalized["thc"]
-            if "cbd" in normalized:
-                del normalized["cbd"]
-        else:
-            # Regular concentrates: calculate THC total from weight and percentage
-            total_weight_grams = normalized.get("total_weight_grams", 0)
-            thc_percentage = normalized.get("thc_percentage", 0)
-            
-            if total_weight_grams and thc_percentage:
-                thc_total_mg = (total_weight_grams * thc_percentage / 100) * 1000
-                normalized["thc_total_mg"] = round(thc_total_mg, 2)
-            
-            if "serving_size" in normalized:
-                serving_size = normalized["serving_size"]
-                # Convert to mg if in g (assuming < 1 means grams)
-                if serving_size < 1.0:
-                    normalized["serving_size_mg"] = round(serving_size * 1000, 2)
-                else:
-                    normalized["serving_size_mg"] = round(serving_size, 2)
-                del normalized["serving_size"]
-            
-            if "serving_unit" in normalized:
-                del normalized["serving_unit"]
+        # Regular concentrates: calculate THC total from weight and percentage
+        total_weight_grams = normalized.get("total_weight_grams", 0)
+        thc_percentage = normalized.get("thc_percentage", 0)
+
+        if total_weight_grams and thc_percentage:
+            thc_total_mg = (total_weight_grams * thc_percentage / 100) * 1000
+            normalized["thc_total_mg"] = round(thc_total_mg, 2)
+
+        if "serving_size" in normalized:
+            serving_size = normalized["serving_size"]
+            # Convert to mg if in g (assuming < 1 means grams)
+            if serving_size < 1.0:
+                normalized["serving_size_mg"] = round(serving_size * 1000, 2)
+            else:
+                normalized["serving_size_mg"] = round(serving_size, 2)
+            del normalized["serving_size"]
+
+        if "serving_unit" in normalized:
+            del normalized["serving_unit"]
     
     elif category == "vaporizers":
         # Vaporizers: already normalized above
@@ -1660,111 +1643,107 @@ class VaporizerTransformer(ProductTransformer):
         return None
 
 
-class ConcentrateTransformer(ProductTransformer):
-    """Transformer for concentrate products (tinctures, wax, shatter, rosin, etc.)."""
+class TinctureTransformer(ProductTransformer):
+    """Transformer for tincture products with mixed-unit potency support."""
 
     def transform(self, product: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Transform concentrate product.
+        Transform tincture products without forcing a single potency scale.
 
-        Handles two types:
-        1. Tinctures: mg-based potency (like edibles)
-        2. Other concentrates: percentage-based potency (like vaporizers)
+        Real Dutchie tinctures may expose potency as either mg totals or percentages,
+        so preserve whichever concrete value the API provides.
         """
         normalized = self._basic_transform(product)
 
-        # Detect if this is a tincture
-        is_tincture = self._is_tincture(product)
+        potency_thc = product.get("potencyThc", {})
+        potency_cbd = product.get("potencyCbd", {})
 
-        if is_tincture:
-            # Tinctures: mg-based potency
-            potency_thc = product.get("potencyThc", {})
-            potency_cbd = product.get("potencyCbd", {})
+        thc_value = self._extract_potency_value(potency_thc)
+        thc_unit = str(potency_thc.get("unit", "")).strip().lower()
+        if thc_value is not None:
+            if thc_unit == "mg":
+                normalized["thc_total_mg"] = thc_value
+            elif thc_unit == "%":
+                normalized["thc_percentage"] = thc_value
 
-            if potency_thc.get("range") and len(potency_thc["range"]) > 0:
-                normalized["thc_total_mg"] = potency_thc["range"][0]
+        cbd_value = self._extract_potency_value(potency_cbd)
+        cbd_unit = str(potency_cbd.get("unit", "")).strip().lower()
+        if cbd_value is not None:
+            if cbd_unit == "mg":
+                normalized["cbd_total_mg"] = cbd_value
+            elif cbd_unit == "%":
+                normalized["cbd_percentage"] = cbd_value
 
-            if potency_cbd.get("range") and len(potency_cbd["range"]) > 0:
-                normalized["cbd_total_mg"] = potency_cbd["range"][0]
-
-            # Extract CBG from cannabinoids array (tinctures often have high CBG)
-            cannabinoids = product.get("cannabinoids", [])
-            for cannabinoid_data in cannabinoids:
-                if isinstance(cannabinoid_data, dict):
-                    cannabinoid = cannabinoid_data.get("cannabinoid", {})
-                    if isinstance(cannabinoid, dict):
-                        name = cannabinoid.get("name", "")
-                        if "CBG" in name.upper():
-                            unit = cannabinoid_data.get("unit", "")
-                            value = cannabinoid_data.get("value")
-                            if unit == "MILLIGRAMS" and value is not None:
-                                normalized["cbg_total_mg"] = value
-
-            # Extract volume from variants (tinctures use ml, stored as grams)
-            variants = product.get("variants", [])
-            if variants and isinstance(variants, list) and len(variants) > 0:
-                first_variant = variants[0]
-                if isinstance(first_variant, dict):
-                    option = first_variant.get("option", "")
-                    volume = self._parse_weight(option)
-                    if volume:
-                        normalized["total_volume_ml"] = volume
-
-                        # Calculate per-serving amounts (1ml = 1 serving)
-                        if normalized.get("thc_total_mg"):
-                            normalized["thc_per_serving_mg"] = round(normalized["thc_total_mg"] / volume, 2)
-                        if normalized.get("cbg_total_mg"):
-                            normalized["cbg_per_serving_mg"] = round(normalized["cbg_total_mg"] / volume, 2)
-
-        else:
-            # Other concentrates: percentage-based potency
-            potency_thc = product.get("potencyThc", {})
-            if potency_thc.get("range") and len(potency_thc["range"]) > 0:
-                normalized["thc_percentage"] = potency_thc["range"][0]
-
-            potency_cbd = product.get("potencyCbd", {})
-            if potency_cbd.get("range") and len(potency_cbd["range"]) > 0:
-                normalized["cbd_percentage"] = potency_cbd["range"][0]
-
-            # Weight from variants
-            variants = product.get("variants", [])
-            if variants and isinstance(variants, list) and len(variants) > 0:
-                first_variant = variants[0]
-                if isinstance(first_variant, dict):
-                    option = first_variant.get("option", "")
-                    weight = self._parse_weight(option)
-                    if weight:
-                        normalized["total_weight_grams"] = weight
+        total_volume_ml = self._extract_explicit_volume_ml(
+            product.get("name", ""),
+            product.get("description", ""),
+            product.get("slug", ""),
+        )
+        if total_volume_ml is not None:
+            normalized["total_volume_ml"] = total_volume_ml
 
         return normalized
 
-    def _is_tincture(self, product: Dict[str, Any]) -> bool:
-        """
-        Detect if product is a tincture.
+    def _extract_potency_value(self, potency: Dict[str, Any]) -> Optional[float]:
+        if not isinstance(potency, dict):
+            return None
+        raw_range = potency.get("range") or []
+        if raw_range:
+            try:
+                return float(raw_range[0])
+            except (TypeError, ValueError):
+                return None
+        formatted = potency.get("formatted", "")
+        if formatted:
+            match = re.search(r"(\d+(?:\.\d+)?)", str(formatted))
+            if match:
+                return float(match.group(1))
+        return None
 
-        Criteria:
-        - Name contains "tincture" OR
-        - Description contains "tincture" OR
-        - Subcategory is DEFAULT/UNFLAVORED AND potencyThc unit is "mg"
+    def _extract_explicit_volume_ml(self, *texts: str) -> Optional[float]:
+        for text in texts:
+            if not text:
+                continue
+            match = re.search(r"(\d+(?:\.\d+)?)\s*m\s*l\b", text, re.IGNORECASE)
+            if not match:
+                match = re.search(r"(\d+(?:\.\d+)?)\s*ml\b", text, re.IGNORECASE)
+            if match:
+                value = float(match.group(1))
+                if 0 < value <= 120:
+                    return value
+        return None
+
+
+class ConcentrateTransformer(ProductTransformer):
+    """Transformer for concentrate products (badder, hash, rosin, etc.)."""
+
+    def transform(self, product: Dict[str, Any]) -> Dict[str, Any]:
         """
-        name = product.get("name", "").lower()
-        description = product.get("description", "").lower()
-        subcategory = product.get("subcategory", "").upper()
+        Transform concentrate product with percentage-based potency.
+        """
+        normalized = self._basic_transform(product)
+
         potency_thc = product.get("potencyThc", {})
-        thc_unit = potency_thc.get("unit", "")
+        if potency_thc.get("range") and len(potency_thc["range"]) > 0:
+            normalized["thc_percentage"] = potency_thc["range"][0]
 
-        # Check name or description
-        if "tincture" in name or "tincture" in description:
-            return True
+        potency_cbd = product.get("potencyCbd", {})
+        if potency_cbd.get("range") and len(potency_cbd["range"]) > 0:
+            normalized["cbd_percentage"] = potency_cbd["range"][0]
 
-        # Check subcategory + unit
-        if subcategory in ["DEFAULT", "UNFLAVORED"] and thc_unit == "mg":
-            return True
+        variants = product.get("variants", [])
+        if variants and isinstance(variants, list) and len(variants) > 0:
+            first_variant = variants[0]
+            if isinstance(first_variant, dict):
+                option = first_variant.get("option", "")
+                weight = self._parse_weight(option)
+                if weight:
+                    normalized["total_weight_grams"] = weight
 
-        return False
+        return normalized
 
     def _parse_weight(self, option: str) -> Optional[float]:
-        """Parse weight/volume from variant option string."""
+        """Parse weight from variant option string."""
         if not option:
             return None
 
@@ -2015,6 +1994,7 @@ def get_transformer(category: str, schema_data: Optional[Dict] = None) -> Produc
         "prerolls": PrerollTransformer,
         "pre_rolls": PrerollTransformer,  # Handle both formats
         "vaporizers": VaporizerTransformer,
+        "tinctures": TinctureTransformer,
         "concentrates": ConcentrateTransformer,
         "cbd": CBDTransformer,  # CBD products with mg-based potency
         "topicals": TopicalTransformer,  # Topical products with mg-based potency

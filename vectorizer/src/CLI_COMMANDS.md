@@ -134,7 +134,7 @@ python vectorize.py -x products-demo-3 --category EDIBLES --limit 20
 
 **Options:**
 - `-x, --index INDEX_NAME` - Vectorize index name (required)
-- `--category CATEGORY` - Category to vectorize (EDIBLES, FLOWER, PRE_ROLLS, VAPORIZERS, CONCENTRATES, CBD, TOPICALS, ACCESSORIES)
+- `--category CATEGORY` - Category to vectorize (EDIBLES, FLOWER, PRE_ROLLS, VAPORIZERS, CONCENTRATES, TINCTURES, CBD, TOPICALS, ACCESSORIES)
 - `--subcategory SUBCATEGORY` - Subcategory to filter (GUMMIES, CHOCOLATES, COOKING_BAKING, DRINKS, etc.)
 - `--strain STRAIN` - Strain type to filter (INDICA, SATIVA, HYBRID)
 - `--limit N|none` - Total number of products to fetch (default: 50). Use `none` to fetch all.
@@ -345,11 +345,7 @@ python vectorize.py -x products-prod --category VAPORIZERS --subcategory DISPOSA
 
 ### CONCENTRATES Category
 
-Upload concentrate products (tinctures, badder, hash, live resin, live rosin, rosin) to Vectorize.
-
-**Important**: CONCENTRATES has two distinct types:
-1. **Tinctures** (DEFAULT, UNFLAVORED) - mg-based potency like edibles
-2. **Other concentrates** (BADDER, HASH, LIVE_RESIN, LIVE_ROSIN, ROSIN) - percentage-based potency like vaporizers
+Upload concentrate products (badder, hash, live resin, live rosin, rosin) to Vectorize.
 
 ```bash
 # Test 20 CONCENTRATES products
@@ -363,21 +359,41 @@ python vectorize.py -x products-prod --category CONCENTRATES --subcategory LIVE_
 
 # Upload badder
 python vectorize.py -x products-prod --category CONCENTRATES --subcategory BADDER --strain HYBRID --limit 15 --upload
-
-# Upload tinctures (default)
-python vectorize.py -x products-prod --category CONCENTRATES --subcategory DEFAULT --limit 10 --upload
 ```
 
 **CONCENTRATES Subcategories:**
-- `DEFAULT` - Standard/tinctures
-- `UNFLAVORED` - Unflavored tinctures
+- `DEFAULT` - Standard concentrates
 - `BADDER` - Badder/budder consistency
 - `HASH` - Hash concentrates
 - `LIVE_RESIN` - Live resin extracts
 - `LIVE_ROSIN` - Live rosin (solventless)
 - `ROSIN` - Standard rosin (solventless)
 
-**Note**: Tinctures have mg-based THC/CBD (like edibles), other concentrates have percentage-based THC (66-90%+).
+**Note**: Concentrates use percentage-based THC (66-90%+), similar to vaporizers.
+
+### TINCTURES Category
+
+Upload tincture products as a first-class category. This is the canonical home for Dutchie `TINCTURES` inventory.
+
+**Important**: Tinctures may expose potency as either mg totals or percentages. Ingest preserves whichever concrete field Dutchie provides.
+
+```bash
+# Test 20 TINCTURES products
+python vectorize.py -x products-test --category TINCTURES --limit 20
+
+# Upload all tinctures
+python vectorize.py -x products-prod --category TINCTURES --limit 25 --upload
+
+# Upload herbal tinctures only
+python vectorize.py -x products-prod --category TINCTURES --subcategory HERBAL --limit 20 --upload
+```
+
+**TINCTURES Subcategories:**
+- `DEFAULT` - Standard tinctures
+- `UNFLAVORED` - Unflavored tinctures
+- `HERBAL` - Herbal tinctures
+
+**Note**: `CBD tincture` remains a CBD subcategory path. Plain `tincture` / `tinctures` maps to the `TINCTURES` category.
 
 ### CBD Category
 
@@ -400,7 +416,7 @@ python vectorize.py -x products-prod --category CBD --limit none --min-quantity 
 - `DEFAULT` - Fallback when no specific form is detected
 - `OIL` - Oils and drops
 - `CREAM` - Creams, lotions, salves, and roll-ons
-- `TINCTURE` - Tinctures
+- `TINCTURE` - CBD tinctures only
 - `CHEWS` - Chews, treats, gummies
 - `PET-FOOD` - Pet-focused products
 
@@ -606,6 +622,9 @@ Use preset scripts to sync multiple subcategories at once.
 # All CONCENTRATES subcategories
 ./preset_sync.sh all-subcategories CONCENTRATES products-demo-x 15
 
+# All TINCTURES subcategories
+./preset_sync.sh all-subcategories TINCTURES products-demo-x 15
+
 # All categories
 ./preset_sync.sh all-subcategories ALL products-demo-x 15
 
@@ -627,6 +646,9 @@ Use preset scripts to sync multiple subcategories at once.
 
 **CONCENTRATES subcategories (7 total):**
 - DEFAULT, UNFLAVORED, BADDER, HASH, LIVE_RESIN, LIVE_ROSIN, ROSIN
+
+**TINCTURES subcategories (3 total):**
+- DEFAULT, UNFLAVORED, HERBAL
 
 **Available Presets:**
 

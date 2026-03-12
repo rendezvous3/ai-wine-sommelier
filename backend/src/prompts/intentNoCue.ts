@@ -60,13 +60,13 @@ DO NOT add fields that weren't explicitly mentioned
 
 ${schemaInfo}
 
-Valid Categories: flower, prerolls, edibles, concentrates, vaporizers, cbd, accessories, topicals
+Valid Categories: flower, prerolls, edibles, concentrates, vaporizers, tinctures, cbd, accessories, topicals
 
 CATEGORY Notes:
 - Category can be a single value or an array of categories (e.g., ["prerolls", "flower"])
 - Use array format when user wants products from multiple categories
 - ONLY extract category if:
-  1. User explicitly mentions category name (flower, prerolls, edibles, concentrates, vaporizers, cbd), OR
+  1. User explicitly mentions category name (flower, prerolls, edibles, concentrates, vaporizers, tinctures, cbd), OR
   2. User mentions a subcategory (which implies the parent category - see subcategory mapping below)
 - DO NOT infer category from effects, type, or other preferences
 - If category is not explicitly mentioned, omit it entirely (null)
@@ -78,13 +78,19 @@ SUBCATEGORY → Category Mapping:
 - important for infused, if infused prerolls are mentioned add both ["infused-prerolls", "infused-preroll-packs"]
 - flower subcategories (premium-flower, whole-flower, small-buds, etc.) → category: "flower"
 - concentrates subcategories (badder, hash, live-resin, live-rosin, rosin, unflavored) → category: "concentrates"
+- tinctures subcategories (default, unflavored, herbal) → category: "tinctures"
 - cbd subcategories (default, oil, cream, tincture, chews, pet-food) → category: "cbd"
 - accessories subcategories (batteries, glassware, grinders, lighters, papers-rolling-supplies) → category: "accessories"
 - topicals subcategories (balms) → category: "topicals"
 
+Disambiguation Rule:
+- Plain "tincture" or "tinctures" → category: "tinctures"
+- "CBD tincture" → category: "cbd", subcategory: ["tincture"]
+
 Category-Specific THC Fields:
 - For flower, prerolls, vaporizers, concentrates: Use thc_percentage_min and thc_percentage_max when THC preference is mentioned
 - For edibles: Use thc_per_unit_mg_min and thc_per_unit_mg_max when THC/dosage preference is mentioned
+- For tinctures: Do not emit thc_percentage_min/max or thc_per_unit_mg_min/max in this pass; keep tincture extraction to category, subcategory, type, and effects
 - NEVER mix these fields - use the correct one based on category
 
 THC POTENCY EXTRACTION - Three Scenarios:
@@ -233,6 +239,8 @@ When extracting THC preferences (match the category word from the CODEX message 
 - "cream" (CBD context) → subcategory: ["cream"], category: "cbd"
 - "tincture" (CBD context) → subcategory: ["tincture"], category: "cbd"
 - "chews" (CBD context) → subcategory: ["chews"], category: "cbd"
+- "tincture" or "tinctures" (non-CBD context) → category: "tinctures"
+- "herbal tincture" → subcategory: ["herbal"], category: "tinctures"
 - "pet food" / "pet treats" (CBD context) → subcategory: ["pet-food"], category: "cbd"
 - "cartridges" or "carts" → subcategory: ["cartridges"], category: "vaporizers"
 - "infused prerolls" → subcategory: ["infused-prerolls", "infused-preroll-packs"], category: "prerolls"
@@ -252,6 +260,7 @@ When extracting THC preferences (match the category word from the CODEX message 
 - "infused pre rolls" → category: "prerolls", subcategory: ["infused-prerolls", "infused-preroll-packs"]
 - "cbd oil" → category: "cbd", subcategory: ["oil"]
 - "cbd pet treats" → category: "cbd", subcategory: ["pet-food"]
+- "sleepy tincture" → category: "tinctures", effects: ["sleepy"]
 
 Effects Notes:
 - Valid canonical effects: calm, happy, relaxed, energetic, clear-mind, creative, focused, inspired, sleepy, uplifted

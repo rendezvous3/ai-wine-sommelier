@@ -56,9 +56,11 @@ If a later section conflicts with this March 2026 architecture summary, trust th
 - The QA vectorizer Worker requires `CF_AI_API_TOKEN` in addition to the Dutchie, Vectorize, D1, and admin secrets. `CF_D1_API_TOKEN` must have D1 edit permission, and `CF_VECTORIZE_API_TOKEN` must have Vectorize read/write access.
 - Cron deployment is not proof of cron execution. Confirm actual scheduled runs via `GET /last-run` and check for `"trigger_source": "scheduled"`.
 
-### Current known limitation
+### Current known tincture rule
 
-- QA sync is operational, but some tincture/CBD products still fail transform with `Subclasses must implement transform()`. The worker and cron infrastructure are healthy; catalog coverage cleanup is still in progress.
+- `tinctures` is now a first-class category across backend and vectorizer.
+- Plain `tincture` / `tinctures` should resolve to category `tinctures`.
+- `CBD tincture` remains a CBD-specific path: category `cbd`, subcategory `tincture`.
 
 ## Accessibility Compliance (WCAG 2.1 AA)
 
@@ -165,9 +167,9 @@ The project keeps matching schema definitions in `backend/src/schema.json`, `bac
 
 ### Schema Structure
 
-**Categories** (8 total):
+**Categories** (9 total):
 ```
-flower, prerolls, edibles, concentrates, vaporizers, cbd, topicals, accessories
+flower, prerolls, edibles, concentrates, vaporizers, tinctures, cbd, topicals, accessories
 ```
 
 **Types** (5 total):
@@ -181,6 +183,8 @@ indica, sativa, hybrid, indica-hybrid, sativa-hybrid
 - **prerolls**: blunts, infused-prerolls, infused-preroll-packs, pre-roll-packs, singles
 - **flower**: bulk-flower, pre-ground, premium-flower, small-buds, whole-flower
 - **concentrates**: badder, hash, live-resin, live-rosin, rosin, unflavored
+- **tinctures**: default, unflavored, herbal
+- **cbd**: default, oil, cream, tincture, chews, pet-food
 - **topicals**: balms
 - **accessories**: batteries, glassware, grinders, lighters, papers-rolling-supplies
 
@@ -551,6 +555,7 @@ The project uses environment-specific configuration files to manage API URLs and
 
 **Client** (`client/`):
 - `.env.development` - Local development (points to localhost:8787)
+- `.env.local` - Optional untracked local override for whichever backend port you want to hit today
 - `.env.qa` - QA widget build (points to QA backend Worker)
 - `.env.production` - Production deployment (points to deployed Cloudflare Worker)
 - `.env.qa.example` - Tracked template for QA widget build values
@@ -558,6 +563,11 @@ The project uses environment-specific configuration files to manage API URLs and
 ```bash
 # client/.env.development
 VITE_API_URL=http://localhost:8787/chat
+VITE_STORE_NAME=cannavita
+
+# client/.env.local
+# Optional override if you want localhost client to hit a different local backend port
+VITE_API_URL=http://localhost:8788/chat
 VITE_STORE_NAME=cannavita
 
 # client/.env.qa
@@ -571,7 +581,8 @@ VITE_STORE_NAME=cannavita
 
 **Backend** (`backend/`):
 - `.env` - Local secrets (API keys, tokens)
-- `wrangler.toml` - Cloudflare Workers configuration
+- `wrangler.toml` - Local/deployed backend config bound to `products-prod`
+- `wrangler.qa.toml` - Local/deployed backend config bound to `products-qa`
 
 **Important**: All `.env.*` files are gitignored and not committed to the repository.
 
@@ -589,6 +600,13 @@ VITE_STORE_NAME=cannavita
 1. **Runtime override**: `data-api` attribute on script tag (highest priority)
 2. **Compile-time**: `import.meta.env.VITE_API_URL` from .env file (baked into build)
 3. **Fallback**: `http://localhost:8787/chat` (hardcoded default)
+
+**Important local-dev rule**:
+- The client does **not** choose the Vectorize index.
+- The backend chooses the Vectorize index via its Wrangler config:
+  - `backend/wrangler.toml` -> `products-prod`
+  - `backend/wrangler.qa.toml` -> `products-qa`
+- The client only chooses which backend URL to call (`localhost:8787`, `localhost:8788`, deployed QA Worker, deployed prod Worker, etc.).
 
 **Example - Runtime Override**:
 ```html
@@ -616,17 +634,29 @@ VITE_STORE_NAME=cannavita
 
 Run backend and frontend together for complete local testing:
 
-**Terminal 1 - Backend API**:
+**Terminal 1 - Backend API (prod index on localhost)**:
 ```bash
 cd backend
 npx wrangler dev --remote
 ```
 **→ Runs backend on `http://localhost:8787`**
 **→ Uses remote Cloudflare resources (Vectorize, Workers AI)**
+**→ Queries Vectorize index `products-prod`**
+
+**Terminal 1 alternative - Backend API (QA index on localhost)**:
+```bash
+cd backend
+npx wrangler dev --remote --config wrangler.qa.toml
+```
+**→ Runs backend on `http://localhost:8787`**
+**→ Queries Vectorize index `products-qa`**
 
 **Terminal 2 - Frontend Widget**:
 ```bash
 cd client
+
+# Optional: pin localhost client to whichever backend you want today
+printf 'VITE_API_URL=http://localhost:8787/chat\nVITE_STORE_NAME=cannavita\n' > .env.local
 
 # Build widget after making changes
 npm run build
@@ -643,6 +673,61 @@ npm run dev
 2. Run `npm run build` in Terminal 2
 3. Refresh browser at `http://localhost:5173`
 4. Repeat
+
+#### Local prod vs QA switching
+
+The important split is:
+
+- **backend config chooses the vector index**
+- **client URL chooses which backend instance to call**
+
+**Simplest switching model**:
+- want localhost -> prod index: run `backend/wrangler.toml`
+- want localhost -> QA index: run `backend/wrangler.qa.toml`
+- keep client pointing at `http://localhost:8787/chat`
+
+**Run both side-by-side if you want fast comparison**:
+
+```bash
+# Terminal 1 - prod backend on 8787
+cd backend
+npx wrangler dev --remote --port 8787
+
+# Terminal 2 - QA backend on 8788
+cd backend
+npx wrangler dev --remote --config wrangler.qa.toml --port 8788
+```
+
+Then point the client where you want:
+
+```bash
+# Local client -> prod backend
+cd client
+printf 'VITE_API_URL=http://localhost:8787/chat\nVITE_STORE_NAME=cannavita\n' > .env.local
+npm run build
+npm run dev
+
+# Local client -> QA backend
+cd client
+printf 'VITE_API_URL=http://localhost:8788/chat\nVITE_STORE_NAME=cannavita\n' > .env.local
+npm run build
+npm run dev
+```
+
+**Runtime override option**:
+- `client/src/main.ts` already prefers `data-api` over baked env vars
+- so an embed/demo page can switch backends without a rebuild by changing `data-api`
+
+Example:
+```html
+<script
+  id="ecom-widget-script"
+  type="module"
+  src="/widget.js"
+  data-api="http://localhost:8788/chat"
+  data-store="cannavita">
+</script>
+```
 
 **Why `--remote` flag?**
 The `--remote` flag runs your Worker code remotely on Cloudflare's infrastructure while keeping the dev server local. This gives you:
@@ -877,7 +962,7 @@ Once deployed, embed the widget on any website:
 
 | Environment | Backend | Frontend | Widget API URL |
 |-------------|---------|----------|----------------|
-| **Local Dev** | `wrangler dev --remote` (localhost:8787) | `npm run build` + `npm run dev` (localhost:5173) | `http://localhost:8787/chat` |
+| **Local Dev** | `wrangler dev --remote` or `wrangler dev --remote --config wrangler.qa.toml` | `npm run build` + `npm run dev` (localhost:5173) | `http://localhost:8787/chat` or another local backend port |
 | **QA** | `wrangler deploy --config wrangler.qa.toml` | `npm run build:qa` + `wrangler pages deploy dist --project-name=cannavita-widget-qa --branch=main` | `https://ecom-chat-backend-qa.andresmeona.workers.dev/chat` |
 | **Production** | `wrangler deploy` (Workers) | `wrangler pages deploy dist` (Pages) | `https://ecom-chat-backend.andresmeona.workers.dev/chat` |
 
@@ -886,7 +971,8 @@ Once deployed, embed the widget on any website:
 ### Deployment URLs
 
 **Backend API**:
-- Local: `http://localhost:8787/chat`
+- Local prod-index backend: `http://localhost:8787/chat`
+- Local QA-index backend: `http://localhost:8787/chat` if run alone, or another local port such as `http://localhost:8788/chat` when run side-by-side
 - QA: `https://ecom-chat-backend-qa.andresmeona.workers.dev/chat`
 - Production: `https://ecom-chat-backend.andresmeona.workers.dev/chat`
 
@@ -907,12 +993,17 @@ Once deployed, embed the widget on any website:
 
 **Local Development**:
 ```bash
-# Terminal 1 - Backend
+# Terminal 1 - Backend using products-prod
 cd backend
 npx wrangler dev --remote
 
-# Terminal 2 - Frontend
+# Terminal 1 alternative - Backend using products-qa
+cd backend
+npx wrangler dev --remote --config wrangler.qa.toml
+
+# Terminal 2 - Frontend pinned to current local backend port
 cd client
+printf 'VITE_API_URL=http://localhost:8787/chat\nVITE_STORE_NAME=cannavita\n' > .env.local
 npm run build  # After making changes
 npm run dev    # Start dev server
 ```
@@ -958,14 +1049,14 @@ npm run build  # Outputs to dist/
 
 | Aspect | Local Development | Production |
 |--------|-------------------|------------|
-| **Backend** | `wrangler dev --remote` (localhost:8787) | `wrangler deploy` or `wrangler deploy --config wrangler.qa.toml` |
+| **Backend** | `wrangler dev --remote` (`products-prod`) or `wrangler dev --remote --config wrangler.qa.toml` (`products-qa`) | `wrangler deploy` or `wrangler deploy --config wrangler.qa.toml` |
 | **Frontend** | Built widget served by Vite dev server | Static widget.js hosted on Cloudflare Pages (`cannavita-widget` or `cannavita-widget-qa`) |
 | **Widget Behavior** | Identical (tests production build) | Same as local (no surprises) |
-| **API URL** | `http://localhost:8787/chat` | `https://ecom-chat-backend.andresmeona.workers.dev/chat` or `https://ecom-chat-backend-qa.andresmeona.workers.dev/chat` |
-| **Environment File** | `.env.development` | `.env.production` or `.env.qa` |
+| **API URL** | `http://localhost:8787/chat` by default, or whichever local backend port you choose | `https://ecom-chat-backend.andresmeona.workers.dev/chat` or `https://ecom-chat-backend-qa.andresmeona.workers.dev/chat` |
+| **Environment File** | `.env.development` plus optional `.env.local` override | `.env.production` or `.env.qa` |
 | **Hot Reload** | ❌ No (requires `npm run build`) | ❌ No (static build) |
 | **CORS** | Relaxed (same origin) | Configured in backend |
-| **Vectorize** | Remote (production data) | Remote (`products-prod` or `products-qa`) |
+| **Vectorize** | Remote (`products-prod` with `wrangler.toml` or `products-qa` with `wrangler.qa.toml`) | Remote (`products-prod` or `products-qa`) |
 | **Workers AI** | Remote (Cloudflare models) | Remote (Cloudflare models) |
 
 ---
