@@ -56,6 +56,7 @@
   let inputValue = $state(value);
   let isRecording = $state(false);
   let isFocused = $state(false);
+  let useKeyboardFocusStyles = $state(false);
   let emojiPickerOpen = $state(false);
   let formattingMenuOpen = $state(false);
   let agentDropdownOpen = $state(false);
@@ -292,6 +293,27 @@
   // Close dropdowns when clicking outside
   $effect(() => {
     if (typeof window === 'undefined') return;
+
+    function handleGlobalKeyDown(event: KeyboardEvent) {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      useKeyboardFocusStyles = true;
+    }
+
+    function handleGlobalPointerDown() {
+      useKeyboardFocusStyles = false;
+    }
+
+    window.addEventListener('keydown', handleGlobalKeyDown, true);
+    window.addEventListener('pointerdown', handleGlobalPointerDown, true);
+
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown, true);
+      window.removeEventListener('pointerdown', handleGlobalPointerDown, true);
+    };
+  });
+
+  $effect(() => {
+    if (typeof window === 'undefined') return;
     
     function handleClickOutside(e: MouseEvent) {
       const target = e.target as HTMLElement;
@@ -314,7 +336,11 @@
   });
 
   function handleFocus() {
-    isFocused = true;
+    isFocused = useKeyboardFocusStyles;
+  }
+
+  function handleBlur() {
+    isFocused = false;
   }
 
   function handleKeyDown(e: KeyboardEvent) {
@@ -398,7 +424,7 @@
             oninput={handleInput}
             onkeydown={handleKeyDown}
             onfocus={handleFocus}
-            onblur={() => isFocused = false}
+            onblur={handleBlur}
             {disabled}
             maxlength={maxLength}
             rows="1"
@@ -712,7 +738,7 @@
               oninput={handleInput}
               onkeydown={handleKeyDown}
               onfocus={handleFocus}
-              onblur={() => isFocused = false}
+              onblur={handleBlur}
               {disabled}
               maxlength={maxLength}
               aria-label="Message input"
@@ -793,7 +819,7 @@
               oninput={handleInput}
               onkeydown={handleKeyDown}
               onfocus={handleFocus}
-              onblur={() => isFocused = false}
+              onblur={handleBlur}
               {disabled}
               maxlength={maxLength}
               rows="1"
@@ -1510,7 +1536,6 @@
     cursor: not-allowed;
   }
 
-  .chat-input__field:focus-visible,
   .chat-input__button:focus-visible,
   .chat-input__action-button:focus-visible,
   .chat-input__send-button-bottom:focus-visible,

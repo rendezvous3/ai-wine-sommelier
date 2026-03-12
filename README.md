@@ -592,9 +592,16 @@ VITE_STORE_NAME=cannavita
 
 | Command | Mode | .env File Used | Result |
 |---------|------|----------------|--------|
-| `npm run dev` | development | `.env.development` | Uses localhost API |
+| `npm run build:dev` | development | `.env.development` | Bakes localhost API URL into `widget.js` |
+| `npm run dev` | development server | none by itself | Serves the local page, but does not rebuild `widget.js` |
 | `npm run build:qa` | qa | `.env.qa` | Bakes QA API URL into `widget.js` |
-| `npm run build` | production | `.env.production` | Bakes production API URL into `widget.js` |
+| `npm run build:prod` | production | `.env.production` | Bakes production API URL into `widget.js` |
+| `npm run build` | production alias | `.env.production` | Alias of `npm run build:prod` |
+
+**Important**:
+- `npm run dev` serves the local app, but the local page still loads `dist/widget.js`.
+- That means localhost widget work requires a build command first.
+- For normal localhost development, use `npm run build:dev`.
 
 **API URL Resolution Order** (in `client/src/main.ts`):
 1. **Runtime override**: `data-api` attribute on script tag (highest priority)
@@ -627,7 +634,7 @@ VITE_STORE_NAME=cannavita
 
 **Important**: The client's `index.html` points to `/dist/widget.js` (built file), not source files. This means:
 - ❌ **No Hot Module Replacement (HMR)** - changes require manual rebuild
-- ✅ **Production-like testing** - tests the exact widget that will be deployed
+- ✅ **Production-like widget testing** - the local page exercises the same built widget format used in deployment
 - ⚡ **Workflow**: Edit source → Build → Refresh browser
 
 #### Full Local Development Workflow
@@ -658,21 +665,53 @@ cd client
 # Optional: pin localhost client to whichever backend you want today
 printf 'VITE_API_URL=http://localhost:8787/chat\nVITE_STORE_NAME=cannavita\n' > .env.local
 
-# Build widget after making changes
-npm run build
+# Build widget for localhost development
+npm run build:dev
 
 # Start dev server (serves built widget)
 npm run dev
 ```
-**→ Builds source to `dist/widget.js` (uses `.env.development`)**
+**→ Builds source to `dist/widget.js` using `.env.development`**
 **→ Runs Vite dev server on `http://localhost:5173`**
 **→ Serves `index.html` which loads `dist/widget.js`**
 
 **Development Loop**:
 1. Edit files in `client/src/` (Widget.svelte, etc.)
-2. Run `npm run build` in Terminal 2
+2. Run `npm run build:dev` in Terminal 2
 3. Refresh browser at `http://localhost:5173`
 4. Repeat
+
+#### Local client build modes
+
+Use the client build command that matches what you are trying to test:
+
+1. **Local development build**
+```bash
+cd client
+npm run build:dev
+npm run dev
+```
+- Uses `.env.development`
+- This is the default localhost widget workflow
+
+2. **Local QA simulation**
+```bash
+cd client
+npm run build:qa
+npm run dev
+```
+- Uses `.env.qa`
+- Useful when you want the local page to exercise the QA backend URL
+
+3. **Local production simulation**
+```bash
+cd client
+npm run build:prod
+npm run dev
+```
+- Uses `.env.production`
+- `npm run build` is just an alias for this mode
+- Use this when you intentionally want localhost to simulate the deployed production widget build
 
 #### Local prod vs QA switching
 
@@ -704,13 +743,13 @@ Then point the client where you want:
 # Local client -> prod backend
 cd client
 printf 'VITE_API_URL=http://localhost:8787/chat\nVITE_STORE_NAME=cannavita\n' > .env.local
-npm run build
+npm run build:dev
 npm run dev
 
 # Local client -> QA backend
 cd client
 printf 'VITE_API_URL=http://localhost:8788/chat\nVITE_STORE_NAME=cannavita\n' > .env.local
-npm run build
+npm run build:dev
 npm run dev
 ```
 
@@ -888,7 +927,7 @@ crons = ["17 7 * * *"]
 cd client
 
 # Step 1: Build for production (uses .env.production)
-npm run build
+npm run build:prod
 
 # Step 2: Deploy to Cloudflare Pages
 npx wrangler pages deploy dist --project-name=cannavita-widget
@@ -962,9 +1001,9 @@ Once deployed, embed the widget on any website:
 
 | Environment | Backend | Frontend | Widget API URL |
 |-------------|---------|----------|----------------|
-| **Local Dev** | `wrangler dev --remote` or `wrangler dev --remote --config wrangler.qa.toml` | `npm run build` + `npm run dev` (localhost:5173) | `http://localhost:8787/chat` or another local backend port |
+| **Local Dev** | `wrangler dev --remote` or `wrangler dev --remote --config wrangler.qa.toml` | `npm run build:dev` + `npm run dev` (localhost:5173) | `http://localhost:8787/chat` or another local backend port |
 | **QA** | `wrangler deploy --config wrangler.qa.toml` | `npm run build:qa` + `wrangler pages deploy dist --project-name=cannavita-widget-qa --branch=main` | `https://ecom-chat-backend-qa.andresmeona.workers.dev/chat` |
-| **Production** | `wrangler deploy` (Workers) | `wrangler pages deploy dist` (Pages) | `https://ecom-chat-backend.andresmeona.workers.dev/chat` |
+| **Production** | `wrangler deploy` (Workers) | `npm run build:prod` + `wrangler pages deploy dist` (Pages) | `https://ecom-chat-backend.andresmeona.workers.dev/chat` |
 
 ---
 
@@ -1004,7 +1043,7 @@ npx wrangler dev --remote --config wrangler.qa.toml
 # Terminal 2 - Frontend pinned to current local backend port
 cd client
 printf 'VITE_API_URL=http://localhost:8787/chat\nVITE_STORE_NAME=cannavita\n' > .env.local
-npm run build  # After making changes
+npm run build:dev  # After making changes
 npm run dev    # Start dev server
 ```
 
@@ -1016,7 +1055,7 @@ npx wrangler deploy
 
 # Deploy Frontend
 cd client
-npm run build
+npm run build:prod
 npx wrangler pages deploy dist --project-name=cannavita-widget
 ```
 
@@ -1040,7 +1079,9 @@ npx wrangler pages deploy dist --project-name=cannavita-widget-qa --branch=main
 **Build Only** (without deploying):
 ```bash
 cd client
-npm run build  # Outputs to dist/
+npm run build:dev   # Localhost widget build
+npm run build:qa    # QA widget build
+npm run build:prod  # Production widget build
 ```
 
 ---
@@ -1054,7 +1095,7 @@ npm run build  # Outputs to dist/
 | **Widget Behavior** | Identical (tests production build) | Same as local (no surprises) |
 | **API URL** | `http://localhost:8787/chat` by default, or whichever local backend port you choose | `https://ecom-chat-backend.andresmeona.workers.dev/chat` or `https://ecom-chat-backend-qa.andresmeona.workers.dev/chat` |
 | **Environment File** | `.env.development` plus optional `.env.local` override | `.env.production` or `.env.qa` |
-| **Hot Reload** | ❌ No (requires `npm run build`) | ❌ No (static build) |
+| **Hot Reload** | ❌ No (requires `npm run build:dev`) | ❌ No (static build) |
 | **CORS** | Relaxed (same origin) | Configured in backend |
 | **Vectorize** | Remote (`products-prod` with `wrangler.toml` or `products-qa` with `wrangler.qa.toml`) | Remote (`products-prod` or `products-qa`) |
 | **Workers AI** | Remote (Cloudflare models) | Remote (Cloudflare models) |
@@ -1064,19 +1105,21 @@ npm run build  # Outputs to dist/
 ### Important Notes
 
 1. **`dist/` folder is for deployment only**:
-   - Created by `npm run build`
+   - Created by `npm run build:dev`, `npm run build:qa`, or `npm run build:prod`
    - Contains production-ready files
    - Ignored by git (in `.gitignore`)
    - Cleared on each build (`emptyOutDir: true`)
 
 2. **Widget loads built file even in dev mode**:
    - `index.html` points to `/dist/widget.js` (not source)
-   - This tests production behavior locally
+   - This tests the built widget behavior locally
    - Requires manual rebuild after changes (no HMR)
 
 3. **Environment variables are baked into build**:
-   - `VITE_API_URL` from `.env.production` is compiled into `widget.js`
+   - `npm run build:dev` bakes `.env.development` into the localhost widget build
    - `npm run build:qa` bakes `.env.qa` into the QA widget build
+   - `npm run build:prod` bakes `.env.production` into the production widget build
+   - `npm run build` is an alias for `npm run build:prod`
    - Can still override at runtime via `data-api` attribute
 
 5. **Current prod/UAT lane stays separate during automation soak**:
