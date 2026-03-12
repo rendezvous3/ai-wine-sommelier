@@ -10,12 +10,54 @@ nvm use --lts
 
 ## Description
 
-This project is an embeddable AI shopping assistant widget for dispensaries. The widget provides an intelligent budtender experience, handling general inquiries (hours, location, policies) and product recommendations via RAG (Retrieval-Augmented Generation). It streams natural conversations and displays rich product cards inline. During chat Agentic AI can interpet the intent of the request and trigger recommendation if needed.
+This project is an embeddable AI shopping assistant widget for dispensaries. The widget handles general store questions, recommendation flows, and rich product cards backed by Dutchie catalog data + Cloudflare Vectorize retrieval.
 
-The project consists of three microservices:
-- **Vectorizer**: Python script to embed and upload product data to a vector database.
-- **Backend**: TypeScript API (Hono on Cloudflare Workers) for intent classification, streaming chat, and recommendations.
-- **Client**: Svelte 5 widget for the UI, embeddable via a script tag.
+The codebase now operates as four practical surfaces:
+- **Vectorizer local CLI**: local/manual catalog sync and debugging
+- **Vectorizer Worker**: Cloudflare-native scheduled sync + stale reconciliation
+- **Backend Worker**: Hono API for intent, stream, rerank, and retrieval
+- **Client / Pages**: embeddable Svelte widget built to `widget.js`
+
+## Current Architecture (March 2026)
+
+If a later section conflicts with this March 2026 architecture summary, trust this section first and then verify the live code/config in `backend/`, `client/`, and `vectorizer/`.
+
+### Runtime split
+
+- `vectorizer/src/core/**` contains the shared sync/reconcile logic
+- `vectorizer/src/vectorize.py`, `reconcile_stale.py`, `manage_indexes.py` are local CLI entrypoints
+- `vectorizer/src/worker_entry.py` is the dedicated Cloudflare Python Worker entrypoint
+- `backend/src/index.ts` is the chat/recommendation Worker
+- `client/` builds the hosted widget bundle for Cloudflare Pages
+
+### Environment split
+
+- **Production / live-ish lane**
+  - Vectorize index: `products-prod`
+  - Backend Worker: `ecom-chat-backend`
+  - Vectorizer Worker: `vectorizer-worker`
+  - Pages site: `https://cannavita-widget.pages.dev`
+
+- **QA automation lane**
+  - Vectorize index: `products-qa`
+  - D1 database: `vectorizer-qa`
+  - Backend Worker: `ecom-chat-backend-qa`
+  - Vectorizer Worker: `vectorizer-worker-qa`
+  - Pages project: `cannavita-widget-qa`
+
+### Important operational rules
+
+- `products-prod` remains the live-ish/manual lane until QA cron soak is trusted.
+- `products-qa` is the automation validation lane and must stay **full-catalog only** when stale reconciliation is enabled.
+- Deployed Workers do **not** read local `.env` files. Local `.env` is only for CLI runs on your machine. Optional local QA env copies are convenience only.
+- `wrangler --config ...` and `pywrangler --config ...` resolve config paths relative to the **current working directory**. Run backend commands from `backend/` and vectorizer commands from `vectorizer/` unless using absolute config paths.
+- `npx wrangler pages deploy ...` from a non-production branch creates a **preview alias** like `elastic-email-v1.cannavita-widget-qa.pages.dev`; use `--branch=main` if you want the stable project root URL `https://cannavita-widget-qa.pages.dev`.
+- The QA vectorizer Worker requires `CF_AI_API_TOKEN` in addition to the Dutchie, Vectorize, D1, and admin secrets. `CF_D1_API_TOKEN` must have D1 edit permission, and `CF_VECTORIZE_API_TOKEN` must have Vectorize read/write access.
+- Cron deployment is not proof of cron execution. Confirm actual scheduled runs via `GET /last-run` and check for `"trigger_source": "scheduled"`.
+
+### Current known limitation
+
+- QA sync is operational, but some tincture/CBD products still fail transform with `Subclasses must implement transform()`. The worker and cron infrastructure are healthy; catalog coverage cleanup is still in progress.
 
 ## Accessibility Compliance (WCAG 2.1 AA)
 
@@ -74,8 +116,8 @@ Run these checks before merging UI changes:
 
 ## Prerequisites
 
-- **Node.js** (v20+): For client and backend.
-- **Python** (3.10+): For vectorizer.
+- **Node.js** (v20+): required for client, backend, Wrangler, and Python Worker tooling.
+- **Python** (3.12+): required for the current vectorizer + Cloudflare Python Worker toolchain.
 - **Accounts/Keys**:
   - Cloudflare (for Workers, Vectorize, AI).
   - Groq API key (for LLM).
@@ -89,15 +131,25 @@ Run these checks before merging UI changes:
 
 ```bash
 cd vectorizer
-pip install -r requirements.txt
-# Load vectorizer/.env with Dutchie + Cloudflare keys
+
+# Preferred: project-managed environment (includes Worker tooling)
+uv sync --group dev
+
+# Legacy local CLI fallback (manual venv)
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.local.txt
+
+# Local CLI reads vectorizer/.env for Dutchie + Cloudflare values.
+# Deployed Workers use Cloudflare Worker secrets instead.
 ```
 
 ### Backend
 
 ```bash
 cd backend
-npm install  # or pnpm install (installs Hono, LangChain, etc.)
+npm install  # or pnpm install
 ```
 
 ### Client
@@ -108,7 +160,7 @@ npm install  # or pnpm install (installs Svelte, Vite)
 
 ## Data Schema & Transformation Pipeline
 
-The project uses a canonical data schema defined in `backend/src/schema.json` and `backend/src/schema.ts` to ensure consistency across data ingestion, storage, and retrieval.
+The project keeps matching schema definitions in `backend/src/schema.json`, `backend/src/schema.ts`, and `vectorizer/src/schema.json`. Keep them aligned; do not assume only one file is authoritative without checking the others.
 
 ### Schema Structure
 
@@ -191,7 +243,7 @@ The vectorizer transforms raw Dutchie API data into vector-ready documents:
 ## Workflows
 
 ### Vectorizer Workflow (Embed & Upload Products)
-The vectorizer is an ETL pipeline that fetches products from Dutchie API, transforms them using category-specific logic, and uploads embeddings to Cloudflare Vectorize. It uses the canonical schema (`vectorizer/src/schema.json`) as the source of truth.
+The vectorizer is an ETL pipeline that fetches products from Dutchie API, transforms them using category-specific logic, and uploads embeddings to Cloudflare Vectorize. It relies on the aligned schema files in `vectorizer/src/schema.json` and `backend/src/schema.json`.
 
 **Architecture**: Fetch (Dutchie API) → Transform (`normalize_products.py`) → Build page content/metadata → Embed (Workers AI) → Upload (Vectorize) → Reconcile stale vectors
 
@@ -351,6 +403,7 @@ Create `vectorizer/.env` with:
 CANNAVITA_API_KEY=your_dutchie_api_key
 CF_ACCOUNT_ID=your_cloudflare_account_id
 CF_VECTORIZE_API_TOKEN=your_vectorize_api_token
+CF_AI_API_TOKEN=your_ai_api_token
 CF_D1_DATABASE_ID=your_d1_database_id
 # Optional if different from CF_VECTORIZE_API_TOKEN:
 # CF_D1_API_TOKEN=your_d1_api_token
@@ -383,6 +436,7 @@ uv sync --group dev
 pywrangler secret put CANNAVITA_API_KEY
 pywrangler secret put CF_ACCOUNT_ID
 pywrangler secret put CF_VECTORIZE_API_TOKEN
+pywrangler secret put CF_AI_API_TOKEN
 pywrangler secret put CF_D1_DATABASE_ID
 pywrangler secret put CF_D1_API_TOKEN
 pywrangler secret put ADMIN_TOKEN
@@ -431,6 +485,7 @@ cd vectorizer
 pywrangler secret put CANNAVITA_API_KEY
 pywrangler secret put CF_ACCOUNT_ID
 pywrangler secret put CF_VECTORIZE_API_TOKEN
+pywrangler secret put CF_AI_API_TOKEN
 pywrangler secret put CF_D1_DATABASE_ID
 pywrangler secret put CF_D1_API_TOKEN
 pywrangler secret put ADMIN_TOKEN
@@ -450,7 +505,7 @@ npm run deploy:qa
 cd client
 cp .env.qa.example .env.qa
 npm run build:qa
-npx wrangler pages deploy dist --project-name=cannavita-widget-qa
+npx wrangler pages deploy dist --project-name=cannavita-widget-qa --branch=main
 ```
 
 **QA smoke trigger**:
@@ -700,13 +755,15 @@ Set the same runtime secrets used by the current backend on the QA Worker as wel
 cd client
 cp .env.qa.example .env.qa
 npm run build:qa
-npx wrangler pages deploy dist --project-name=cannavita-widget-qa
+npx wrangler pages deploy dist --project-name=cannavita-widget-qa --branch=main
 ```
 
 **What happens**:
 - Vite builds widget using `.env.qa`
 - `widget.js` is baked with the QA backend URL
 - the demo page in `client/public/index.html` now relies on the baked API URL instead of a hardcoded `data-api`
+- `--branch=main` deploys to the stable QA Pages URL `https://cannavita-widget-qa.pages.dev`
+- omitting `--branch=main` from a feature branch creates a preview alias like `elastic-email-v1.cannavita-widget-qa.pages.dev`
 - Pages project `cannavita-widget-qa` is deployed separately from `cannavita-widget`
 
 **QA Pages URL**:
@@ -820,7 +877,7 @@ Once deployed, embed the widget on any website:
 | Environment | Backend | Frontend | Widget API URL |
 |-------------|---------|----------|----------------|
 | **Local Dev** | `wrangler dev --remote` (localhost:8787) | `npm run build` + `npm run dev` (localhost:5173) | `http://localhost:8787/chat` |
-| **QA** | `wrangler deploy --config wrangler.qa.toml` | `npm run build:qa` + `wrangler pages deploy dist --project-name=cannavita-widget-qa` | `https://ecom-chat-backend-qa.andresmeona.workers.dev/chat` |
+| **QA** | `wrangler deploy --config wrangler.qa.toml` | `npm run build:qa` + `wrangler pages deploy dist --project-name=cannavita-widget-qa --branch=main` | `https://ecom-chat-backend-qa.andresmeona.workers.dev/chat` |
 | **Production** | `wrangler deploy` (Workers) | `wrangler pages deploy dist` (Pages) | `https://ecom-chat-backend.andresmeona.workers.dev/chat` |
 
 ---
@@ -885,7 +942,7 @@ pywrangler deploy --config wrangler.qa.toml
 cd ../client
 cp .env.qa.example .env.qa
 npm run build:qa
-npx wrangler pages deploy dist --project-name=cannavita-widget-qa
+npx wrangler pages deploy dist --project-name=cannavita-widget-qa --branch=main
 ```
 
 **Build Only** (without deploying):

@@ -131,13 +131,11 @@ Create `vectorizer/.env`:
 CANNAVITA_API_KEY=your_dutchie_api_key
 CF_ACCOUNT_ID=your_cloudflare_account_id
 CF_VECTORIZE_API_TOKEN=your_vectorize_api_token
+CF_AI_API_TOKEN=your_ai_api_token
 CF_D1_DATABASE_ID=your_d1_database_id
 
 # Optional if separate from the Vectorize token
 # CF_D1_API_TOKEN=your_d1_api_token
-
-# Optional if separate from the Vectorize token
-# CF_AI_API_TOKEN=your_ai_api_token
 
 # Optional
 # VECTORIZER_SSL_VERIFY=false
@@ -160,6 +158,7 @@ Create the required Worker secrets:
 pywrangler secret put CANNAVITA_API_KEY
 pywrangler secret put CF_ACCOUNT_ID
 pywrangler secret put CF_VECTORIZE_API_TOKEN
+pywrangler secret put CF_AI_API_TOKEN
 pywrangler secret put CF_D1_DATABASE_ID
 pywrangler secret put CF_D1_API_TOKEN
 pywrangler secret put ADMIN_TOKEN
@@ -219,6 +218,7 @@ cd vectorizer
 pywrangler secret put CANNAVITA_API_KEY
 pywrangler secret put CF_ACCOUNT_ID
 pywrangler secret put CF_VECTORIZE_API_TOKEN
+pywrangler secret put CF_AI_API_TOKEN
 pywrangler secret put CF_D1_DATABASE_ID
 pywrangler secret put CF_D1_API_TOKEN
 pywrangler secret put ADMIN_TOKEN

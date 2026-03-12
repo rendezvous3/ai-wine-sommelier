@@ -43,6 +43,32 @@ This repository should be treated with a strict development-only context window.
 - Skip excluded paths during search/index operations.
 - Only enter excluded paths when the user explicitly asks.
 
+## Current Operational Topology (Mandatory)
+
+- Runtime split:
+  - `vectorizer/src/core/**` = shared sync/reconcile logic
+  - `vectorizer/src/*.py` = local CLI entrypoints
+  - `vectorizer/src/worker_entry.py` = Cloudflare Python Worker
+  - `backend/src/index.ts` = backend Worker
+  - `client/` = widget bundle / Pages output
+- Production/live-ish lane:
+  - Vectorize index `products-prod`
+  - Backend `ecom-chat-backend`
+  - Vectorizer Worker `vectorizer-worker`
+  - Pages `https://cannavita-widget.pages.dev`
+- QA automation lane:
+  - Vectorize index `products-qa`
+  - D1 database `vectorizer-qa`
+  - Backend `ecom-chat-backend-qa`
+  - Vectorizer Worker `vectorizer-worker-qa`
+  - Pages project `cannavita-widget-qa`
+- `products-prod` remains the manual/live-ish lane. `products-qa` is for automation validation and must stay full-catalog only when stale reconciliation is enabled.
+- Local `.env` files are for CLI runs only. Deployed Workers use Cloudflare Worker secrets.
+- `wrangler --config ...` and `pywrangler --config ...` resolve relative to the current working directory. Give deploy instructions from the correct service directory or use absolute config paths.
+- `npx wrangler pages deploy ...` from a non-production branch creates a preview alias. Use `--branch=main` to publish to the stable Pages root URL.
+- QA vectorizer Worker secrets must include `CF_AI_API_TOKEN`. `CF_D1_API_TOKEN` must have D1 edit permission.
+- Current known limitation: tincture/CBD ingest coverage is incomplete until the remaining `transform()` subclass gap is fixed.
+
 ## UI Development Flow (Mandatory)
 
 - `client/src/Widget.svelte` is composition-only. Keep it focused on wiring state, callbacks, and imports.
@@ -77,3 +103,4 @@ This repository should be treated with a strict development-only context window.
   - per-index D1 uniqueness tables (`vector_uniques_<index>`) for cross-run protection
   - stale reconciliation (`reconcile_stale.py`) to remove vectors no longer present
 - Duplicate hits must be skipped/logged without crashing scheduled sync jobs.
+- When validating cron behavior, verify `GET /last-run` returns `"trigger_source": "scheduled"` instead of assuming deployment means execution.

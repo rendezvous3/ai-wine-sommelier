@@ -22,10 +22,31 @@ The widget delivers a human-like budtender experience:
 
 The system is built as **four loosely coupled components** for maximum flexibility, scalability, and ease of development.
 
+## Current Operational Truth (March 2026)
+
+If a later section conflicts with this section, trust this section first and then verify the live code/config.
+
+- Runtime surfaces:
+  - `vectorizer/src/core/**` = shared sync/reconcile logic
+  - `vectorizer/src/vectorize.py`, `reconcile_stale.py`, `manage_indexes.py` = local CLI entrypoints
+  - `vectorizer/src/worker_entry.py` = dedicated Cloudflare Python Worker
+  - `backend/src/index.ts` = chat/recommendation Worker
+  - `client/` = widget bundle / Pages output
+- Deployment lanes:
+  - Prod/live-ish: `products-prod`, `ecom-chat-backend`, `vectorizer-worker`, `https://cannavita-widget.pages.dev`
+  - QA automation: `products-qa`, `vectorizer-qa`, `ecom-chat-backend-qa`, `vectorizer-worker-qa`, `cannavita-widget-qa`
+- `products-prod` remains the manual/live-ish lane while QA cron bakes.
+- `products-qa` must stay full-catalog only when stale reconciliation is enabled.
+- Deployed Workers do not read local `.env` files. `vectorizer/.env` is CLI-only; optional local QA env files are convenience only.
+- `wrangler --config ...` and `pywrangler --config ...` resolve relative to the current working directory. Run backend deploy commands from `backend/` and vectorizer deploy commands from `vectorizer/`, or use absolute config paths.
+- `npx wrangler pages deploy ...` from a feature branch creates a preview alias. Use `--branch=main` for the stable Pages root URL.
+- QA vectorizer Worker secrets must include `CF_AI_API_TOKEN`. `CF_D1_API_TOKEN` must have D1 edit permission.
+- Current known limitation: some tincture/CBD products still fail transform with `Subclasses must implement transform()`.
+
 ## Architecture & Components
 
 ### 1. **Vectorizer (`vectorizer/`)**
-- **Technology**: Python + LangChain + Cloudflare Vectorize + Dutchie GraphQL API
+- **Technology**: Python shared core + Cloudflare Vectorize + Cloudflare Workers AI + Dutchie GraphQL API
 - **Purpose**: ETL pipeline to fetch, transform, and embed the product catalog into the vector database
 - **Architecture**: Modular pipeline with separate concerns (fetch, transform, embed, upload)
 - **Status**: Production-ready with full Dutchie API integration and comprehensive transformation logic
@@ -41,7 +62,7 @@ The system is built as **four loosely coupled components** for maximum flexibili
 - `preset_sync.sh` - Batch sync automation (predefined presets for common sync patterns)
 
 **Schema Files**:
-- `schema.json` - Canonical schema (categories, subcategories, potency scales, field mappings) - **source of truth copied to backend**
+- `schema.json` - Vectorizer schema copy that must stay aligned with `backend/src/schema.json`
 - `schema/*.md` - Category-specific transformation documentation (flower_schema.md, edibles_schema.md, prerolls_schema.md, etc.)
 - `schema/terpenes.json` - Terpene reference data (aromas, effects, health benefits)
 - `schema/cannaboids.json` - Cannabinoid reference data (descriptions, effects)
@@ -274,24 +295,23 @@ python vectorize.py -x products-prod --category EDIBLES --offset 100 --limit 100
 
 #### Schema Synchronization
 
-**Important**: The vectorizer's `schema.json` is the **source of truth** and has been **copied to** `backend/src/schema.json`. Both schemas must stay synchronized.
+**Important**: `vectorizer/src/schema.json` and `backend/src/schema.json` are coordinated copies. Do not edit one and assume the other is current.
 
 **Synchronization Process**:
-1. Update `vectorizer/src/schema.json` first (when adding categories, subcategories, or potency scales)
-2. Copy changes to `backend/src/schema.json`
-3. Update transformation logic in `normalize_products.py` if needed
-4. Update schema documentation in `vectorizer/src/schema/*.md`
-5. Test transformations with dry run: `python vectorize.py -x test --category CATEGORY --limit 5`
-6. Update backend schema utilities in `backend/src/schema.ts` if new mappings added
+1. Update both `vectorizer/src/schema.json` and `backend/src/schema.json`
+2. Update transformation logic in `normalize_products.py` if needed
+3. Update schema documentation in `vectorizer/src/schema/*.md`
+4. Test transformations with dry run: `python vectorize.py -x test --category CATEGORY --limit 5`
+5. Update backend schema utilities in `backend/src/schema.ts` if new mappings are added
 
-**Current Sync Status**: Backend schema has additional fields (`live-rosin` for vaporizers/concentrates, `cbd_total_mg_fields`) that should be backported to vectorizer schema if needed.
+**Rule**: Before schema work, diff both schema files and resolve drift explicitly. Do not assume either file is the sole source of truth.
 
 #### Key Design Decisions
 
 1. **Separation of Concerns**: Fetch (Dutchie API) → Transform (normalize) → Embed (Workers AI) → Upload (Vectorize) are separate, testable stages
 2. **Category-Specific Logic**: Different categories use different fields (thc_percentage vs thc_per_unit_mg), different scales, different parsing logic
 3. **Lowercase Kebab-Case**: All normalized values use lowercase kebab-case for consistency (`premium-flower`, `indica-hybrid`, `clear-mind`)
-4. **Schema as Source of Truth**: Single schema.json defines valid categories, subcategories, potency scales - used by both vectorizer and backend
+4. **Schema Alignment**: `vectorizer/src/schema.json` and `backend/src/schema.json` must be updated together so categories, subcategories, and potency scales stay consistent across ingestion and retrieval
 5. **Metadata Flattening**: Nested objects (terpenes, cannabinoids) flattened to string arrays for Vectorize compatibility
 6. **Defaults Over Nulls**: Empty effects → `["relaxed"]`, missing price → use fallback, missing weight → null but don't fail
 7. **Graceful Failure**: Skip invalid products, log warnings, continue processing batch (resilient to API inconsistencies)
@@ -310,11 +330,12 @@ python vectorize.py -x products-prod --category EDIBLES --offset 100 --limit 100
 
 #### Data Schema & Transformation Pipeline
 
-The vectorizer and backend share a canonical data schema defined in `backend/src/schema.json` and `backend/src/schema.ts`. This schema ensures consistency across data ingestion, storage, and retrieval.
+The vectorizer and backend share aligned schema definitions in `backend/src/schema.json`, `backend/src/schema.ts`, and `vectorizer/src/schema.json`. These must stay synchronized for ingestion and retrieval to stay compatible.
 
 **Schema Files**:
-- `backend/src/schema.json` - Canonical source of truth (categories, subcategories, potency scales, field mappings)
+- `backend/src/schema.json` - Backend schema copy used at runtime
 - `backend/src/schema.ts` - TypeScript interface and utility functions for schema validation and normalization
+- `vectorizer/src/schema.json` - Vectorizer schema copy used during ingestion
 
 **Schema Structure**:
 
@@ -467,7 +488,7 @@ All LLM prompts live in dedicated files under `backend/src/prompts/`. `prompt.ts
 {
   "intent": "recommendation" | "product-question" | "general",
   "filters": {
-    "category": "flower" | "prerolls" | "edibles" | "concentrates" | "tincture" | "vaporizers" | null,
+    "category": "flower" | "prerolls" | "edibles" | "concentrates" | "vaporizers" | "cbd" | "topicals" | "accessories" | null,
     "type": "indica" | "sativa" | "hybrid" | null,
     "thc_percentage_min": number | null,
     "thc_percentage_max": number | null,

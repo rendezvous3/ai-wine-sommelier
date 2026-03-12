@@ -22,6 +22,8 @@ Use only files required for coding, debugging, testing, and architecture decisio
   - `STREAM_FIRST_IMPLEMENTATION.md`
   - `.gitignore`
   - `CLAUDE.md`
+  - `CODEX.md`
+  - `AGENTS.md`
 
 ## Always Ignore (Root + All Subfolders)
 
@@ -56,6 +58,33 @@ Use only files required for coding, debugging, testing, and architecture decisio
 - Prefer reading the smallest relevant file set before expanding scope.
 - Do not index ignored paths unless explicitly requested by the user.
 - If context is missing, expand scope incrementally and justify why.
+
+## Operational Topology Rules (Mandatory)
+
+- Runtime split:
+  - `vectorizer/src/core/**` = shared sync/reconcile logic
+  - `vectorizer/src/*.py` = local CLI entrypoints
+  - `vectorizer/src/worker_entry.py` = Cloudflare Python Worker
+  - `backend/src/index.ts` = backend Worker
+  - `client/` = widget bundle / Pages output
+- Production/live-ish lane:
+  - Vectorize index `products-prod`
+  - Backend `ecom-chat-backend`
+  - Vectorizer Worker `vectorizer-worker`
+  - Pages `https://cannavita-widget.pages.dev`
+- QA automation lane:
+  - Vectorize index `products-qa`
+  - D1 database `vectorizer-qa`
+  - Backend `ecom-chat-backend-qa`
+  - Vectorizer Worker `vectorizer-worker-qa`
+  - Pages project `cannavita-widget-qa`
+- `products-prod` stays manual/live-ish until QA automation is trusted.
+- `products-qa` must stay full-catalog only when stale reconciliation is enabled.
+- Local `.env` files are CLI-only. Deployed Workers use Cloudflare Worker secrets.
+- `wrangler --config ...` and `pywrangler --config ...` resolve relative to the current working directory. Always run deploy commands from the correct service directory or use absolute config paths.
+- Pages deploys from feature branches create preview aliases; use `--branch=main` for the stable project root URL.
+- QA vectorizer Worker secrets must include `CF_AI_API_TOKEN`. `CF_D1_API_TOKEN` must have D1 edit permission.
+- Known current limitation: some tincture/CBD products still fail vectorizer transform coverage.
 
 ## UI Architecture Rules (Mandatory)
 
