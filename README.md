@@ -49,6 +49,7 @@ If a later section conflicts with this March 2026 architecture summary, trust th
 
 - `products-prod` remains the live-ish/manual lane until QA cron soak is trusted.
 - `products-qa` is the automation validation lane and must stay **full-catalog only** when stale reconciliation is enabled.
+- For the current QA-soak-to-prod promotion procedure, refer to [QA_TO_PROD_INSTR.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/QA_TO_PROD_INSTR.md).
 - Deployed Workers do **not** read local `.env` files. Local `.env` is only for CLI runs on your machine. Optional local QA env copies are convenience only.
 - `wrangler --config ...` and `pywrangler --config ...` resolve config paths relative to the **current working directory**. Run backend commands from `backend/` and vectorizer commands from `vectorizer/` unless using absolute config paths.
 - `npx wrangler pages deploy ...` from a non-production branch creates a **preview alias** like `elastic-email-v1.cannavita-widget-qa.pages.dev`; use `--branch=main` if you want the stable project root URL `https://cannavita-widget-qa.pages.dev`.

@@ -163,6 +163,9 @@ Check CODEX_PATTERNS in client/src/Widget.svelte
 cd vectorizer/src
 ./preset_sync.sh all-products ALL products-prod none 5
 
+# QA soak -> prod cron promotion runbook
+# /Users/bojanjovanovic/Desktop/Svelte/AiChatBot/QA_TO_PROD_INSTR.md
+
 # QA lane upload
 cd /Users/bojanjovanovic/Desktop/Svelte/AiChatBot/vectorizer/src
 python vectorize.py -x products-qa --category FLOWER --limit 50 --upload

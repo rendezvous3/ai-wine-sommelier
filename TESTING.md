@@ -789,6 +789,7 @@ Before deploying to production, manually verify:
 - Keep the current live-ish lane untouched while testing automation:
   - manual prod refresh remains `./preset_sync.sh all-products ALL products-prod none 5`
   - cron/reconcile soak must target `products-qa`, not `products-prod`
+  - when QA soak is complete and you are ready to hand refresh ownership to prod cron, follow [QA_TO_PROD_INSTR.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/QA_TO_PROD_INSTR.md)
 - Run dry-run full pull:
   - `cd vectorizer/src && python vectorize.py -x products-test --category EDIBLES --limit none`
 - Run stock filter check:

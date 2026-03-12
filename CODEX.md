@@ -63,6 +63,7 @@ This repository should be treated with a strict development-only context window.
   - Vectorizer Worker `vectorizer-worker-qa`
   - Pages project `cannavita-widget-qa`
 - `products-prod` remains the manual/live-ish lane. `products-qa` is for automation validation and must stay full-catalog only when stale reconciliation is enabled.
+- For the current QA-to-prod cron promotion procedure, refer to [QA_TO_PROD_INSTR.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/QA_TO_PROD_INSTR.md).
 - Local `.env` files are for CLI runs only. Deployed Workers use Cloudflare Worker secrets.
 - `wrangler --config ...` and `pywrangler --config ...` resolve relative to the current working directory. Give deploy instructions from the correct service directory or use absolute config paths.
 - `npx wrangler pages deploy ...` from a non-production branch creates a preview alias. Use `--branch=main` to publish to the stable Pages root URL.
