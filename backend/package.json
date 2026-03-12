@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "dev:qa": "wrangler dev --config wrangler.qa.toml",
+    "deploy": "wrangler deploy",
+    "deploy:qa": "wrangler deploy --config wrangler.qa.toml"
   },
   "dependencies": {
     "@ai-sdk/groq": "^2.0.32",

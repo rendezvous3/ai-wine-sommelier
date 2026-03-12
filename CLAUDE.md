@@ -1,5 +1,13 @@
 # Cannavita AI Budtender Widget
 
+## Local Terminal Note
+
+On this Mac, `node`, `npm`, `npx`, `wrangler`, and `pywrangler` may be missing in a fresh terminal until `nvm` is activated. Before running any Node/Wrangler command in a new terminal, run:
+
+```bash
+nvm use --lts
+```
+
 ## Project Overview
 
 This project is a production-grade, embeddable AI shopping assistant widget for **Cannavita Dispensary** (a premium cannabis store in Astoria, Queens, NY). We are looking to make this chatbot reproducible and applicable to other stores like Terpli.
@@ -176,6 +184,20 @@ Automates multi-subcategory/multi-strain sync operations with predefined presets
 ./preset_sync.sh gummies-all EDIBLES products-prod 15
 ```
 
+**Current lane split**:
+
+- `products-prod` is the live-ish/manual lane currently used by the existing Pages/UAT widget deployment
+- manual full refresh remains:
+  - `./preset_sync.sh all-products ALL products-prod none 5`
+- automated cron soak must use the QA lane:
+  - index: `products-qa`
+  - vectorizer Worker: `vectorizer-worker-qa`
+  - backend Worker: `ecom-chat-backend-qa`
+  - Pages project: `cannavita-widget-qa`
+  - D1 database: `vectorizer-qa`
+- when stale reconciliation is enabled, `products-qa` must be full-catalog only
+- do not run partial presets against `products-qa`
+
 #### Index Management (`manage_indexes.py`)
 
 **Operations**:
@@ -198,6 +220,21 @@ python manage_indexes.py --exists products-prod
 
 # Delete index
 python manage_indexes.py --delete products-demo-old
+```
+
+**QA setup**:
+```bash
+# Create isolated QA index
+python manage_indexes.py --create products-qa
+
+# Deploy QA backend
+cd backend && npm run deploy:qa
+
+# Deploy QA vectorizer worker
+cd ../vectorizer && pywrangler deploy --config wrangler.qa.toml
+
+# Deploy QA widget
+cd ../client && cp .env.qa.example .env.qa && npm run build:qa
 ```
 
 #### CLI Usage (`vectorize.py`)

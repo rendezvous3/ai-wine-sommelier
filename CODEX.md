@@ -1,5 +1,13 @@
 # Codex Context Policy
 
+## Local Terminal Note
+
+On this Mac, `node`, `npm`, `npx`, `wrangler`, and `pywrangler` may be missing in a fresh terminal until `nvm` is activated. Before running any Node/Wrangler command in a new terminal, run:
+
+```bash
+nvm use --lts
+```
+
 This repository should be treated with a strict development-only context window.
 
 ## Primary Working Set

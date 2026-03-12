@@ -1,5 +1,13 @@
 # Vectorizer CLI Commands Reference
 
+## Local Terminal Note
+
+On this Mac, `node`, `npm`, `npx`, `wrangler`, and `pywrangler` may be missing in a fresh terminal until `nvm` is activated. Before running any Node/Wrangler command in a new terminal, run:
+
+```bash
+nvm use --lts
+```
+
 Complete CLI reference guide for managing Cloudflare Vectorize indexes and syncing product data.
 
 ---
@@ -707,6 +715,70 @@ curl -X POST http://127.0.0.1:8787/run \
   -H "Content-Type: application/json" \
   -d '{"index_name":"products-prod","min_quantity":5,"stale_hours":48,"limit":"20"}'
 ```
+
+---
+
+## QA Automation Stack
+
+Use the QA lane to validate cron and stale reconciliation without touching the current `products-prod` lane.
+
+**QA resources**:
+
+- Vectorize index: `products-qa`
+- D1 database: `vectorizer-qa`
+- Vectorizer Worker config: `vectorizer/wrangler.qa.toml`
+- Backend Worker config: `backend/wrangler.qa.toml`
+- QA Pages project: `cannavita-widget-qa`
+
+**Important operating rule**:
+
+- `products-prod` can still be manually refreshed with:
+  - `./preset_sync.sh all-products ALL products-prod none 5`
+- `products-qa` is full-catalog only
+- do not run subset presets such as `all-subcategories`, `gummies-all`, or `gummies-indica` against `products-qa`
+
+### QA One-Time Setup
+
+```bash
+# Create QA index
+cd vectorizer/src
+python manage_indexes.py --create products-qa
+
+# Create QA metadata indexes
+npx wrangler vectorize create-metadata-index products-qa --property-name=category --type=string
+npx wrangler vectorize create-metadata-index products-qa --property-name=type --type=string
+npx wrangler vectorize create-metadata-index products-qa --property-name=brand --type=string
+npx wrangler vectorize create-metadata-index products-qa --property-name=subcategory --type=string
+npx wrangler vectorize create-metadata-index products-qa --property-name=effects --type=string
+npx wrangler vectorize create-metadata-index products-qa --property-name=flavor --type=string
+npx wrangler vectorize create-metadata-index products-qa --property-name=price --type=number
+npx wrangler vectorize create-metadata-index products-qa --property-name=thc_percentage --type=number
+npx wrangler vectorize create-metadata-index products-qa --property-name=cbd_percentage --type=number
+npx wrangler vectorize create-metadata-index products-qa --property-name=thc_per_unit_mg --type=number
+npx wrangler vectorize create-metadata-index products-qa --property-name=inStock --type=boolean
+```
+
+### QA Worker Deploy
+
+```bash
+cd ../
+pywrangler deploy --config wrangler.qa.toml
+```
+
+### QA Manual Trigger
+
+```bash
+curl -X POST http://127.0.0.1:8787/run \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"index_name":"products-qa","min_quantity":5,"stale_hours":48,"limit":"20"}'
+```
+
+### QA End-To-End Stack
+
+- Backend Worker: `ecom-chat-backend-qa`
+- Pages project: `cannavita-widget-qa`
+- QA widget build mode: `npm run build:qa`
 
 ---
 

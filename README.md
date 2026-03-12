@@ -1,5 +1,13 @@
 # AI Budtender Widget
 
+## Local Terminal Note
+
+On this Mac, `node`, `npm`, `npx`, `wrangler`, and `pywrangler` may be missing in a fresh terminal until `nvm` is activated. Before running any Node/Wrangler command in a new terminal, run:
+
+```bash
+nvm use --lts
+```
+
 ## Description
 
 This project is an embeddable AI shopping assistant widget for dispensaries. The widget provides an intelligent budtender experience, handling general inquiries (hours, location, policies) and product recommendations via RAG (Retrieval-Augmented Generation). It streams natural conversations and displays rich product cards inline. During chat Agentic AI can interpet the intent of the request and trigger recommendation if needed.
@@ -310,6 +318,19 @@ python vectorize.py -x products-prod --category EDIBLES --offset 100 --limit 50 
 ./preset_sync.sh gummies-indica EDIBLES products-prod 20
 ```
 
+**Current Operating Policy**:
+
+- `products-prod` remains the live-ish catalog used by the current test/UAT widget at `https://cannavita-widget.pages.dev`
+- Manual full refresh for that lane remains valid:
+  - `./preset_sync.sh all-products ALL products-prod none 5`
+- New cron/reconcile automation must be validated against the separate QA lane first:
+  - Vectorize index: `products-qa`
+  - Vectorizer Worker: `vectorizer-worker-qa`
+  - Backend Worker: `ecom-chat-backend-qa`
+  - Pages project: `cannavita-widget-qa`
+  - D1 database: `vectorizer-qa`
+- `products-qa` is full-catalog only. Do not run partial subset presets against that index if stale reconciliation is enabled.
+
 **Index Management**:
 
 ```bash
@@ -368,6 +389,79 @@ pywrangler secret put ADMIN_TOKEN
 pywrangler deploy
 ```
 
+### QA Automation Lane
+
+Use the QA stack to validate cron, stale reconciliation, backend retrieval, and Pages behavior without touching the current `products-prod` lane.
+
+**QA resources**:
+
+- Vectorize index: `products-qa`
+- D1 database: `vectorizer-qa`
+- Vectorizer Worker config: `vectorizer/wrangler.qa.toml`
+- Backend Worker config: `backend/wrangler.qa.toml`
+- QA widget Pages project: `cannavita-widget-qa`
+
+**Provision the QA index**:
+
+```bash
+cd vectorizer/src
+python manage_indexes.py --create products-qa
+```
+
+**Create metadata indexes for QA**:
+
+```bash
+npx wrangler vectorize create-metadata-index products-qa --property-name=category --type=string
+npx wrangler vectorize create-metadata-index products-qa --property-name=type --type=string
+npx wrangler vectorize create-metadata-index products-qa --property-name=brand --type=string
+npx wrangler vectorize create-metadata-index products-qa --property-name=subcategory --type=string
+npx wrangler vectorize create-metadata-index products-qa --property-name=effects --type=string
+npx wrangler vectorize create-metadata-index products-qa --property-name=flavor --type=string
+npx wrangler vectorize create-metadata-index products-qa --property-name=price --type=number
+npx wrangler vectorize create-metadata-index products-qa --property-name=thc_percentage --type=number
+npx wrangler vectorize create-metadata-index products-qa --property-name=cbd_percentage --type=number
+npx wrangler vectorize create-metadata-index products-qa --property-name=thc_per_unit_mg --type=number
+npx wrangler vectorize create-metadata-index products-qa --property-name=inStock --type=boolean
+```
+
+**Deploy QA vectorizer Worker**:
+
+```bash
+cd vectorizer
+pywrangler secret put CANNAVITA_API_KEY
+pywrangler secret put CF_ACCOUNT_ID
+pywrangler secret put CF_VECTORIZE_API_TOKEN
+pywrangler secret put CF_D1_DATABASE_ID
+pywrangler secret put CF_D1_API_TOKEN
+pywrangler secret put ADMIN_TOKEN
+pywrangler deploy --config wrangler.qa.toml
+```
+
+**Deploy QA backend**:
+
+```bash
+cd backend
+npm run deploy:qa
+```
+
+**Build and deploy QA widget**:
+
+```bash
+cd client
+cp .env.qa.example .env.qa
+npm run build:qa
+npx wrangler pages deploy dist --project-name=cannavita-widget-qa
+```
+
+**QA smoke trigger**:
+
+```bash
+curl -X POST https://vectorizer-worker-qa.andresmeona.workers.dev/run \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"index_name":"products-qa","min_quantity":5,"stale_hours":48,"limit":"20"}'
+```
+
 Local manual cycle:
 
 ```bash
@@ -401,11 +495,17 @@ The project uses environment-specific configuration files to manage API URLs and
 
 **Client** (`client/`):
 - `.env.development` - Local development (points to localhost:8787)
+- `.env.qa` - QA widget build (points to QA backend Worker)
 - `.env.production` - Production deployment (points to deployed Cloudflare Worker)
+- `.env.qa.example` - Tracked template for QA widget build values
 
 ```bash
 # client/.env.development
 VITE_API_URL=http://localhost:8787/chat
+VITE_STORE_NAME=cannavita
+
+# client/.env.qa
+VITE_API_URL=https://ecom-chat-backend-qa.andresmeona.workers.dev/chat
 VITE_STORE_NAME=cannavita
 
 # client/.env.production
@@ -426,6 +526,7 @@ VITE_STORE_NAME=cannavita
 | Command | Mode | .env File Used | Result |
 |---------|------|----------------|--------|
 | `npm run dev` | development | `.env.development` | Uses localhost API |
+| `npm run build:qa` | qa | `.env.qa` | Bakes QA API URL into `widget.js` |
 | `npm run build` | production | `.env.production` | Bakes production API URL into `widget.js` |
 
 **API URL Resolution Order** (in `client/src/main.ts`):
@@ -519,7 +620,7 @@ npx wrangler deploy
 ```toml
 name = "ecom-chat-backend"
 main = "src/index.ts"
-compatibility_date = "2024-01-01"
+compatibility_date = "2025-11-24"
 
 [[vectorize]]
 binding = "VECTORIZE_INDEX"
@@ -554,6 +655,87 @@ RESEND_API_KEY=your_resend_api_key
 Notes:
 - `RESEND_API_KEY` should be configured in `backend` (Worker runtime), not in `client/.env`.
 - Feedback emails currently send from `Cannavita Feedback <noreply@xtscale.com>` to `hq@algophase.com`.
+
+---
+
+#### QA Deployment Workflow
+
+Use the QA stack for multi-day cron soak and browser-level validation.
+
+#### 1. Deploy QA Backend API (Cloudflare Workers)
+
+```bash
+cd backend
+npm run deploy:qa
+```
+
+**Configuration** (`backend/wrangler.qa.toml`):
+```toml
+name = "ecom-chat-backend-qa"
+main = "src/index.ts"
+compatibility_date = "2025-11-24"
+
+[[vectorize]]
+binding = "VECTORIZE_INDEX"
+index_name = "products-qa"
+
+[ai]
+binding = "AI"
+```
+
+**Deployed QA API URL**:
+- `https://ecom-chat-backend-qa.andresmeona.workers.dev/chat`
+
+**Required QA backend secrets**:
+
+Set the same runtime secrets used by the current backend on the QA Worker as well, especially:
+
+- `CEREBRAS_API_KEY_PROD`
+- active provider key(s) such as `GROQ_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, or `GROK_API_KEY`
+- `RESEND_API_KEY` if feedback email should work in QA
+
+#### 2. Deploy QA Widget (Cloudflare Pages)
+
+```bash
+cd client
+cp .env.qa.example .env.qa
+npm run build:qa
+npx wrangler pages deploy dist --project-name=cannavita-widget-qa
+```
+
+**What happens**:
+- Vite builds widget using `.env.qa`
+- `widget.js` is baked with the QA backend URL
+- the demo page in `client/public/index.html` now relies on the baked API URL instead of a hardcoded `data-api`
+- Pages project `cannavita-widget-qa` is deployed separately from `cannavita-widget`
+
+**QA Pages URL**:
+- `https://cannavita-widget-qa.pages.dev`
+
+#### 3. Deploy QA Vectorizer Worker
+
+```bash
+cd vectorizer
+pywrangler deploy --config wrangler.qa.toml
+```
+
+**Configuration** (`vectorizer/wrangler.qa.toml`):
+```toml
+name = "vectorizer-worker-qa"
+
+[vars]
+INDEX_NAME = "products-qa"
+MIN_QUANTITY = "5"
+STALE_HOURS = "48"
+LIMIT = "none"
+
+[triggers]
+crons = ["17 7 * * *"]
+```
+
+**QA run-report and dedup isolation**:
+- use a separate D1 database for QA: `vectorizer-qa`
+- prod/live-ish run reports and QA run reports must not share the same D1 database
 
 ---
 
@@ -638,6 +820,7 @@ Once deployed, embed the widget on any website:
 | Environment | Backend | Frontend | Widget API URL |
 |-------------|---------|----------|----------------|
 | **Local Dev** | `wrangler dev --remote` (localhost:8787) | `npm run build` + `npm run dev` (localhost:5173) | `http://localhost:8787/chat` |
+| **QA** | `wrangler deploy --config wrangler.qa.toml` | `npm run build:qa` + `wrangler pages deploy dist --project-name=cannavita-widget-qa` | `https://ecom-chat-backend-qa.andresmeona.workers.dev/chat` |
 | **Production** | `wrangler deploy` (Workers) | `wrangler pages deploy dist` (Pages) | `https://ecom-chat-backend.andresmeona.workers.dev/chat` |
 
 ---
@@ -646,10 +829,12 @@ Once deployed, embed the widget on any website:
 
 **Backend API**:
 - Local: `http://localhost:8787/chat`
+- QA: `https://ecom-chat-backend-qa.andresmeona.workers.dev/chat`
 - Production: `https://ecom-chat-backend.andresmeona.workers.dev/chat`
 
 **Frontend Widget**:
 - Local: `http://localhost:5173` (dev server)
+- QA: `https://cannavita-widget-qa.pages.dev`
 - Production: `https://cannavita-widget.pages.dev`
 
 **API Endpoints** (append to base URL):
@@ -686,6 +871,23 @@ npm run build
 npx wrangler pages deploy dist --project-name=cannavita-widget
 ```
 
+**QA Deployment**:
+```bash
+# Deploy QA Backend
+cd backend
+npm run deploy:qa
+
+# Deploy QA Vectorizer Worker
+cd ../vectorizer
+pywrangler deploy --config wrangler.qa.toml
+
+# Deploy QA Frontend
+cd ../client
+cp .env.qa.example .env.qa
+npm run build:qa
+npx wrangler pages deploy dist --project-name=cannavita-widget-qa
+```
+
 **Build Only** (without deploying):
 ```bash
 cd client
@@ -698,14 +900,14 @@ npm run build  # Outputs to dist/
 
 | Aspect | Local Development | Production |
 |--------|-------------------|------------|
-| **Backend** | `wrangler dev --remote` (localhost:8787) | `wrangler deploy` (Cloudflare Workers) |
-| **Frontend** | Built widget served by Vite dev server | Static widget.js hosted on Cloudflare Pages |
+| **Backend** | `wrangler dev --remote` (localhost:8787) | `wrangler deploy` or `wrangler deploy --config wrangler.qa.toml` |
+| **Frontend** | Built widget served by Vite dev server | Static widget.js hosted on Cloudflare Pages (`cannavita-widget` or `cannavita-widget-qa`) |
 | **Widget Behavior** | Identical (tests production build) | Same as local (no surprises) |
-| **API URL** | `http://localhost:8787/chat` | `https://ecom-chat-backend.andresmeona.workers.dev/chat` |
-| **Environment File** | `.env.development` | `.env.production` |
+| **API URL** | `http://localhost:8787/chat` | `https://ecom-chat-backend.andresmeona.workers.dev/chat` or `https://ecom-chat-backend-qa.andresmeona.workers.dev/chat` |
+| **Environment File** | `.env.development` | `.env.production` or `.env.qa` |
 | **Hot Reload** | ❌ No (requires `npm run build`) | ❌ No (static build) |
 | **CORS** | Relaxed (same origin) | Configured in backend |
-| **Vectorize** | Remote (production data) | Remote (production data) |
+| **Vectorize** | Remote (production data) | Remote (`products-prod` or `products-qa`) |
 | **Workers AI** | Remote (Cloudflare models) | Remote (Cloudflare models) |
 
 ---
@@ -725,7 +927,13 @@ npm run build  # Outputs to dist/
 
 3. **Environment variables are baked into build**:
    - `VITE_API_URL` from `.env.production` is compiled into `widget.js`
+   - `npm run build:qa` bakes `.env.qa` into the QA widget build
    - Can still override at runtime via `data-api` attribute
+
+5. **Current prod/UAT lane stays separate during automation soak**:
+   - `https://cannavita-widget.pages.dev` continues pointing at the current `products-prod` lane
+   - `products-prod` can still be refreshed manually with `./preset_sync.sh all-products ALL products-prod none 5`
+   - new cron validation belongs on `products-qa`, not `products-prod`
 
 4. **Backend always uses remote resources**:
    - `--remote` flag connects to production Vectorize and Workers AI

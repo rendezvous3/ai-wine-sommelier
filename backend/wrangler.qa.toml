@@ -1,0 +1,10 @@
+name = "ecom-chat-backend-qa"
+main = "src/index.ts"
+compatibility_date = "2025-11-24"
+
+[[vectorize]]
+binding = "VECTORIZE_INDEX"
+index_name = "products-qa"
+
+[ai]
+binding = "AI"

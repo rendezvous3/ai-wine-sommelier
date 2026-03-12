@@ -1,5 +1,13 @@
 # Stream-First Testing - Quick Reference Card
 
+## Local Terminal Note
+
+On this Mac, `node`, `npm`, `npx`, `wrangler`, and `pywrangler` may be missing in a fresh terminal until `nvm` is activated. Before running any Node/Wrangler command in a new terminal, run:
+
+```bash
+nvm use --lts
+```
+
 ## 🚀 Quick Start
 
 ```bash
@@ -151,9 +159,13 @@ Check CODEX_PATTERNS in client/src/Widget.svelte
 
 **No products in database:**
 ```bash
-# Run vectorizer
-cd vectorizer
-python vectorize.py -x products-prod --category FLOWER --limit 50 --upload
+# Current live-ish lane manual full refresh
+cd vectorizer/src
+./preset_sync.sh all-products ALL products-prod none 5
+
+# QA lane upload
+cd /Users/bojanjovanovic/Desktop/Svelte/AiChatBot/vectorizer/src
+python vectorize.py -x products-qa --category FLOWER --limit 50 --upload
 
 # Full pull dry run
 python vectorize.py -x products-test --category EDIBLES --limit none
@@ -161,8 +173,8 @@ python vectorize.py -x products-test --category EDIBLES --limit none
 # Exclude known low stock
 python vectorize.py -x products-test --category EDIBLES --limit 100 --min-quantity 5
 
-# Preview stale cleanup
-python reconcile_stale.py -x products-prod --stale-hours 48 --dry-run
+# Preview stale cleanup on QA
+python reconcile_stale.py -x products-qa --stale-hours 48 --dry-run
 ```
 
 ## 📝 Test Data

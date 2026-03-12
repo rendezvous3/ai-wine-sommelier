@@ -1,0 +1,13 @@
+name = "vectorizer-worker-qa"
+main = "src/worker_entry.py"
+compatibility_date = "2026-03-07"
+compatibility_flags = ["python_workers"]
+
+[vars]
+INDEX_NAME = "products-qa"
+MIN_QUANTITY = "5"
+STALE_HOURS = "48"
+LIMIT = "none"
+
+[triggers]
+crons = ["17 7 * * *"]

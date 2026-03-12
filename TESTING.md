@@ -1,5 +1,13 @@
 # Stream-First Architecture - Testing & Verification Guide
 
+## Local Terminal Note
+
+On this Mac, `node`, `npm`, `npx`, `wrangler`, and `pywrangler` may be missing in a fresh terminal until `nvm` is activated. Before running any Node/Wrangler command in a new terminal, run:
+
+```bash
+nvm use --lts
+```
+
 ## Overview
 
 This document provides comprehensive testing scenarios for the Stream-First Architecture with CODEX cues implementation.
@@ -778,16 +786,21 @@ Before deploying to production, manually verify:
 
 ## Vectorizer Data Quality Checks
 
+- Keep the current live-ish lane untouched while testing automation:
+  - manual prod refresh remains `./preset_sync.sh all-products ALL products-prod none 5`
+  - cron/reconcile soak must target `products-qa`, not `products-prod`
 - Run dry-run full pull:
   - `cd vectorizer/src && python vectorize.py -x products-test --category EDIBLES --limit none`
 - Run stock filter check:
   - `python vectorize.py -x products-test --category EDIBLES --limit 100 --min-quantity 5`
-- Run upload with D1 dedup enabled (default):
-  - `python vectorize.py -x products-prod --category EDIBLES --limit 100 --upload`
-- Run stale cleanup preview:
-  - `python reconcile_stale.py -x products-prod --stale-hours 48 --dry-run`
-- Run stale cleanup:
-  - `python reconcile_stale.py -x products-prod --stale-hours 48`
+- Run upload with D1 dedup enabled (default) against QA:
+  - `python vectorize.py -x products-qa --category EDIBLES --limit 100 --upload`
+- Run stale cleanup preview against QA:
+  - `python reconcile_stale.py -x products-qa --stale-hours 48 --dry-run`
+- Run stale cleanup against QA:
+  - `python reconcile_stale.py -x products-qa --stale-hours 48`
+- Run QA Worker manual smoke:
+  - `curl -X POST http://127.0.0.1:8787/run -H "Authorization: Bearer <ADMIN_TOKEN>" -H "Content-Type: application/json" -d '{"index_name":"products-qa","min_quantity":5,"stale_hours":48,"limit":"20"}'`
 - Verify summary reports:
   - low-stock exclusions
   - in-run duplicate exclusions (`id`, normalized `name`)

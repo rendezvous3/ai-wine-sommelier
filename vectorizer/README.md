@@ -1,5 +1,13 @@
 # Vectorizer
 
+## Local Terminal Note
+
+On this Mac, `node`, `npm`, `npx`, `wrangler`, and `pywrangler` may be missing in a fresh terminal until `nvm` is activated. Before running any Node/Wrangler command in a new terminal, run:
+
+```bash
+nvm use --lts
+```
+
 Product catalog vectorization pipeline for the AI Budtender Widget.
 
 ## Overview
@@ -10,6 +18,21 @@ The vectorizer now has one shared Python core and two runners:
 - Dedicated Cloudflare Python Worker for scheduled production syncs
 
 Both runners use the same sync/reconcile logic, duplicate rules, and CBD subcategory assignment.
+
+## Operating Modes
+
+There are now two intended operational lanes:
+
+- `products-prod`: current live-ish/manual lane used by the existing test/UAT widget deployment
+- `products-qa`: isolated QA automation lane for cron soak, stale reconciliation validation, backend retrieval checks, and QA Pages testing
+
+Keep these rules:
+
+- `products-prod` remains manually refreshed while QA automation is being proven
+- approved manual full refresh for `products-prod` remains:
+  - `./preset_sync.sh all-products ALL products-prod none 5`
+- `products-qa` is full-catalog only when stale reconciliation is enabled
+- do not run partial subset presets against `products-qa`
 
 ## Architecture
 
@@ -61,6 +84,17 @@ python reconcile_stale.py -x products-prod --stale-hours 48
 # Run the full sync + reconcile cycle
 python run_sync_cycle.py products-prod 5 48 none
 ```
+
+### Manual Prod Refresh
+
+If the current user-facing `products-prod` lane needs a manual full refresh during the QA soak period:
+
+```bash
+cd vectorizer/src
+./preset_sync.sh all-products ALL products-prod none 5
+```
+
+This keeps the existing Pages/UAT lane updated without involving the new QA automation Worker.
 
 ### Index Management
 
@@ -145,6 +179,60 @@ Deploy the dedicated Worker:
 pywrangler deploy
 ```
 
+### QA Scheduler Deployment
+
+QA scheduling uses a separate Worker config and a separate D1 database.
+
+**QA resources**:
+
+- Vectorize index: `products-qa`
+- D1 database: `vectorizer-qa`
+- Worker config: `vectorizer/wrangler.qa.toml`
+
+**Provision the QA index**:
+
+```bash
+cd vectorizer/src
+python manage_indexes.py --create products-qa
+```
+
+**Create QA metadata indexes**:
+
+```bash
+npx wrangler vectorize create-metadata-index products-qa --property-name=category --type=string
+npx wrangler vectorize create-metadata-index products-qa --property-name=type --type=string
+npx wrangler vectorize create-metadata-index products-qa --property-name=brand --type=string
+npx wrangler vectorize create-metadata-index products-qa --property-name=subcategory --type=string
+npx wrangler vectorize create-metadata-index products-qa --property-name=effects --type=string
+npx wrangler vectorize create-metadata-index products-qa --property-name=flavor --type=string
+npx wrangler vectorize create-metadata-index products-qa --property-name=price --type=number
+npx wrangler vectorize create-metadata-index products-qa --property-name=thc_percentage --type=number
+npx wrangler vectorize create-metadata-index products-qa --property-name=cbd_percentage --type=number
+npx wrangler vectorize create-metadata-index products-qa --property-name=thc_per_unit_mg --type=number
+npx wrangler vectorize create-metadata-index products-qa --property-name=inStock --type=boolean
+```
+
+**Deploy the QA Worker**:
+
+```bash
+cd vectorizer
+pywrangler secret put CANNAVITA_API_KEY
+pywrangler secret put CF_ACCOUNT_ID
+pywrangler secret put CF_VECTORIZE_API_TOKEN
+pywrangler secret put CF_D1_DATABASE_ID
+pywrangler secret put CF_D1_API_TOKEN
+pywrangler secret put ADMIN_TOKEN
+pywrangler deploy --config wrangler.qa.toml
+```
+
+**Review QA defaults** in `vectorizer/wrangler.qa.toml`:
+
+- `INDEX_NAME = "products-qa"`
+- `MIN_QUANTITY = "5"`
+- `STALE_HOURS = "48"`
+- `LIMIT = "none"`
+- daily cron in `[triggers].crons`
+
 ### Testing the Worker
 
 Run the Worker locally:
@@ -169,6 +257,25 @@ curl http://127.0.0.1:8787/last-run \
   -H "Authorization: Bearer <ADMIN_TOKEN>"
 ```
 
+### QA Worker Smoke Test
+
+Run the same local Worker development flow, but target the QA index when manually invoking the Worker:
+
+```bash
+curl -X POST http://127.0.0.1:8787/run \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"index_name":"products-qa","min_quantity":5,"stale_hours":48,"limit":"20"}'
+```
+
+Once deployed, the QA soak should use:
+
+- backend Worker `ecom-chat-backend-qa`
+- vectorizer Worker `vectorizer-worker-qa`
+- Pages project `cannavita-widget-qa`
+- index `products-qa`
+- D1 database `vectorizer-qa`
+
 ## Monitoring
 
 Run reporting is written into D1 in the `vectorizer_runs` table.
@@ -183,6 +290,13 @@ Each run records:
 - duplicate and exclusion counts
 - stale delete count
 - error message when failed
+
+Use the QA D1 database to inspect:
+
+- `vectorizer_runs`
+- `vector_uniques_products_qa`
+
+Do not mix QA run-report inspection with the current prod/live-ish D1 database.
 
 ## See Also
 

@@ -169,7 +169,14 @@
       const screenshotImage = document.getElementById('screenshotImage');
       const removeScreenshot = document.getElementById('removeScreenshot');
       const params = new URLSearchParams(window.location.search);
-      const rawApiBase = params.get('api') || 'https://ecom-chat-backend.andresmeona.workers.dev';
+      const hostname = window.location.hostname;
+      const defaultApiBase =
+        hostname === 'localhost' || hostname === '127.0.0.1'
+          ? 'http://localhost:8787'
+          : hostname.includes('-qa.')
+            ? 'https://ecom-chat-backend-qa.andresmeona.workers.dev'
+            : 'https://ecom-chat-backend.andresmeona.workers.dev';
+      const rawApiBase = params.get('api') || defaultApiBase;
       const apiBase = rawApiBase.replace(/\/chat\/?$/, '').replace(/\/$/, '');
       const source = params.get('source') || 'external-page';
       const store = params.get('store') || window.location.hostname || 'unknown-store';

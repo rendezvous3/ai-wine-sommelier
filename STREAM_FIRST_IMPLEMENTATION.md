@@ -1,5 +1,13 @@
 # Stream-First Architecture - Implementation Summary
 
+## Local Terminal Note
+
+On this Mac, `node`, `npm`, `npx`, `wrangler`, and `pywrangler` may be missing in a fresh terminal until `nvm` is activated. Before running any Node/Wrangler command in a new terminal, run:
+
+```bash
+nvm use --lts
+```
+
 ## Overview
 
 This document summarizes the complete implementation of the Stream-First Architecture with CODEX cues for the Cannavita AI Budtender Widget.

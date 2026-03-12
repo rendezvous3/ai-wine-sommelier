@@ -1,5 +1,13 @@
 # Development Context Scope
 
+## Local Terminal Note
+
+On this Mac, `node`, `npm`, `npx`, `wrangler`, and `pywrangler` may be missing in a fresh terminal until `nvm` is activated. Before running any Node/Wrangler command in a new terminal, run:
+
+```bash
+nvm use --lts
+```
+
 Use only files required for coding, debugging, testing, and architecture decisions.
 
 ## Include By Default

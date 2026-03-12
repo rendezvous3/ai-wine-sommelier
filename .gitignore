@@ -15,6 +15,7 @@ client/static/widget.js
 client/.svelte-kit/
 client/build/
 client/.env.*
+!client/.env.qa.example
 
 # Local environment variables (never commit real keys!)
 .env
