@@ -43,6 +43,8 @@ As of March 13, 2026:
 - `vectorizer-worker-qa` has explicit Worker limits in `vectorizer/wrangler.qa.toml`:
   - `cpu_ms = 300000`
   - `subrequests = 50000`
+- QA soak cron is configured twice daily:
+  - `17 7,19 * * *`
 - a bounded high-limit manual run proved full-menu coverage for the current QA catalog:
   - `limit = 1500`
   - actual `fetched_count = 824`
@@ -50,6 +52,7 @@ As of March 13, 2026:
   - `transform_errors = 0`
 - the reliable deployed verifier gate is currently:
   - `suite = "categories_only"`
+- the scheduled post-run verifier target should also be `categories_only`
 - the deployed verifier `full` suite is not the authoritative gate yet because its backend API probe still reports a false `404` from inside the verifier Worker context, even though direct backend curl checks pass
 
 For a reusable from-scratch setup flow, use [STORE_SETUP.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/vectorizer/STORE_SETUP.md).

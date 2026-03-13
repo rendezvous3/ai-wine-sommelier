@@ -119,7 +119,7 @@ LIMIT = "none"
 POSTRUN_VERIFIER_URL = ""
 
 [triggers]
-crons = ["17 7 * * *"]
+crons = ["17 7,19 * * *"]
 
 [limits]
 cpu_ms = 300000
@@ -127,6 +127,12 @@ subrequests = 50000
 ```
 
 Do not omit the `[limits]` block. This is required for full-menu Worker runs at current catalog scale.
+
+For QA/staging soak lanes, the recommended starting schedule is twice daily:
+
+- `17 7,19 * * *`
+
+That gives a usable validation sample over a few days without waiting a full day between runs.
 
 ### Verifier Worker config requirements
 
@@ -325,6 +331,11 @@ Set:
 - `POSTRUN_VERIFIER_TOKEN` secret on the vectorizer Worker to the verifier token value
 
 Then redeploy the vectorizer Worker.
+
+Current recommendation:
+
+- auto-trigger the verifier in `categories_only` mode first
+- treat `full` as a later enhancement after the backend probe issue is fixed
 
 ## 13. Observe scheduled behavior
 

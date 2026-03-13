@@ -254,11 +254,17 @@ pywrangler deploy --config wrangler.qa.toml
 - `MIN_QUANTITY = "5"`
 - `STALE_HOURS = "48"`
 - `LIMIT = "none"`
-- `POSTRUN_VERIFIER_URL = ""` until you intentionally wire verifier auto-trigger
-- daily cron in `[triggers].crons`
+- `POSTRUN_VERIFIER_URL = "https://postrun-verifier-qa.andresmeona.workers.dev"`
+- twice-daily QA soak cron in `[triggers].crons`:
+  - `17 7,19 * * *`
 - explicit Worker capacity limits:
   - `cpu_ms = 300000`
   - `subrequests = 50000`
+
+Important:
+
+- scheduled post-run verification is currently intended to run `categories_only`
+- auto-trigger becomes active only after `POSTRUN_VERIFIER_TOKEN` is set on `vectorizer-worker-qa`
 
 ### Testing the Worker
 
@@ -517,7 +523,8 @@ Important:
 
 - verification failure does **not** fail the vectorizer cron run
 - the verifier is an operational canary, not the run-success contract
-- only wire auto-trigger after manual `categories_only` verification is green
+- the scheduled auto-trigger should currently target `categories_only`
+- only treat the auto-trigger as authoritative after `POSTRUN_VERIFIER_TOKEN` is set and QA scheduled runs have been observed passing
 
 ### Separate direct backend API check
 

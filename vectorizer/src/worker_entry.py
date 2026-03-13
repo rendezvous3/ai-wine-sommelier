@@ -61,7 +61,8 @@ async def _trigger_postrun_verifier(env: Any, index_name: str, vectorizer_run_id
 
     payload = {
         "source": "scheduled_postrun",
-        "suite": "full",
+        # The deployed verifier's reliable gate is currently categories-only.
+        "suite": "categories_only",
         "index_name": index_name,
         "expected_trigger_source": "scheduled",
         "vectorizer_run_id": vectorizer_run_id,
