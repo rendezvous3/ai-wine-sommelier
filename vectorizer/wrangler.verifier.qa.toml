@@ -1,0 +1,10 @@
+name = "postrun-verifier-qa"
+main = "src/probe_worker.py"
+compatibility_date = "2026-03-07"
+compatibility_flags = ["python_workers"]
+
+[vars]
+INDEX_NAME = "products-qa"
+BACKEND_BASE_URL = "https://ecom-chat-backend-qa.andresmeona.workers.dev"
+VERIFY_ALERT_TO = ""
+VERIFY_ALERT_FROM = ""

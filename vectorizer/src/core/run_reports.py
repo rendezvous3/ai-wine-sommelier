@@ -133,3 +133,13 @@ class D1RunReportStore:
         rows = payload.get("result", [{}])[0].get("results", [])
         return rows[0] if rows else None
 
+    async def get_run(self, run_id: str) -> Optional[Dict[str, Any]]:
+        sql = f"""
+        SELECT *
+        FROM vectorizer_runs
+        WHERE run_id = '{self.client.sql_quote(run_id)}'
+        LIMIT 1;
+        """
+        payload = await self.client.exec_sql(sql)
+        rows = payload.get("result", [{}])[0].get("results", [])
+        return rows[0] if rows else None

@@ -8,6 +8,11 @@ INDEX_NAME = "products-qa"
 MIN_QUANTITY = "5"
 STALE_HOURS = "48"
 LIMIT = "none"
+POSTRUN_VERIFIER_URL = ""
 
 [triggers]
 crons = ["17 7 * * *"]
+
+[limits]
+cpu_ms = 300000
+subrequests = 50000

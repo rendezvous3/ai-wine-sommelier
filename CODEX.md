@@ -70,6 +70,8 @@ This repository should be treated with a strict development-only context window.
 - `npx wrangler pages deploy ...` from a non-production branch creates a preview alias. Use `--branch=main` to publish to the stable Pages root URL.
 - QA vectorizer Worker secrets must include `CF_AI_API_TOKEN`. `CF_D1_API_TOKEN` must have D1 edit permission.
 - Tinctures are now a first-class category. Plain `tincture` / `tinctures` maps to category `tinctures`; `CBD tincture` remains category `cbd` with subcategory `tincture`.
+- `vectorizer-worker-qa` currently relies on explicit Worker limits (`cpu_ms = 300000`, `subrequests = 50000`) and has been validated against the full current QA catalog with `limit = 1500` (`fetched_count = 824`, `uploaded_count = 682`, `transform_errors = 0`).
+- `postrun-verifier-qa` is currently authoritative in `categories_only` mode only. The deployed `full` verifier suite still has a flaky backend API probe, so direct backend curls remain the API sanity source of truth.
 
 ## UI Development Flow (Mandatory)
 

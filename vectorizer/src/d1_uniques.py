@@ -155,3 +155,23 @@ class D1UniqueStore:
         payload = await self.client.exec_sql(sql)
         meta = payload.get("result", [{}])[0].get("meta", {})
         return int(meta.get("changes", 0) or 0)
+
+    async def count_rows(self, table_name: str) -> int:
+        sql = f'SELECT COUNT(*) AS row_count FROM "{table_name}";'
+        payload = await self.client.exec_sql(sql)
+        rows = payload.get("result", [{}])[0].get("results", [])
+        if not rows:
+            return 0
+        return int(rows[0].get("row_count", 0) or 0)
+
+    async def get_rows_by_ids(self, table_name: str, ids: Iterable[str]) -> List[Dict[str, Any]]:
+        quoted_ids = [f"'{self.client.sql_quote(product_id)}'" for product_id in ids if product_id]
+        if not quoted_ids:
+            return []
+        sql = f'''
+        SELECT product_id, normalized_name, raw_name, category, subcategory, last_seen_at
+        FROM "{table_name}"
+        WHERE product_id IN ({",".join(quoted_ids)});
+        '''
+        payload = await self.client.exec_sql(sql)
+        return payload.get("result", [{}])[0].get("results", []) or []

@@ -8,7 +8,7 @@ INDEX_NAME = "products-prod"
 MIN_QUANTITY = "5"
 STALE_HOURS = "48"
 LIMIT = "none"
+POSTRUN_VERIFIER_URL = ""
 
 [triggers]
 crons = ["17 7 * * *"]
-

@@ -517,10 +517,93 @@ npx wrangler pages deploy dist --project-name=cannavita-widget-qa --branch=main
 
 ```bash
 curl -X POST https://vectorizer-worker-qa.andresmeona.workers.dev/run \
-  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -H "Authorization: Bearer <QA_VECTORIZER_ADMIN_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"index_name":"products-qa","min_quantity":5,"stale_hours":48,"limit":"20"}'
+  -d '{"index_name":"products-qa","min_quantity":5,"stale_hours":48,"limit":"1500"}'
 ```
+
+**QA post-run category verification**:
+
+```bash
+printf '%s' '{
+  "suite": "categories_only",
+  "index_name": "products-qa",
+  "expected_trigger_source": "manual",
+  "skip_email": true
+}' | curl -s https://postrun-verifier-qa.andresmeona.workers.dev/run \
+  -H "Authorization: Bearer <QA_VERIFY_ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  --data @-
+```
+
+**QA token relationship**:
+
+- `vectorizer-worker-qa` manual auth secret is `ADMIN_TOKEN`
+- `postrun-verifier-qa` manual auth secret is `VERIFY_ADMIN_TOKEN`
+- `vectorizer-worker-qa` auto-trigger secret is `POSTRUN_VERIFIER_TOKEN`
+- `POSTRUN_VERIFIER_TOKEN` must equal `QA_VERIFY_ADMIN_TOKEN`
+- `QA_VECTORIZER_ADMIN_TOKEN` does not have to equal `QA_VERIFY_ADMIN_TOKEN`
+
+Use [vectorizer/ENVIRONMENT_MATRIX.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/vectorizer/ENVIRONMENT_MATRIX.md) for the full prod/QA/verifier split.
+Use [vectorizer/STORE_SETUP.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/vectorizer/STORE_SETUP.md) when bringing up the vectorizer Worker + verifier Worker for a new store or isolated lane from scratch.
+
+**Local verification against localhost backend**:
+
+```bash
+cd vectorizer/src
+python run_postrun_verify.py \
+  --suite categories_only \
+  --index products-qa \
+  --expected-trigger-source manual \
+  --skip-email
+```
+
+**Direct QA backend intent sanity check**:
+
+```bash
+printf '%s' '{
+  "messages": [
+    {
+      "role": "assistant",
+      "content": "Welcome to Cannavita!"
+    },
+    {
+      "role": "user",
+      "content": "Can you recommend relaxing pre-rolls?"
+    },
+    {
+      "role": "assistant",
+      "content": "I completely understand what you'\''re looking for - relaxing prerolls. Let me check what we have that matches your preferences."
+    }
+  ]
+}' | curl -s https://ecom-chat-backend-qa.andresmeona.workers.dev/chat/intent \
+  -H 'Content-Type: application/json' \
+  --data @- | jq
+```
+
+What this simplified V1 verifier checks:
+
+- latest successful vectorizer run
+- fetched/transformed/uploaded/updated/stale-delete counts
+- active D1 uniqueness row count as the V1 active-vector count
+- small live Dutchie chunk checks for:
+  - `FLOWER`
+  - `PRE_ROLLS`
+  - `EDIBLES`
+  - `CONCENTRATES`
+- remote `categories_only` is the currently reliable deployed verifier gate
+
+Current validated QA runtime facts:
+
+- `vectorizer-worker-qa` has explicit Worker limits:
+  - `cpu_ms = 300000`
+  - `subrequests = 50000`
+- a `limit = 1500` manual run successfully pulled the full currently observed QA menu:
+  - `fetched_count = 824`
+  - `uploaded_count = 682`
+  - `transform_errors = 0`
+
+The deployed verifier `full` suite is not the gate yet because its backend API probe is still flaky from inside the verifier Worker context, even though direct terminal/browser calls to the QA backend succeed. It is a post-run operational canary, not a unit-test runner, and verifier failure does not fail the vectorizer cron itself.
 
 Local manual cycle:
 

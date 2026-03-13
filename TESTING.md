@@ -802,10 +802,24 @@ Before deploying to production, manually verify:
   - `python reconcile_stale.py -x products-qa --stale-hours 48`
 - Run QA Worker manual smoke:
   - `curl -X POST http://127.0.0.1:8787/run -H "Authorization: Bearer <ADMIN_TOKEN>" -H "Content-Type: application/json" -d '{"index_name":"products-qa","min_quantity":5,"stale_hours":48,"limit":"20"}'`
+- Run simplified post-run verification locally against localhost backend:
+  - `cd vectorizer/src && python run_postrun_verify.py --suite categories_only --index products-qa --expected-trigger-source manual --skip-email`
+- Run Dutchie/category checks only:
+  - `python run_postrun_verify.py --suite categories_only --index products-qa --categories FLOWER PRE_ROLLS EDIBLES CONCENTRATES --skip-email`
+- Run remote QA verifier manually:
+  - `printf '%s' '{ "suite": "categories_only", "index_name": "products-qa", "expected_trigger_source": "manual", "skip_email": true }' | curl -s https://postrun-verifier-qa.andresmeona.workers.dev/run -H "Authorization: Bearer <QA_VERIFY_ADMIN_TOKEN>" -H "Content-Type: application/json" --data @-`
+- Run direct QA backend intent check separately:
+  - `printf '%s' '{ "messages": [ { "role": "assistant", "content": "Welcome to Cannavita!" }, { "role": "user", "content": "Can you recommend relaxing pre-rolls?" }, { "role": "assistant", "content": "I completely understand what you'\''re looking for - relaxing prerolls. Let me check what we have that matches your preferences." } ] }' | curl -s https://ecom-chat-backend-qa.andresmeona.workers.dev/chat/intent -H "Content-Type: application/json" --data @- | jq`
 - Verify summary reports:
   - low-stock exclusions
   - in-run duplicate exclusions (`id`, normalized `name`)
   - D1 duplicate exclusions
+- Verify post-run reports:
+  - latest run is `success`
+  - active unique count is present
+  - Dutchie chunk checks pass for flower, prerolls, edibles, concentrates
+  - remote `categories_only` verifier returns `status = passed`
+  - direct backend intent curl passes separately
 - [ ] Persistence works
 - [ ] Loading states clear properly
 - [ ] CODEX detection is 100% accurate

@@ -12,8 +12,13 @@ DEFAULT_RETAILER_ID = "ca181286-eb0d-4b6d-a4d2-2e9c8ea9e446"
 
 
 def load_local_env() -> None:
-    """Load vectorizer-local .env settings for CLI runs."""
-    env_path = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
+    """Load vectorizer-local env settings for CLI runs.
+
+    Default file is `vectorizer/.env`.
+    Set `VECTORIZER_ENV_FILE` to point local CLIs at a different env file.
+    """
+    override_path = os.getenv("VECTORIZER_ENV_FILE")
+    env_path = override_path or os.path.join(os.path.dirname(__file__), "..", "..", ".env")
     load_dotenv(env_path)
 
 
@@ -98,7 +103,11 @@ class SyncCycleOptions:
 
 def cloudflare_config_from_source(source: Any = None) -> CloudflareConfig:
     source = source or os.environ
-    account_id = _read_value(source, "CF_ACCOUNT_ID") or ""
+    account_id = (
+        _read_value(source, "CLOUDFLARE_ACCOUNT_ID")
+        or _read_value(source, "CF_ACCOUNT_ID")
+        or ""
+    )
     api_token = (
         _read_value(source, "CF_API_TOKEN")
         or _read_value(source, "CF_VECTORIZE_API_TOKEN")

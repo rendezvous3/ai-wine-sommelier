@@ -17,6 +17,7 @@ This is a temporary promotion procedure, not the final steady-state operating mo
 - Vectorize index: `products-qa`
 - D1 database: `vectorizer-qa`
 - Vectorizer Worker: `vectorizer-worker-qa`
+- Verifier Worker: `postrun-verifier-qa`
 - Backend Worker: `ecom-chat-backend-qa`
 - Pages project: `cannavita-widget-qa`
 
@@ -24,6 +25,7 @@ This is a temporary promotion procedure, not the final steady-state operating mo
 
 - Vectorize index: `products-prod`
 - Vectorizer Worker: `vectorizer-worker`
+- Verifier Worker: `postrun-verifier`
 - Backend Worker: `ecom-chat-backend`
 - Pages site: `https://cannavita-widget.pages.dev`
 
@@ -36,8 +38,23 @@ Do not start prod cron ownership until all of these are true:
 3. QA counts are stable enough to trust:
    - no unexplained upload collapse
    - no suspicious stale-delete spike
-4. QA widget/backend behavior is acceptable.
-5. Remaining known ingest gaps are understood and accepted.
+4. QA post-run verifier is green for multiple runs:
+   - deployed `categories_only` verifier passes for flower, prerolls, edibles, concentrates
+   - direct QA backend API checks pass separately
+5. QA widget/backend behavior is acceptable.
+6. Remaining known ingest gaps are understood and accepted.
+
+Current validated QA facts that support this gate:
+
+- `vectorizer-worker-qa` now runs with explicit Worker limits:
+  - `cpu_ms = 300000`
+  - `subrequests = 50000`
+- a bounded high-limit QA run proved current full-menu support:
+  - `limit = 1500`
+  - actual `fetched_count = 824`
+  - actual `uploaded_count = 682`
+  - `transform_errors = 0`
+- deployed verifier `full` is not the promotion gate yet because its backend probe is still flaky from inside the verifier Worker context
 
 ## Important Current Reality
 
@@ -94,6 +111,14 @@ Current prod config already points to:
 
 - `INDEX_NAME = "products-prod"`
 - cron `17 7 * * *`
+
+Before expecting full-menu prod support, mirror the QA Worker limits into `vectorizer/wrangler.toml`:
+
+```toml
+[limits]
+cpu_ms = 300000
+subrequests = 50000
+```
 
 ## Manual Prod Smoke Test
 

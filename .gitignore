@@ -33,6 +33,7 @@ vectorizer/.venv/
 vectorizer/venv/
 vectorizer/env/
 vectorizer/*.db
+vectorizer/.env*
 
 # OS / Editor junk
 .DS_Store

@@ -166,6 +166,56 @@ cd vectorizer/src
 # QA soak -> prod cron promotion runbook
 # /Users/bojanjovanovic/Desktop/Svelte/AiChatBot/QA_TO_PROD_INSTR.md
 
+# Simplified post-run verifier (local)
+cd /Users/bojanjovanovic/Desktop/Svelte/AiChatBot/vectorizer/src
+python run_postrun_verify.py \
+  --suite categories_only \
+  --index products-qa \
+  --expected-trigger-source manual \
+  --skip-email
+
+# Dutchie/category checks only
+python run_postrun_verify.py \
+  --suite categories_only \
+  --index products-qa \
+  --categories FLOWER PRE_ROLLS EDIBLES CONCENTRATES \
+  --skip-email
+
+# Remote QA verifier
+printf '%s' '{
+  "suite": "categories_only",
+  "index_name": "products-qa",
+  "expected_trigger_source": "manual",
+  "skip_email": true
+}' | curl -s https://postrun-verifier-qa.andresmeona.workers.dev/run \
+  -H "Authorization: Bearer <QA_VERIFY_ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  --data @-
+
+# Read latest remote verifier result
+curl https://postrun-verifier-qa.andresmeona.workers.dev/last-run \
+  -H "Authorization: Bearer <QA_VERIFY_ADMIN_TOKEN>"
+
+# Direct QA backend intent check
+printf '%s' '{
+  "messages": [
+    {
+      "role": "assistant",
+      "content": "Welcome to Cannavita!"
+    },
+    {
+      "role": "user",
+      "content": "Can you recommend relaxing pre-rolls?"
+    },
+    {
+      "role": "assistant",
+      "content": "I completely understand what you'\''re looking for - relaxing prerolls. Let me check what we have that matches your preferences."
+    }
+  ]
+}' | curl -s https://ecom-chat-backend-qa.andresmeona.workers.dev/chat/intent \
+  -H 'Content-Type: application/json' \
+  --data @- | jq
+
 # QA lane upload
 cd /Users/bojanjovanovic/Desktop/Svelte/AiChatBot/vectorizer/src
 python vectorize.py -x products-qa --category FLOWER --limit 50 --upload

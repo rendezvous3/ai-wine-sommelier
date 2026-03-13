@@ -59,7 +59,7 @@ cd vectorizer
 python3 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip
-pip install -r requirements.txt
+pip install -r requirements.local.txt
 cd src
 ```
 
@@ -130,7 +130,25 @@ python manage_indexes.py --delete products-old
 
 ## Environment
 
-Create `vectorizer/.env`:
+The local CLI and the deployed Workers do not use the same configuration source.
+
+- local CLI reads a local env file
+- deployed Workers read Wrangler vars + Worker secrets
+
+Use [ENVIRONMENT_MATRIX.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/vectorizer/ENVIRONMENT_MATRIX.md) as the source of truth for prod, QA, and verifier env separation.
+
+For bringing up the vectorizer Worker and verifier Worker for a new store/environment from scratch, use [STORE_SETUP.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/vectorizer/STORE_SETUP.md).
+
+Local default remains `vectorizer/.env`, but the recommended file layout is:
+
+- `vectorizer/.env.prod`
+- `vectorizer/.env.qa`
+- `vectorizer/.env.verifier.prod`
+- `vectorizer/.env.verifier.qa`
+
+For local vectorizer CLIs, use `VECTORIZER_ENV_FILE` when you want QA instead of the default `.env`.
+
+Create `vectorizer/.env` or `vectorizer/.env.prod`:
 
 ```bash
 CANNAVITA_API_KEY=your_dutchie_api_key
@@ -236,7 +254,11 @@ pywrangler deploy --config wrangler.qa.toml
 - `MIN_QUANTITY = "5"`
 - `STALE_HOURS = "48"`
 - `LIMIT = "none"`
+- `POSTRUN_VERIFIER_URL = ""` until you intentionally wire verifier auto-trigger
 - daily cron in `[triggers].crons`
+- explicit Worker capacity limits:
+  - `cpu_ms = 300000`
+  - `subrequests = 50000`
 
 ### Testing the Worker
 
@@ -277,9 +299,250 @@ Once deployed, the QA soak should use:
 
 - backend Worker `ecom-chat-backend-qa`
 - vectorizer Worker `vectorizer-worker-qa`
+- verifier Worker `postrun-verifier-qa`
 - Pages project `cannavita-widget-qa`
 - index `products-qa`
 - D1 database `vectorizer-qa`
+
+### Current validated QA sync state
+
+The current QA Worker has already been validated beyond smoke size:
+
+- `limit = 1500` successfully pulled the full currently observed QA menu
+- actual result:
+  - `fetched_count = 824`
+  - `uploaded_count = 682`
+  - `transform_errors = 0`
+
+For the current catalog size, use `limit = 1500` as the documented full-menu manual trigger instead of `limit = none`. If a later store has a larger catalog, ramp safely (`20`, `200`, `500`, `1500`, then higher if needed) until `fetched_count < limit`, which proves the effective full pull.
+
+## Post-Run Verification
+
+The vectorizer now supports a simplified operational verifier:
+
+- shared Python verification logic in `src/postrun_verify.py`
+- local CLI runner in `src/run_postrun_verify.py`
+- separate verifier Worker entrypoint in `src/probe_worker.py`
+
+The verifier is not a unit-test runner. It executes operational checks against:
+
+- the latest vectorizer run report in D1
+- the D1 uniqueness ledger row count
+- small live Dutchie chunks for:
+  - `FLOWER`
+  - `PRE_ROLLS`
+  - `EDIBLES`
+  - `CONCENTRATES`
+- optional backend API canaries
+
+### Current verifier status
+
+The reliable deployed verifier gate is currently:
+
+- `suite = "categories_only"`
+
+That mode is validated and currently passes against QA after a full-menu sync.
+
+The deployed verifier `full` suite is not the authoritative gate yet because its internal backend API probe still reports a false `404` from the verifier Worker context, even though direct terminal/browser calls to the QA backend succeed. Keep backend API validation as a separate direct check until that is fixed.
+
+### What V1 Verifies
+
+- latest run exists and completed successfully
+- fetched/transformed/uploaded/updated/stale-delete counts are present
+- active unique count from `vector_uniques_<index>`
+- active count delta reconciles with the previous successful verification baseline
+- product names/category/subcategory for small Dutchie chunks match our D1 uniqueness rows by `product_id`
+- backend intent still routes `relaxing prerolls`
+- backend recommendations still returns at least one edible for `sleepy edibles`
+
+### Local Manual Verification
+
+Run the shared verifier locally any time.
+
+Against localhost backend:
+
+```bash
+cd vectorizer/src
+python run_postrun_verify.py \
+  --suite full \
+  --index products-qa \
+  --expected-trigger-source manual \
+  --backend-base-url http://localhost:8787 \
+  --skip-email
+```
+
+Against deployed QA backend:
+
+```bash
+cd vectorizer/src
+python run_postrun_verify.py \
+  --env-file ../.env.verifier.qa \
+  --suite categories_only \
+  --index products-qa \
+  --expected-trigger-source manual \
+  --skip-email
+```
+
+Against deployed prod backend:
+
+```bash
+cd vectorizer/src
+python run_postrun_verify.py \
+  --env-file ../.env.verifier.prod \
+  --suite categories_only \
+  --index products-prod \
+  --expected-trigger-source manual \
+  --skip-email
+```
+
+Run only Dutchie chunk checks:
+
+```bash
+cd vectorizer/src
+python run_postrun_verify.py \
+  --suite categories_only \
+  --index products-qa \
+  --categories FLOWER PRE_ROLLS EDIBLES CONCENTRATES \
+  --skip-email
+```
+
+Run only backend probes locally:
+
+```bash
+cd vectorizer/src
+python run_postrun_verify.py \
+  --suite api_only \
+  --index products-qa \
+  --backend-base-url http://localhost:8787 \
+  --skip-email
+```
+
+### Verifier Worker Deployment
+
+Before setting verifier secrets, read [ENVIRONMENT_MATRIX.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/vectorizer/ENVIRONMENT_MATRIX.md).
+
+The important separation is:
+
+- `vectorizer-worker-qa` uses `ADMIN_TOKEN`
+- `postrun-verifier-qa` uses `VERIFY_ADMIN_TOKEN`
+- `vectorizer-worker-qa.POSTRUN_VERIFIER_TOKEN` must equal `postrun-verifier-qa.VERIFY_ADMIN_TOKEN`
+
+Do not assume prod and QA token values are interchangeable.
+
+Deploy the QA verifier Worker:
+
+```bash
+cd vectorizer
+pywrangler secret put CANNAVITA_API_KEY --config wrangler.verifier.qa.toml
+pywrangler secret put CF_ACCOUNT_ID --config wrangler.verifier.qa.toml
+pywrangler secret put CF_VECTORIZE_API_TOKEN --config wrangler.verifier.qa.toml
+pywrangler secret put CF_D1_DATABASE_ID --config wrangler.verifier.qa.toml
+pywrangler secret put CF_D1_API_TOKEN --config wrangler.verifier.qa.toml
+pywrangler secret put VERIFY_ADMIN_TOKEN --config wrangler.verifier.qa.toml
+pywrangler secret put RESEND_API_KEY --config wrangler.verifier.qa.toml
+pywrangler deploy --config wrangler.verifier.qa.toml
+```
+
+Deploy the prod verifier Worker:
+
+```bash
+cd vectorizer
+pywrangler secret put CANNAVITA_API_KEY --config wrangler.verifier.toml
+pywrangler secret put CF_ACCOUNT_ID --config wrangler.verifier.toml
+pywrangler secret put CF_VECTORIZE_API_TOKEN --config wrangler.verifier.toml
+pywrangler secret put CF_D1_DATABASE_ID --config wrangler.verifier.toml
+pywrangler secret put CF_D1_API_TOKEN --config wrangler.verifier.toml
+pywrangler secret put VERIFY_ADMIN_TOKEN --config wrangler.verifier.toml
+pywrangler secret put RESEND_API_KEY --config wrangler.verifier.toml
+pywrangler deploy --config wrangler.verifier.toml
+```
+
+### Remote Manual Verification
+
+Run QA category verification remotely at any time:
+
+```bash
+printf '%s' '{
+  "suite": "categories_only",
+  "index_name": "products-qa",
+  "expected_trigger_source": "manual",
+  "skip_email": true
+}' | curl -s https://postrun-verifier-qa.andresmeona.workers.dev/run \
+  -H "Authorization: Bearer <QA_VERIFY_ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  --data @-
+```
+
+Run prod category verification remotely at any time:
+
+```bash
+printf '%s' '{
+  "suite": "categories_only",
+  "index_name": "products-prod",
+  "expected_trigger_source": "manual",
+  "skip_email": true
+}' | curl -s https://postrun-verifier.andresmeona.workers.dev/run \
+  -H "Authorization: Bearer <PROD_VERIFY_ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  --data @-
+```
+
+Read the latest verifier result:
+
+```bash
+curl https://postrun-verifier-qa.andresmeona.workers.dev/last-run \
+  -H "Authorization: Bearer <QA_VERIFY_ADMIN_TOKEN>"
+```
+
+### Automatic Post-Cron Verification
+
+The vectorizer scheduler can trigger the verifier automatically after a successful scheduled run.
+
+Configure on the vectorizer Worker:
+
+```bash
+pywrangler secret put POSTRUN_VERIFIER_TOKEN --config wrangler.qa.toml
+```
+
+Then set:
+
+- `POSTRUN_VERIFIER_URL` in `wrangler.qa.toml` or `wrangler.toml`
+
+For QA:
+
+- `POSTRUN_VERIFIER_TOKEN` value on `vectorizer-worker-qa` must equal `VERIFY_ADMIN_TOKEN` value on `postrun-verifier-qa`
+- `ADMIN_TOKEN` on `vectorizer-worker-qa` is independent and is only for your manual `/run` and `/last-run` calls
+
+Important:
+
+- verification failure does **not** fail the vectorizer cron run
+- the verifier is an operational canary, not the run-success contract
+- only wire auto-trigger after manual `categories_only` verification is green
+
+### Separate direct backend API check
+
+Until the deployed verifier `full` suite backend probe is fixed, validate QA backend intent directly:
+
+```bash
+printf '%s' '{
+  "messages": [
+    {
+      "role": "assistant",
+      "content": "Welcome to Cannavita!"
+    },
+    {
+      "role": "user",
+      "content": "Can you recommend relaxing pre-rolls?"
+    },
+    {
+      "role": "assistant",
+      "content": "I completely understand what you'\''re looking for - relaxing prerolls. Let me check what we have that matches your preferences."
+    }
+  ]
+}' | curl -s https://ecom-chat-backend-qa.andresmeona.workers.dev/chat/intent \
+  -H 'Content-Type: application/json' \
+  --data @- | jq
+```
 
 ## Monitoring
 
@@ -300,6 +563,8 @@ Use the QA D1 database to inspect:
 
 - `vectorizer_runs`
 - `vector_uniques_products_qa`
+- `postrun_verifications`
+- `postrun_verification_checks`
 
 Do not mix QA run-report inspection with the current prod/live-ish D1 database.
 
