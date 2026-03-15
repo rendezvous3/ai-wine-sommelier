@@ -54,9 +54,10 @@ async def _run_with_overrides(env: Any, overrides: Dict[str, Any], trigger_sourc
 
 
 async def _trigger_postrun_verifier(env: Any, index_name: str, vectorizer_run_id: str | None) -> None:
-    verifier_url = getattr(env, "POSTRUN_VERIFIER_URL", None)
     verifier_token = getattr(env, "POSTRUN_VERIFIER_TOKEN", None)
-    if not verifier_url or not verifier_token:
+    verifier_service = getattr(env, "POSTRUN_VERIFIER_SERVICE", None)
+    verifier_url = getattr(env, "POSTRUN_VERIFIER_URL", None)
+    if verifier_service is None and (not verifier_url or not verifier_token):
         return
 
     payload = {
@@ -68,12 +69,31 @@ async def _trigger_postrun_verifier(env: Any, index_name: str, vectorizer_run_id
         "vectorizer_run_id": vectorizer_run_id,
     }
 
+    if verifier_service is not None:
+        summary = await verifier_service.run_verification(payload)
+        if isinstance(summary, dict) and summary.get("status") != "passed":
+            print(
+                "Warning: post-run verifier completed with "
+                f"status={summary.get('status')} "
+                f"verification_id={summary.get('verification_id')} "
+                f"failed_checks={summary.get('failed_check_ids', [])}"
+            )
+        return
+
     async with httpx.AsyncClient(timeout=60.0) as client:
         response = await client.post(
             verifier_url.rstrip("/") + "/run",
             headers={"Authorization": f"Bearer {verifier_token}"},
             json=payload,
         )
+        if response.status_code >= 400:
+            body = response.text[:500]
+            raise RuntimeError(
+                "postrun_verifier_http_error "
+                f"status={response.status_code} "
+                f"url={response.request.url} "
+                f"body={body}"
+            )
         response.raise_for_status()
 
 

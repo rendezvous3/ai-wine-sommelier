@@ -10,8 +10,12 @@ STALE_HOURS = "48"
 LIMIT = "none"
 POSTRUN_VERIFIER_URL = "https://postrun-verifier-qa.andresmeona.workers.dev"
 
+[[services]]
+binding = "POSTRUN_VERIFIER_SERVICE"
+service = "postrun-verifier-qa"
+
 [triggers]
-crons = ["0 2,17 * * *"]
+crons = ["0 17 * * *", "35 23 * * *"]
 
 [observability]
 enabled = true

@@ -45,7 +45,28 @@ def _payload_get(payload: Any, key: str) -> Any:
     return getattr(payload, key, None)
 
 
+async def _run_verification_from_payload(env: Any, payload: Dict[str, Any]) -> Dict[str, Any]:
+    categories = _payload_get(payload, "categories")
+    if categories is not None and not isinstance(categories, list):
+        categories = [categories]
+
+    return await run_postrun_verification(
+        source=env,
+        suite=str(_payload_get(payload, "suite") or "full"),
+        index_name=str(_payload_get(payload, "index_name") or getattr(env, "INDEX_NAME", "products-prod")),
+        expected_trigger_source=_payload_get(payload, "expected_trigger_source") or "manual",
+        backend_base_url=_payload_get(payload, "backend_base_url") or getattr(env, "BACKEND_BASE_URL", None),
+        categories=categories or DEFAULT_CATEGORY_CHECKS,
+        skip_email=bool(_payload_get(payload, "skip_email") or False),
+        verification_source=str(_payload_get(payload, "source") or "manual"),
+        vectorizer_run_id=_payload_get(payload, "vectorizer_run_id"),
+    )
+
+
 class Default(WorkerEntrypoint):
+    async def run_verification(self, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        return await _run_verification_from_payload(self.env, payload or {})
+
     async def fetch(self, request: Request) -> Response:
         path = urlparse(request.url).path
 
@@ -96,21 +117,7 @@ class Default(WorkerEntrypoint):
             except Exception:
                 payload = {}
 
-            categories = _payload_get(payload, "categories")
-            if categories is not None and not isinstance(categories, list):
-                categories = [categories]
-
-            summary = await run_postrun_verification(
-                source=self.env,
-                suite=str(_payload_get(payload, "suite") or "full"),
-                index_name=str(_payload_get(payload, "index_name") or getattr(self.env, "INDEX_NAME", "products-prod")),
-                expected_trigger_source=_payload_get(payload, "expected_trigger_source") or "manual",
-                backend_base_url=_payload_get(payload, "backend_base_url") or getattr(self.env, "BACKEND_BASE_URL", None),
-                categories=categories or DEFAULT_CATEGORY_CHECKS,
-                skip_email=bool(_payload_get(payload, "skip_email") or False),
-                verification_source=str(_payload_get(payload, "source") or "manual"),
-                vectorizer_run_id=_payload_get(payload, "vectorizer_run_id"),
-            )
+            summary = await _run_verification_from_payload(self.env, payload)
             return _json_response({"ok": True, "summary": summary}, status=200)
 
         return _json_response({"ok": False, "error": "not_found"}, status=404)
