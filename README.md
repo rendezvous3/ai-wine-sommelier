@@ -598,12 +598,15 @@ Current validated QA runtime facts:
 - `vectorizer-worker-qa` has explicit Worker limits:
   - `cpu_ms = 300000`
   - `subrequests = 50000`
+- QA soak cron is configured twice daily:
+  - `17 7,19 * * *`
+  - `07:17 UTC` and `19:17 UTC`
 - a `limit = 1500` manual run successfully pulled the full currently observed QA menu:
   - `fetched_count = 824`
   - `uploaded_count = 682`
   - `transform_errors = 0`
 
-The deployed verifier `full` suite is not the gate yet because its backend API probe is still flaky from inside the verifier Worker context, even though direct terminal/browser calls to the QA backend succeed. It is a post-run operational canary, not a unit-test runner, and verifier failure does not fail the vectorizer cron itself.
+The deployed verifier `full` suite is not the gate yet because its backend API probe is still flaky from inside the verifier Worker context, even though direct terminal/browser calls to the QA backend succeed. The scheduled post-run verifier target should therefore remain `categories_only` for now. It is a post-run operational canary, not a unit-test runner, and verifier failure does not fail the vectorizer cron itself.
 
 Local manual cycle:
 

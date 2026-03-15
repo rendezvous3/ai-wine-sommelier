@@ -20,6 +20,7 @@ This is a temporary promotion procedure, not the final steady-state operating mo
 - Verifier Worker: `postrun-verifier-qa`
 - Backend Worker: `ecom-chat-backend-qa`
 - Pages project: `cannavita-widget-qa`
+- QA soak cron: `17 7,19 * * *`
 
 ### Prod/live-ish lane
 
@@ -54,6 +55,7 @@ Current validated QA facts that support this gate:
   - actual `fetched_count = 824`
   - actual `uploaded_count = 682`
   - `transform_errors = 0`
+- scheduled QA verifier target should currently be `categories_only`
 - deployed verifier `full` is not the promotion gate yet because its backend probe is still flaky from inside the verifier Worker context
 
 ## Important Current Reality
@@ -110,7 +112,7 @@ pywrangler deploy --config wrangler.toml
 Current prod config already points to:
 
 - `INDEX_NAME = "products-prod"`
-- cron `17 7 * * *`
+- cron `17 7,19 * * *`
 
 Before expecting full-menu prod support, mirror the QA Worker limits into `vectorizer/wrangler.toml`:
 
