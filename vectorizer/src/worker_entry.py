@@ -126,10 +126,11 @@ class Default(WorkerEntrypoint):
         return _json_response({"ok": False, "error": "not_found"}, status=404)
 
     async def scheduled(self, controller, env, ctx) -> None:
-        options = build_cycle_options(env, trigger_source="scheduled")
-        await run_sync_cycle(options, trigger_source="scheduled", source=env)
+        runtime_env = self.env or env
+        options = build_cycle_options(runtime_env, trigger_source="scheduled")
+        await run_sync_cycle(options, trigger_source="scheduled", source=runtime_env)
 
-        cloudflare = cloudflare_config_from_source(env)
+        cloudflare = cloudflare_config_from_source(runtime_env)
         report_store = D1RunReportStore(
             account_id=cloudflare.account_id,
             database_id=cloudflare.d1_database_id,
@@ -145,7 +146,7 @@ class Default(WorkerEntrypoint):
 
         try:
             await _trigger_postrun_verifier(
-                env,
+                runtime_env,
                 index_name=options.sync.index_name,
                 vectorizer_run_id=(
                     (latest_run or {}).get("run_id")

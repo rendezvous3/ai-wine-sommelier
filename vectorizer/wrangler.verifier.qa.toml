@@ -8,3 +8,11 @@ INDEX_NAME = "products-qa"
 BACKEND_BASE_URL = "https://ecom-chat-backend-qa.andresmeona.workers.dev"
 VERIFY_ALERT_TO = ""
 VERIFY_ALERT_FROM = ""
+
+[observability]
+enabled = true
+
+  [observability.logs]
+  enabled = true
+  invocation_logs = true
+  head_sampling_rate = 1

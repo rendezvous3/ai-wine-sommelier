@@ -11,7 +11,15 @@ LIMIT = "none"
 POSTRUN_VERIFIER_URL = "https://postrun-verifier-qa.andresmeona.workers.dev"
 
 [triggers]
-crons = ["0 18,20 13 3 *"]
+crons = ["0 1,17 * * *"]
+
+[observability]
+enabled = true
+
+  [observability.logs]
+  enabled = true
+  invocation_logs = true
+  head_sampling_rate = 1
 
 [limits]
 cpu_ms = 300000

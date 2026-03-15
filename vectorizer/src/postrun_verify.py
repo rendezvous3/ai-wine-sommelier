@@ -35,6 +35,20 @@ def _coerce_str_list(value: Any) -> List[str]:
     return [normalized] if normalized else []
 
 
+def _extract_sync_summary(latest_run: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if not latest_run:
+        return {}
+    raw_summary = latest_run.get("summary_json")
+    if not raw_summary:
+        return {}
+    try:
+        parsed = json.loads(str(raw_summary))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return {}
+    sync_summary = parsed.get("sync")
+    return sync_summary if isinstance(sync_summary, dict) else {}
+
+
 def _chat_endpoint(base_url: str, route: str) -> str:
     cleaned = (base_url or "").rstrip("/")
     if not cleaned:
@@ -233,8 +247,15 @@ async def run_postrun_verification(
             await unique_store.ensure_table(table_name)
             active_unique_count = await unique_store.count_rows(table_name)
 
-            uploaded_count = _to_int(latest_run.get("uploaded_count"))
-            updated_existing_count = _to_int(latest_run.get("d1_existing_ids_allowed"))
+            sync_summary = _extract_sync_summary(latest_run)
+            uploaded_count = _to_int(
+                latest_run.get("uploaded_count")
+                or sync_summary.get("uploaded_count")
+            )
+            updated_existing_count = _to_int(
+                latest_run.get("d1_existing_ids_allowed")
+                or sync_summary.get("d1_existing_ids_allowed")
+            )
             stale_deleted_count = _to_int(latest_run.get("stale_deleted_count"))
             estimated_new_uploaded_count = max(uploaded_count - updated_existing_count, 0)
 
