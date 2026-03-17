@@ -59,11 +59,17 @@ class D1UniqueStore:
             raw_name TEXT,
             category TEXT,
             subcategory TEXT,
+            quantity INTEGER,
+            price REAL,
+            updated_at TEXT,
             last_seen_at TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_{table_name}_name ON "{table_name}" (normalized_name);
         """
         await self.client.exec_sql(sql)
+        await self._ensure_column(table_name, "quantity", "INTEGER")
+        await self._ensure_column(table_name, "price", "REAL")
+        await self._ensure_column(table_name, "updated_at", "TEXT")
 
     async def get_existing(
         self,
@@ -95,29 +101,41 @@ class D1UniqueStore:
         inserted_or_updated = 0
         skipped = 0
         now = datetime.now(timezone.utc).isoformat()
+        upserted_ids: List[str] = []
+        skipped_ids: List[str] = []
 
         for row in rows:
-            product_id = self.client.sql_quote(row.get("product_id", ""))
-            normalized_name = self.client.sql_quote(row.get("normalized_name", ""))
-            raw_name = self.client.sql_quote(row.get("raw_name", ""))
-            category = self.client.sql_quote(row.get("category", ""))
-            subcategory = self.client.sql_quote(row.get("subcategory", ""))
-            seen_at = self.client.sql_quote(row.get("last_seen_at", now))
+            product_id_value = str(row.get("product_id", "") or "").strip()
+            normalized_name_value = str(row.get("normalized_name", "") or "").strip()
+            product_id = self.client.sql_quote(product_id_value)
+            normalized_name = self.client.sql_quote(normalized_name_value)
+            raw_name = self.client.sql_quote(str(row.get("raw_name", "") or ""))
+            category = self.client.sql_quote(str(row.get("category", "") or ""))
+            subcategory = self.client.sql_quote(str(row.get("subcategory", "") or ""))
+            seen_at = self.client.sql_quote(str(row.get("last_seen_at", now) or now))
+            updated_at = self.client.sql_quote(str(row.get("updated_at", now) or now))
+            quantity = self._nullable_int(row.get("quantity"))
+            price = self._nullable_float(row.get("price"))
 
             if not product_id or not normalized_name:
                 skipped += 1
+                if product_id_value:
+                    skipped_ids.append(product_id_value)
                 continue
 
             sql = f'''
             INSERT INTO "{table_name}"
-                (product_id, normalized_name, raw_name, category, subcategory, last_seen_at)
+                (product_id, normalized_name, raw_name, category, subcategory, quantity, price, updated_at, last_seen_at)
             VALUES
-                ('{product_id}', '{normalized_name}', '{raw_name}', '{category}', '{subcategory}', '{seen_at}')
+                ('{product_id}', '{normalized_name}', '{raw_name}', '{category}', '{subcategory}', {quantity}, {price}, '{updated_at}', '{seen_at}')
             ON CONFLICT(product_id) DO UPDATE SET
                 normalized_name = excluded.normalized_name,
                 raw_name = excluded.raw_name,
                 category = excluded.category,
                 subcategory = excluded.subcategory,
+                quantity = excluded.quantity,
+                price = excluded.price,
+                updated_at = excluded.updated_at,
                 last_seen_at = excluded.last_seen_at;
             '''
             try:
@@ -126,13 +144,29 @@ class D1UniqueStore:
                 changes = int(meta.get("changes", 0) or 0)
                 if changes > 0:
                     inserted_or_updated += 1
+                    upserted_ids.append(product_id_value)
                 else:
                     skipped += 1
+                    skipped_ids.append(product_id_value)
             except Exception:
                 skipped += 1
+                skipped_ids.append(product_id_value)
                 continue
 
-        return {"upserted": inserted_or_updated, "skipped": skipped}
+        return {
+            "upserted": inserted_or_updated,
+            "skipped": skipped,
+            "upserted_ids": upserted_ids,
+            "skipped_ids": skipped_ids,
+        }
+
+    async def list_rows(self, table_name: str) -> List[Dict[str, Any]]:
+        sql = f'''
+        SELECT product_id, normalized_name, raw_name, category, subcategory, quantity, price, updated_at, last_seen_at
+        FROM "{table_name}";
+        '''
+        payload = await self.client.exec_sql(sql)
+        return payload.get("result", [{}])[0].get("results", []) or []
 
     async def list_stale_ids(self, table_name: str, cutoff_iso: str, limit: int = 1000) -> List[str]:
         cutoff = self.client.sql_quote(cutoff_iso)
@@ -169,9 +203,32 @@ class D1UniqueStore:
         if not quoted_ids:
             return []
         sql = f'''
-        SELECT product_id, normalized_name, raw_name, category, subcategory, last_seen_at
+        SELECT product_id, normalized_name, raw_name, category, subcategory, quantity, price, updated_at, last_seen_at
         FROM "{table_name}"
         WHERE product_id IN ({",".join(quoted_ids)});
         '''
         payload = await self.client.exec_sql(sql)
         return payload.get("result", [{}])[0].get("results", []) or []
+
+    async def _ensure_column(self, table_name: str, column_name: str, column_type: str) -> None:
+        sql = f'PRAGMA table_info("{table_name}");'
+        payload = await self.client.exec_sql(sql)
+        rows = payload.get("result", [{}])[0].get("results", []) or []
+        existing = {str(row.get("name")) for row in rows if row.get("name")}
+        if column_name in existing:
+            return
+        await self.client.exec_sql(
+            f'ALTER TABLE "{table_name}" ADD COLUMN {column_name} {column_type};'
+        )
+
+    @staticmethod
+    def _nullable_int(value: Any) -> str:
+        if value is None or str(value).strip() == "":
+            return "NULL"
+        return str(int(value))
+
+    @staticmethod
+    def _nullable_float(value: Any) -> str:
+        if value is None or str(value).strip() == "":
+            return "NULL"
+        return str(float(value))

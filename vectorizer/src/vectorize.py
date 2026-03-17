@@ -154,14 +154,21 @@ async def async_main() -> None:
                 print(f"Warning: run reporting unavailable, continuing without reports: {exc}")
                 run_id = None
 
-        summary = (await run_sync_pipeline(sync_options, cloudflare, dutchie)).to_dict()
+        pipeline_result = await run_sync_pipeline(sync_options, cloudflare, dutchie)
+        summary = pipeline_result.summary.to_dict()
         print_summary(summary)
 
         if run_id:
             try:
                 await report_store.finish_run(
                     run_id=run_id,
-                    summary={"sync": summary, "reconcile": {}},
+                    summary={
+                        "sync": summary,
+                        "indexing": summary.get("indexing", {}),
+                        "exclusions": summary.get("exclusions", {}),
+                        "removal": {},
+                        "reconcile": {},
+                    },
                     stale_deleted_count=0,
                 )
             except Exception as exc:

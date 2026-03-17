@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from typing import Any, Dict
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 import httpx
 from workers import Request, Response, WorkerEntrypoint
@@ -45,6 +45,18 @@ def _payload_get(payload: Any, key: str) -> Any:
     if isinstance(payload, dict):
         return payload.get(key)
     return getattr(payload, key, None)
+
+
+def _parse_summary_json(run: Dict[str, Any] | None) -> Dict[str, Any] | None:
+    if not run:
+        return None
+    raw_summary = run.get("summary_json")
+    if not raw_summary:
+        return None
+    try:
+        return json.loads(str(raw_summary))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return None
 
 
 async def _run_with_overrides(env: Any, overrides: Dict[str, Any], trigger_source: str) -> Dict[str, Any]:
@@ -99,7 +111,8 @@ async def _trigger_postrun_verifier(env: Any, index_name: str, vectorizer_run_id
 
 class Default(WorkerEntrypoint):
     async def fetch(self, request: Request) -> Response:
-        path = urlparse(request.url).path
+        parsed_url = urlparse(request.url)
+        path = parsed_url.path
 
         if path == "/health":
             return _json_response({"ok": True, "service": "vectorizer-worker"})
@@ -117,7 +130,58 @@ class Default(WorkerEntrypoint):
                 return _json_response({"ok": False, "error": "d1_not_configured"}, status=500)
             await report_store.ensure_table()
             latest = await report_store.get_latest_run()
-            return _json_response({"ok": True, "run": latest})
+            return _json_response({"ok": True, "run": latest, "summary": _parse_summary_json(latest)})
+
+        if path.startswith("/runs/") and path.endswith("/events"):
+            if not _authorized(request, self.env):
+                return _json_response({"ok": False, "error": "unauthorized"}, status=401)
+            run_id = path.split("/")[-2]
+            filters = parse_qs(parsed_url.query)
+            cloudflare = cloudflare_config_from_source(self.env)
+            report_store = D1RunReportStore(
+                account_id=cloudflare.account_id,
+                database_id=cloudflare.d1_database_id,
+                api_token=cloudflare.resolved_d1_token,
+            )
+            if not report_store.configured:
+                return _json_response({"ok": False, "error": "d1_not_configured"}, status=500)
+            await report_store.ensure_table()
+            run = await report_store.get_run(run_id)
+            if not run:
+                return _json_response({"ok": False, "error": "not_found"}, status=404)
+            events = await report_store.get_run_events(
+                run_id,
+                event_type=(filters.get("event_type") or [None])[0],
+                reason=(filters.get("reason") or [None])[0],
+                status=(filters.get("status") or [None])[0],
+            )
+            return _json_response({"ok": True, "run": run, "events": events})
+
+        if path.startswith("/runs/"):
+            if not _authorized(request, self.env):
+                return _json_response({"ok": False, "error": "unauthorized"}, status=401)
+            run_id = path.rsplit("/", 1)[-1]
+            cloudflare = cloudflare_config_from_source(self.env)
+            report_store = D1RunReportStore(
+                account_id=cloudflare.account_id,
+                database_id=cloudflare.d1_database_id,
+                api_token=cloudflare.resolved_d1_token,
+            )
+            if not report_store.configured:
+                return _json_response({"ok": False, "error": "d1_not_configured"}, status=500)
+            await report_store.ensure_table()
+            run = await report_store.get_run(run_id)
+            if not run:
+                return _json_response({"ok": False, "error": "not_found"}, status=404)
+            events = await report_store.get_run_events(run_id)
+            return _json_response(
+                {
+                    "ok": True,
+                    "run": run,
+                    "summary": _parse_summary_json(run),
+                    "events": events,
+                }
+            )
 
         if path == "/run" and request.method.upper() == "POST":
             if not _authorized(request, self.env):

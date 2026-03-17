@@ -36,6 +36,12 @@ def _coerce_str_list(value: Any) -> List[str]:
 
 
 def _extract_sync_summary(latest_run: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    run_summary = _extract_run_summary(latest_run)
+    sync_summary = run_summary.get("sync")
+    return sync_summary if isinstance(sync_summary, dict) else {}
+
+
+def _extract_run_summary(latest_run: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if not latest_run:
         return {}
     raw_summary = latest_run.get("summary_json")
@@ -45,8 +51,7 @@ def _extract_sync_summary(latest_run: Optional[Dict[str, Any]]) -> Dict[str, Any
         parsed = json.loads(str(raw_summary))
     except (TypeError, ValueError, json.JSONDecodeError):
         return {}
-    sync_summary = parsed.get("sync")
-    return sync_summary if isinstance(sync_summary, dict) else {}
+    return parsed if isinstance(parsed, dict) else {}
 
 
 def _chat_endpoint(base_url: str, route: str) -> str:
@@ -65,36 +70,115 @@ async def _post_json(url: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         return response.json()
 
 
-async def _send_failure_email(env: Any, summary: Dict[str, Any]) -> bool:
+def _decode_event_json(value: Any) -> Dict[str, Any]:
+    if not value:
+        return {}
+    if isinstance(value, dict):
+        return value
+    try:
+        parsed = json.loads(str(value))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _format_delta_line(event: Dict[str, Any]) -> str:
+    previous_state = _decode_event_json(event.get("previous_state_json"))
+    current_state = _decode_event_json(event.get("current_state_json"))
+    details = _decode_event_json(event.get("details_json"))
+    product_id = event.get("product_id") or "n/a"
+    raw_name = event.get("raw_name") or current_state.get("raw_name") or previous_state.get("raw_name") or "n/a"
+    category = event.get("category") or current_state.get("category") or previous_state.get("category") or ""
+    subcategory = event.get("subcategory") or current_state.get("subcategory") or previous_state.get("subcategory") or ""
+    reason = event.get("reason") or ""
+    event_type = event.get("event_type") or ""
+
+    if event_type == "removed":
+        return (
+            f"{product_id} | {raw_name} | {category}/{subcategory} | reason={reason} "
+            f"| previous_quantity={previous_state.get('quantity')} | previous_price={previous_state.get('price')}"
+        )
+
+    if event_type == "indexed_new":
+        return (
+            f"{product_id} | {raw_name} | {category}/{subcategory} "
+            f"| quantity={current_state.get('quantity')} | price={current_state.get('price')}"
+        )
+
+    if event_type == "indexed_updated":
+        changed_fields = details.get("changed_fields", [])
+        diffs = [
+            f"{field}: {previous_state.get(field)} -> {current_state.get(field)}"
+            for field in changed_fields
+        ]
+        return f"{product_id} | {raw_name} | changed_fields={changed_fields} | " + "; ".join(diffs)
+
+    return f"{product_id} | {raw_name} | reason={reason} | details={json.dumps(details, default=str)}"
+
+
+async def _send_run_email(
+    env: Any,
+    summary: Dict[str, Any],
+    delta_events: Sequence[Dict[str, Any]],
+) -> bool:
     api_key = getattr(env, "RESEND_API_KEY", None)
     alert_to = getattr(env, "VERIFY_ALERT_TO", None)
     alert_from = getattr(env, "VERIFY_ALERT_FROM", None)
     if not api_key or not alert_to or not alert_from:
         return False
 
-    failed_checks = [
-        check
-        for check in summary.get("checks", [])
-        if check.get("status") == "failed"
-    ]
     subject = (
-        f"[Cannavita Postrun Verify][{summary.get('index_name', 'unknown')}][failed]"
+        f"[Cannavita QA Sync][{summary.get('index_name', 'unknown')}]"
+        f"[{summary.get('source', 'unknown')}]"
+        f"[{summary.get('status', 'unknown')}]"
     )
+
+    grouped_events: Dict[str, List[Dict[str, Any]]] = {
+        "removed": [event for event in delta_events if event.get("event_type") == "removed"],
+        "added": [event for event in delta_events if event.get("event_type") == "indexed_new"],
+        "updated": [event for event in delta_events if event.get("event_type") == "indexed_updated"],
+        "excluded": [event for event in delta_events if event.get("event_type") == "excluded"],
+    }
+    failed_checks = [check for check in summary.get("checks", []) if check.get("status") == "failed"]
     text_lines = [
         f"Verification ID: {summary.get('verification_id', 'n/a')}",
         f"Suite: {summary.get('suite', 'n/a')}",
         f"Source: {summary.get('source', 'n/a')}",
         f"Index: {summary.get('index_name', 'n/a')}",
         f"Vectorizer run: {summary.get('vectorizer_run_id', 'n/a')}",
-        f"Status: {summary.get('status', 'failed')}",
+        f"Status: {summary.get('status', 'unknown')}",
         f"Active unique count: {summary.get('active_unique_count', 'n/a')}",
         f"Expected active delta: {summary.get('expected_active_delta', 'n/a')}",
         f"Actual active delta: {summary.get('actual_active_delta', 'n/a')}",
         "",
-        "Failed checks:",
+        "Removed:",
     ]
-    for check in failed_checks:
-        text_lines.append(f"- {check.get('check_id')}: {json.dumps(check.get('details', {}), default=str)}")
+    text_lines.extend(
+        [f"- {_format_delta_line(event)}" for event in grouped_events["removed"]]
+        or ["- none"]
+    )
+    text_lines.extend(
+        [
+            "",
+            "Added:",
+            *([f"- {_format_delta_line(event)}" for event in grouped_events["added"]] or ["- none"]),
+            "",
+            "Updated:",
+            *([f"- {_format_delta_line(event)}" for event in grouped_events["updated"]] or ["- none"]),
+            "",
+            "Excluded:",
+            *([f"- {_format_delta_line(event)}" for event in grouped_events["excluded"]] or ["- none"]),
+            "",
+            "Failed checks:",
+            *(
+                [
+                    f"- {check.get('check_id')}: {json.dumps(check.get('details', {}), default=str)}"
+                    for check in failed_checks
+                ]
+                or ["- none"]
+            ),
+        ]
+    )
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
@@ -165,6 +249,7 @@ async def run_postrun_verification(
     actual_active_delta: Optional[int] = None
     vectorizer_finished_at: Optional[str] = None
     current_run_id: Optional[str] = None
+    delta_events: List[Dict[str, Any]] = []
 
     if verifier_store.configured:
         verification_id = await verifier_store.start_run(
@@ -247,17 +332,32 @@ async def run_postrun_verification(
             await unique_store.ensure_table(table_name)
             active_unique_count = await unique_store.count_rows(table_name)
 
+            run_summary = _extract_run_summary(latest_run)
             sync_summary = _extract_sync_summary(latest_run)
-            uploaded_count = _to_int(
-                latest_run.get("uploaded_count")
-                or sync_summary.get("uploaded_count")
-            )
+            indexing_summary = run_summary.get("indexing", {}) if isinstance(run_summary.get("indexing"), dict) else {}
+            removal_summary = run_summary.get("removal", {}) if isinstance(run_summary.get("removal"), dict) else {}
+            delta_events = await run_store.get_run_events(current_run_id) if current_run_id else []
+
+            uploaded_count = _to_int(latest_run.get("uploaded_count") or sync_summary.get("uploaded_count"))
             updated_existing_count = _to_int(
                 latest_run.get("d1_existing_ids_allowed")
                 or sync_summary.get("d1_existing_ids_allowed")
             )
             stale_deleted_count = _to_int(latest_run.get("stale_deleted_count"))
-            estimated_new_uploaded_count = max(uploaded_count - updated_existing_count, 0)
+            added_count = _to_int(indexing_summary.get("new_count"))
+            if added_count == 0 and uploaded_count:
+                added_count = max(uploaded_count - updated_existing_count, 0)
+            updated_count = _to_int(indexing_summary.get("updated_count"))
+            missing_from_fetch_count = _to_int(
+                latest_run.get("missing_from_fetch_count")
+                or removal_summary.get("missing_from_fetch_count")
+            )
+            low_stock_removed_count = _to_int(
+                latest_run.get("low_stock_removed_count")
+                or removal_summary.get("low_stock_removed_count")
+            )
+            if missing_from_fetch_count == 0 and low_stock_removed_count == 0:
+                missing_from_fetch_count = max(stale_deleted_count, 0)
 
             previous = await verifier_store.get_latest_success_for_index(
                 index_name,
@@ -265,7 +365,7 @@ async def run_postrun_verification(
             ) if verifier_store.configured else None
             if previous and previous.get("active_unique_count") is not None:
                 previous_active_unique_count = _to_int(previous.get("active_unique_count"))
-                expected_active_delta = estimated_new_uploaded_count - stale_deleted_count
+                expected_active_delta = added_count - missing_from_fetch_count - low_stock_removed_count
                 actual_active_delta = active_unique_count - previous_active_unique_count
                 if actual_active_delta == expected_active_delta:
                     await record_check(
@@ -276,9 +376,13 @@ async def run_postrun_verification(
                             "previous_active_unique_count": previous_active_unique_count,
                             "expected_active_delta": expected_active_delta,
                             "actual_active_delta": actual_active_delta,
+                            "new_count": added_count,
+                            "updated_count": updated_count,
                             "uploaded_count": uploaded_count,
                             "updated_existing_count": updated_existing_count,
                             "stale_deleted_count": stale_deleted_count,
+                            "missing_from_fetch_count": missing_from_fetch_count,
+                            "low_stock_removed_count": low_stock_removed_count,
                         },
                     )
                 else:
@@ -290,9 +394,13 @@ async def run_postrun_verification(
                             "previous_active_unique_count": previous_active_unique_count,
                             "expected_active_delta": expected_active_delta,
                             "actual_active_delta": actual_active_delta,
+                            "new_count": added_count,
+                            "updated_count": updated_count,
                             "uploaded_count": uploaded_count,
                             "updated_existing_count": updated_existing_count,
                             "stale_deleted_count": stale_deleted_count,
+                            "missing_from_fetch_count": missing_from_fetch_count,
+                            "low_stock_removed_count": low_stock_removed_count,
                         },
                     )
             else:
@@ -302,11 +410,43 @@ async def run_postrun_verification(
                     {
                         "reason": "no_previous_successful_verification",
                         "active_unique_count": active_unique_count,
+                        "new_count": added_count,
+                        "updated_count": updated_count,
                         "uploaded_count": uploaded_count,
                         "updated_existing_count": updated_existing_count,
                         "stale_deleted_count": stale_deleted_count,
+                        "missing_from_fetch_count": missing_from_fetch_count,
+                        "low_stock_removed_count": low_stock_removed_count,
                     },
                 )
+
+            if delta_events:
+                removed_events = [event for event in delta_events if event.get("event_type") == "removed" and event.get("status") == "applied"]
+                removed_missing_count = sum(1 for event in removed_events if event.get("reason") == "missing_from_fetch")
+                removed_low_stock_count = sum(1 for event in removed_events if event.get("reason") == "low_stock")
+                expected_removed = missing_from_fetch_count + low_stock_removed_count
+                if removed_missing_count == missing_from_fetch_count and removed_low_stock_count == low_stock_removed_count and len(removed_events) == expected_removed:
+                    await record_check(
+                        "removal_audit_consistency",
+                        "passed",
+                        {
+                            "removed_event_count": len(removed_events),
+                            "missing_from_fetch_count": missing_from_fetch_count,
+                            "low_stock_removed_count": low_stock_removed_count,
+                        },
+                    )
+                else:
+                    await record_check(
+                        "removal_audit_consistency",
+                        "failed",
+                        {
+                            "removed_event_count": len(removed_events),
+                            "missing_from_fetch_count": missing_from_fetch_count,
+                            "low_stock_removed_count": low_stock_removed_count,
+                            "removed_missing_event_count": removed_missing_count,
+                            "removed_low_stock_event_count": removed_low_stock_count,
+                        },
+                    )
 
             if normalized_suite in {"full", "categories_only"}:
                 category_checks = [str(category).upper() for category in (categories or DEFAULT_CATEGORY_CHECKS)]
@@ -528,8 +668,11 @@ async def run_postrun_verification(
         }
 
         email_sent = False
-        if overall_status == "failed" and not skip_email:
-            email_sent = await _send_failure_email(source, summary)
+        if not skip_email:
+            if verification_source == "scheduled_postrun":
+                email_sent = await _send_run_email(source, {**summary, "status": overall_status}, delta_events)
+            elif overall_status == "failed":
+                email_sent = await _send_run_email(source, {**summary, "status": overall_status}, delta_events)
 
         if verification_id and verifier_store.configured:
             await verifier_store.finish_run(
@@ -564,7 +707,10 @@ async def run_postrun_verification(
         email_sent = False
         if not skip_email:
             try:
-                email_sent = await _send_failure_email(source, {**summary, "status": "failed"})
+                if verification_source == "scheduled_postrun":
+                    email_sent = await _send_run_email(source, {**summary, "status": "failed"}, delta_events)
+                else:
+                    email_sent = await _send_run_email(source, {**summary, "status": "failed"}, delta_events)
             except Exception:
                 email_sent = False
         if verification_id and verifier_store.configured:

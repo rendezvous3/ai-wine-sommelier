@@ -140,12 +140,14 @@ class D1PostrunVerificationStore:
     ) -> None:
         finished_at = datetime.now(timezone.utc).isoformat()
         summary_json = self.client.sql_quote(json.dumps(summary, default=str))
+        vectorizer_finished_at = summary.get("vectorizer_finished_at")
         email_sent_at = finished_at if email_sent else None
         sql = f"""
         UPDATE postrun_verifications
         SET
             finished_at = '{self.client.sql_quote(finished_at)}',
             status = '{self.client.sql_quote(status)}',
+            vectorizer_finished_at = {self._nullable_text(vectorizer_finished_at)},
             active_unique_count = {self._nullable_int(active_unique_count)},
             previous_active_unique_count = {self._nullable_int(previous_active_unique_count)},
             expected_active_delta = {self._nullable_int(expected_active_delta)},

@@ -6,8 +6,8 @@ compatibility_flags = ["python_workers"]
 [vars]
 INDEX_NAME = "products-qa"
 BACKEND_BASE_URL = "https://ecom-chat-backend-qa.andresmeona.workers.dev"
-VERIFY_ALERT_TO = ""
-VERIFY_ALERT_FROM = ""
+VERIFY_ALERT_FROM = "noreply@xtscale.com"
+VERIFY_ALERT_TO = "info@xtscale.com"
 
 [observability]
 enabled = true

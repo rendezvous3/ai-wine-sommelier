@@ -920,7 +920,7 @@ RESEND_API_KEY=your_resend_api_key
 
 Notes:
 - `RESEND_API_KEY` should be configured in `backend` (Worker runtime), not in `client/.env`.
-- Feedback emails currently send from `Cannavita Feedback <noreply@xtscale.com>` to `hq@algophase.com`.
+- Feedback emails currently send from `Cannavita Feedback <noreply@xtscale.com>` to `info@xtscale.com`.
 
 ---
 
