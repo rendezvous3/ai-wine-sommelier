@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List, Optional
 
 
@@ -47,20 +47,43 @@ class RunEvent:
     event_type: str
     reason: str
     status: str
+    disposition: Optional[str] = None
+    stage: Optional[str] = None
+    severity: Optional[str] = None
+    reason_code: Optional[str] = None
+    reason_label: Optional[str] = None
     product_id: Optional[str] = None
     raw_name: Optional[str] = None
+    normalized_name: Optional[str] = None
     category: Optional[str] = None
     subcategory: Optional[str] = None
     previous_state: Optional[Dict[str, Any]] = None
     current_state: Optional[Dict[str, Any]] = None
+    source_snapshot: Optional[Dict[str, Any]] = None
+    normalized_snapshot: Optional[Dict[str, Any]] = None
+    field_records: List[Dict[str, Any]] = field(default_factory=list)
     details: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         payload = asdict(self)
+        payload["disposition"] = payload.get("disposition") or self._default_disposition()
+        payload["reason_code"] = payload.get("reason_code") or payload.get("reason")
+        payload["reason_label"] = payload.get("reason_label") or payload.get("reason_code") or payload.get("reason")
         payload["previous_state_json"] = payload.pop("previous_state")
         payload["current_state_json"] = payload.pop("current_state")
+        payload["source_snapshot_json"] = payload.pop("source_snapshot")
+        payload["normalized_snapshot_json"] = payload.pop("normalized_snapshot")
         payload["details_json"] = payload.pop("details")
         return payload
+
+    def _default_disposition(self) -> str:
+        return {
+            "indexed_new": "added",
+            "indexed_updated": "updated",
+            "removed": "removed",
+            "excluded": "excluded",
+            "warning": "warning",
+        }.get(self.event_type, self.event_type)
 
 
 @dataclass
@@ -87,10 +110,17 @@ class SyncSummary:
     d1_existing_ids_allowed: int = 0
     d1_name_excluded: int = 0
     missing_id_excluded: int = 0
+    audit_warning_count: int = 0
+    audit_hard_omit_count: int = 0
+    source_issue_count: int = 0
+    transform_issue_count: int = 0
+    potency_anomaly_count: int = 0
+    missing_metadata_count: int = 0
     sample_document: Optional[Dict[str, Any]] = None
     errors: List[Dict[str, Any]] = field(default_factory=list)
     indexing: IndexingSummary = field(default_factory=IndexingSummary)
     exclusions: ExclusionSummary = field(default_factory=ExclusionSummary)
+    quality_audit: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -99,12 +129,12 @@ class SyncSummary:
 @dataclass
 class ReconcileSummary:
     index_name: str
-    stale_hours: int
-    candidate_stale_ids: int = 0
+    removal_mode: str = "explicit_diff"
+    candidate_removed_ids: int = 0
     deleted_vectors: int = 0
     deleted_d1_rows: int = 0
     failed_batches: int = 0
-    sample_stale_ids: List[str] = field(default_factory=list)
+    sample_removed_ids: List[str] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

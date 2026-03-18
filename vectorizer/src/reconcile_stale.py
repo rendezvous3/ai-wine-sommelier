@@ -40,10 +40,10 @@ async def async_main() -> None:
     print("STALE RECONCILIATION")
     print("=" * 60)
     print(f"Index: {summary['index_name']}")
-    print(f"Candidate stale IDs: {summary['candidate_stale_ids']}")
+    print(f"Candidate removed IDs: {summary['candidate_removed_ids']}")
     if args.dry_run:
         print("Dry run sample IDs:")
-        for stale_id in summary["sample_stale_ids"]:
+        for stale_id in summary["sample_removed_ids"]:
             print(f"  - {stale_id}")
     else:
         print(f"Deleted vectors: {summary['deleted_vectors']}")
@@ -57,4 +57,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

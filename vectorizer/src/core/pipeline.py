@@ -5,6 +5,12 @@ from typing import Any, Dict, List, Optional, Set
 from normalize_products import transform_product
 
 from d1_uniques import D1UniqueStore, build_uniques_table_name, normalize_product_name
+from .audit import (
+    audit_source_product,
+    audit_transformed_product,
+    compact_normalized_snapshot,
+    compact_source_snapshot,
+)
 from .cloudflare_api import CloudflareApiClient
 from .config import CloudflareConfig, DutchieConfig, SyncOptions
 from .documents import build_metadata
@@ -83,13 +89,126 @@ def _excluded_event(
     return RunEvent(
         event_type="excluded",
         reason=reason,
+        reason_code=reason,
         status="skipped",
+        disposition="excluded",
+        stage="pipeline",
+        severity="hard_omit",
         product_id=product_id or None,
         raw_name=raw_name or None,
+        normalized_name=normalize_product_name(raw_name or "") or None,
         category=category or None,
         subcategory=subcategory or None,
         details=details or {},
     )
+
+
+def _change_field_records(previous: Optional[Dict[str, Any]], current: Dict[str, Any], fields: List[str]) -> List[Dict[str, Any]]:
+    previous = previous or {}
+    return [
+        {
+            "field_name": field_name,
+            "field_role": "changed",
+            "source_value": None,
+            "previous_value": previous.get(field_name),
+            "current_value": current.get(field_name),
+            "notes": None,
+        }
+        for field_name in fields
+    ]
+
+
+def _note_quality_audit(summary: SyncSummary, finding: Dict[str, Any]) -> None:
+    stage = str(finding.get("stage") or "pipeline")
+    severity = str(finding.get("severity") or "warning")
+    reason_code = str(finding.get("reason_code") or "unknown")
+    missing_fields = list(finding.get("missing_fields") or [])
+
+    if severity == "warning":
+        summary.audit_warning_count += 1
+    else:
+        summary.audit_hard_omit_count += 1
+
+    if stage == "source":
+        summary.source_issue_count += 1
+    elif stage == "transform":
+        summary.transform_issue_count += 1
+
+    if reason_code == "potency_anomaly":
+        summary.potency_anomaly_count += 1
+    if reason_code.startswith("missing_"):
+        summary.missing_metadata_count += 1
+
+    quality_audit = summary.quality_audit
+    stage_bucket = quality_audit.setdefault(stage, {})
+    severity_bucket = stage_bucket.setdefault(severity, {})
+    severity_bucket[reason_code] = int(severity_bucket.get(reason_code, 0) or 0) + 1
+
+    if missing_fields:
+        field_bucket = quality_audit.setdefault("missing_fields", {})
+        for field_name in missing_fields:
+            field_bucket[field_name] = int(field_bucket.get(field_name, 0) or 0) + 1
+
+
+def _audit_event(
+    *,
+    finding: Dict[str, Any],
+    product_id: Optional[str],
+    raw_name: str,
+    category: str,
+    subcategory: str,
+    normalized_name: Optional[str],
+    current_state: Optional[Dict[str, Any]] = None,
+) -> RunEvent:
+    event_type = "warning" if finding.get("severity") == "warning" else "excluded"
+    status = "applied" if event_type == "warning" else "skipped"
+    return RunEvent(
+        event_type=event_type,
+        reason=str(finding.get("reason_code") or ""),
+        reason_code=str(finding.get("reason_code") or ""),
+        reason_label=str(finding.get("reason_label") or finding.get("reason_code") or ""),
+        status=status,
+        disposition="warning" if event_type == "warning" else "excluded",
+        stage=str(finding.get("stage") or "pipeline"),
+        severity=str(finding.get("severity") or ("warning" if event_type == "warning" else "hard_omit")),
+        product_id=product_id or None,
+        raw_name=raw_name or None,
+        normalized_name=normalized_name or normalize_product_name(raw_name or "") or None,
+        category=category or None,
+        subcategory=subcategory or None,
+        current_state=current_state,
+        source_snapshot=finding.get("source_snapshot") or {},
+        normalized_snapshot=finding.get("normalized_snapshot") or {},
+        field_records=finding.get("field_records") or [],
+        details=finding.get("details") or {},
+    )
+
+
+def _append_audit_findings(
+    *,
+    summary: SyncSummary,
+    events: List[RunEvent],
+    findings: List[Dict[str, Any]],
+    product_id: Optional[str],
+    raw_name: str,
+    category: str,
+    subcategory: str,
+    normalized_name: Optional[str],
+    current_state: Optional[Dict[str, Any]] = None,
+) -> None:
+    for finding in findings:
+        _note_quality_audit(summary, finding)
+        events.append(
+            _audit_event(
+                finding=finding,
+                product_id=product_id,
+                raw_name=raw_name,
+                category=category,
+                subcategory=subcategory,
+                normalized_name=normalized_name,
+                current_state=current_state,
+            )
+        )
 
 
 async def run_sync_pipeline(
@@ -144,45 +263,95 @@ async def run_sync_pipeline(
     async for raw_batch in iter_product_batches(options, dutchie):
         summary.fetched_count += len(raw_batch)
 
-        normalized_batch: List[Dict[str, Any]] = []
+        candidate_batch: List[Dict[str, Any]] = []
         for raw_product in raw_batch:
             raw_id = str(raw_product.get("id") or "").strip()
             raw_name = str(raw_product.get("name") or "")
-            raw_category = str(raw_product.get("category") or "")
+            raw_category = str(raw_product.get("category") or "").lower().replace("_", "")
             raw_subcategory = str(raw_product.get("subcategory") or "")
             if raw_id:
                 fetched_ids_raw.add(raw_id)
+
+            source_findings = audit_source_product(raw_product)
+            source_hard_findings = [finding for finding in source_findings if finding.get("severity") != "warning"]
+            source_warning_findings = [finding for finding in source_findings if finding.get("severity") == "warning"]
+            if source_hard_findings:
+                _append_audit_findings(
+                    summary=summary,
+                    events=events,
+                    findings=source_hard_findings,
+                    product_id=raw_id or None,
+                    raw_name=raw_name,
+                    category=raw_category,
+                    subcategory=raw_subcategory,
+                    normalized_name=normalize_product_name(raw_name),
+                )
+                continue
+
             try:
                 normalized = transform_product(raw_product)
-                normalized_batch.append(normalized)
                 summary.transformed_count += 1
             except Exception as exc:
                 summary.transform_errors += 1
                 summary.exclusions.transform_error_count += 1
-                summary.errors.append(
-                    {
-                        "name": raw_name or "Unknown",
-                        "error": str(exc),
-                    }
-                )
+                summary.errors.append({"name": raw_name or "Unknown", "error": str(exc)})
                 events.append(
-                    _excluded_event(
+                    RunEvent(
+                        event_type="excluded",
                         reason="transform_error",
+                        reason_code="transform_error",
+                        reason_label="Transform error",
+                        status="skipped",
+                        disposition="excluded",
+                        stage="transform",
+                        severity="hard_omit",
                         product_id=raw_id or None,
                         raw_name=raw_name,
+                        normalized_name=normalize_product_name(raw_name) or None,
                         category=raw_category,
                         subcategory=raw_subcategory,
+                        source_snapshot=compact_source_snapshot(raw_product),
                         details={"error": str(exc)},
                     )
                 )
+                continue
+
+            transform_findings = audit_transformed_product(raw_product, normalized)
+            transform_hard_findings = [finding for finding in transform_findings if finding.get("severity") != "warning"]
+            transform_warning_findings = [finding for finding in transform_findings if finding.get("severity") == "warning"]
+            if transform_hard_findings:
+                _append_audit_findings(
+                    summary=summary,
+                    events=events,
+                    findings=transform_hard_findings,
+                    product_id=raw_id or None,
+                    raw_name=str(normalized.get("name") or raw_name),
+                    category=str(normalized.get("category") or raw_category),
+                    subcategory=str(normalized.get("subcategory") or raw_subcategory),
+                    normalized_name=normalize_product_name(str(normalized.get("name") or raw_name)),
+                    current_state=_product_state(normalized),
+                )
+                continue
+
+            candidate_batch.append(
+                {
+                    "raw": raw_product,
+                    "normalized": normalized,
+                    "warning_findings": [*source_warning_findings, *transform_warning_findings],
+                }
+            )
 
         filtered_batch: List[Dict[str, Any]] = []
-        for product in normalized_batch:
+        for candidate in candidate_batch:
+            raw_product = candidate["raw"]
+            product = candidate["normalized"]
+            warning_findings = candidate.get("warning_findings") or []
             product_id = str(product.get("id") or "").strip()
             raw_name = str(product.get("name") or "")
             category = str(product.get("category") or "")
             subcategory = str(product.get("subcategory") or "")
             normalized_name = normalize_product_name(raw_name)
+            current_state = _product_state(product)
             existing_row = active_rows_before.get(product_id)
 
             if options.min_quantity is not None:
@@ -194,12 +363,23 @@ async def run_sync_pipeline(
                         low_stock_active_ids.add(product_id)
                     else:
                         events.append(
-                            _excluded_event(
+                            RunEvent(
+                                event_type="excluded",
                                 reason="low_stock",
+                                reason_code="low_stock",
+                                reason_label="Below minimum quantity threshold",
+                                status="skipped",
+                                disposition="excluded",
+                                stage="pipeline",
+                                severity="hard_omit",
                                 product_id=product_id or None,
                                 raw_name=raw_name,
+                                normalized_name=normalized_name or None,
                                 category=category,
                                 subcategory=subcategory,
+                                current_state=current_state,
+                                source_snapshot=compact_source_snapshot(raw_product),
+                                normalized_snapshot=compact_normalized_snapshot(product),
                                 details={"quantity": quantity, "min_quantity": options.min_quantity},
                             )
                         )
@@ -209,12 +389,23 @@ async def run_sync_pipeline(
                 summary.missing_id_excluded += 1
                 summary.exclusions.missing_id_count += 1
                 events.append(
-                    _excluded_event(
+                    RunEvent(
+                        event_type="excluded",
                         reason="missing_id",
+                        reason_code="missing_id",
+                        reason_label="Missing product id",
+                        status="skipped",
+                        disposition="excluded",
+                        stage="pipeline",
+                        severity="hard_omit",
                         product_id=None,
                         raw_name=raw_name,
+                        normalized_name=normalized_name or None,
                         category=category,
                         subcategory=subcategory,
+                        current_state=current_state,
+                        source_snapshot=compact_source_snapshot(raw_product),
+                        normalized_snapshot=compact_normalized_snapshot(product),
                     )
                 )
                 continue
@@ -223,12 +414,23 @@ async def run_sync_pipeline(
                 summary.duplicate_id_excluded += 1
                 summary.exclusions.duplicate_id_count += 1
                 events.append(
-                    _excluded_event(
+                    RunEvent(
+                        event_type="excluded",
                         reason="duplicate_id",
+                        reason_code="duplicate_id",
+                        reason_label="Duplicate product id in fetched batch",
+                        status="skipped",
+                        disposition="excluded",
+                        stage="pipeline",
+                        severity="hard_omit",
                         product_id=product_id,
                         raw_name=raw_name,
+                        normalized_name=normalized_name or None,
                         category=category,
                         subcategory=subcategory,
+                        current_state=current_state,
+                        source_snapshot=compact_source_snapshot(raw_product),
+                        normalized_snapshot=compact_normalized_snapshot(product),
                     )
                 )
                 continue
@@ -237,12 +439,23 @@ async def run_sync_pipeline(
                 summary.duplicate_name_excluded += 1
                 summary.exclusions.duplicate_name_count += 1
                 events.append(
-                    _excluded_event(
+                    RunEvent(
+                        event_type="excluded",
                         reason="duplicate_name",
+                        reason_code="duplicate_name",
+                        reason_label="Duplicate normalized name in fetched batch",
+                        status="skipped",
+                        disposition="excluded",
+                        stage="pipeline",
+                        severity="hard_omit",
                         product_id=product_id,
                         raw_name=raw_name,
+                        normalized_name=normalized_name or None,
                         category=category,
                         subcategory=subcategory,
+                        current_state=current_state,
+                        source_snapshot=compact_source_snapshot(raw_product),
+                        normalized_snapshot=compact_normalized_snapshot(product),
                         details={"normalized_name": normalized_name},
                     )
                 )
@@ -254,12 +467,23 @@ async def run_sync_pipeline(
                     summary.d1_name_excluded += 1
                     summary.exclusions.d1_name_conflict_count += 1
                     events.append(
-                        _excluded_event(
+                        RunEvent(
+                            event_type="excluded",
                             reason="d1_name_conflict",
+                            reason_code="d1_name_conflict",
+                            reason_label="Normalized name conflicts with active D1 record",
+                            status="skipped",
+                            disposition="excluded",
+                            stage="pipeline",
+                            severity="hard_omit",
                             product_id=product_id,
                             raw_name=raw_name,
+                            normalized_name=normalized_name or None,
                             category=category,
                             subcategory=subcategory,
+                            current_state=current_state,
+                            source_snapshot=compact_source_snapshot(raw_product),
+                            normalized_snapshot=compact_normalized_snapshot(product),
                             details={
                                 "normalized_name": normalized_name,
                                 "conflicting_product_id": owner,
@@ -275,17 +499,63 @@ async def run_sync_pipeline(
                 if prior_name and prior_name != normalized_name and active_name_owners.get(prior_name) == product_id:
                     active_name_owners.pop(prior_name, None)
                 active_name_owners[normalized_name] = product_id
-            filtered_batch.append(product)
+
+            if warning_findings:
+                _append_audit_findings(
+                    summary=summary,
+                    events=events,
+                    findings=warning_findings,
+                    product_id=product_id or None,
+                    raw_name=raw_name,
+                    category=category,
+                    subcategory=subcategory,
+                    normalized_name=normalized_name or None,
+                    current_state=current_state,
+                )
+
+            filtered_batch.append({"raw": raw_product, "normalized": product})
 
         texts: List[str] = []
         metadatas: List[Dict[str, Any]] = []
         ids: List[str] = []
+        ready_batch: List[Dict[str, Any]] = []
 
-        for product in filtered_batch:
-            metadata = build_metadata(product)
+        for candidate in filtered_batch:
+            raw_product = candidate["raw"]
+            product = candidate["normalized"]
+            try:
+                metadata = build_metadata(product)
+            except Exception as exc:
+                summary.transform_errors += 1
+                summary.exclusions.transform_error_count += 1
+                summary.errors.append({"name": str(product.get("name") or "Unknown"), "error": str(exc)})
+                events.append(
+                    RunEvent(
+                        event_type="excluded",
+                        reason="metadata_build_error",
+                        reason_code="metadata_build_error",
+                        reason_label="Metadata build error",
+                        status="skipped",
+                        disposition="excluded",
+                        stage="transform",
+                        severity="hard_omit",
+                        product_id=str(product.get("id") or "").strip() or None,
+                        raw_name=str(product.get("name") or ""),
+                        normalized_name=normalize_product_name(str(product.get("name") or "")) or None,
+                        category=str(product.get("category") or ""),
+                        subcategory=str(product.get("subcategory") or ""),
+                        current_state=_product_state(product),
+                        source_snapshot=compact_source_snapshot(raw_product),
+                        normalized_snapshot=compact_normalized_snapshot(product),
+                        details={"error": str(exc)},
+                    )
+                )
+                continue
+
             ids.append(str(metadata["id"]))
             texts.append(metadata["page_content"])
             metadatas.append(metadata)
+            ready_batch.append(candidate)
 
         summary.document_count += len(texts)
         if summary.sample_document is None and metadatas:
@@ -311,20 +581,22 @@ async def run_sync_pipeline(
                 d1_table_name,
                 [
                     {
-                        "product_id": str(product.get("id", "")),
-                        "normalized_name": normalize_product_name(str(product.get("name", ""))),
-                        "raw_name": str(product.get("name", "")),
-                        "category": str(product.get("category", "")),
-                        "subcategory": str(product.get("subcategory", "")),
-                        "quantity": _to_int(product.get("quantity")),
-                        "price": _to_float(product.get("price")),
+                        "product_id": str(candidate["normalized"].get("id", "")),
+                        "normalized_name": normalize_product_name(str(candidate["normalized"].get("name", ""))),
+                        "raw_name": str(candidate["normalized"].get("name", "")),
+                        "category": str(candidate["normalized"].get("category", "")),
+                        "subcategory": str(candidate["normalized"].get("subcategory", "")),
+                        "quantity": _to_int(candidate["normalized"].get("quantity")),
+                        "price": _to_float(candidate["normalized"].get("price")),
                     }
-                    for product in filtered_batch
+                    for candidate in ready_batch
                 ],
             )
             successful_ids = set(upsert_result.get("upserted_ids", []) or ids)
 
-        for product in filtered_batch:
+        for candidate in ready_batch:
+            raw_product = candidate["raw"]
+            product = candidate["normalized"]
             product_id = str(product.get("id") or "").strip()
             if product_id not in successful_ids:
                 continue
@@ -338,12 +610,20 @@ async def run_sync_pipeline(
                     RunEvent(
                         event_type="indexed_new",
                         reason="new_product",
+                        reason_code="new_product",
+                        reason_label="Indexed new product",
                         status="applied",
+                        disposition="added",
+                        stage="pipeline",
+                        severity="applied",
                         product_id=product_id,
                         raw_name=current_state.get("raw_name"),
+                        normalized_name=current_state.get("normalized_name"),
                         category=current_state.get("category"),
                         subcategory=current_state.get("subcategory"),
                         current_state=current_state,
+                        source_snapshot=compact_source_snapshot(raw_product),
+                        normalized_snapshot=compact_normalized_snapshot(product),
                     )
                 )
             else:
@@ -355,13 +635,22 @@ async def run_sync_pipeline(
                         RunEvent(
                             event_type="indexed_updated",
                             reason="metadata_changed",
+                            reason_code="metadata_changed",
+                            reason_label="Indexed updated product metadata",
                             status="applied",
+                            disposition="updated",
+                            stage="pipeline",
+                            severity="applied",
                             product_id=product_id,
                             raw_name=current_state.get("raw_name"),
+                            normalized_name=current_state.get("normalized_name"),
                             category=current_state.get("category"),
                             subcategory=current_state.get("subcategory"),
                             previous_state=previous_state,
                             current_state=current_state,
+                            source_snapshot=compact_source_snapshot(raw_product),
+                            normalized_snapshot=compact_normalized_snapshot(product),
+                            field_records=_change_field_records(previous_state, current_state, changed_fields),
                             details={"changed_fields": changed_fields},
                         )
                     )

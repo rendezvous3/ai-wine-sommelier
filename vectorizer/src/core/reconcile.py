@@ -20,7 +20,7 @@ async def run_reconcile_pipeline(
 ) -> ReconcileSummary:
     summary = ReconcileSummary(
         index_name=options.index_name,
-        stale_hours=options.stale_hours,
+        removal_mode="last_seen_at",
     )
 
     d1_store = D1UniqueStore(
@@ -41,8 +41,8 @@ async def run_reconcile_pipeline(
         cutoff_iso=cutoff.isoformat(),
         limit=options.max_delete,
     )
-    summary.candidate_stale_ids = len(stale_ids)
-    summary.sample_stale_ids = stale_ids[:20]
+    summary.candidate_removed_ids = len(stale_ids)
+    summary.sample_removed_ids = stale_ids[:20]
 
     if options.dry_run or not stale_ids:
         return summary

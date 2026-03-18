@@ -37,7 +37,6 @@ def build_cycle_options(
     overrides = overrides or {}
     index_name = overrides.get("index_name") or getattr(source, "INDEX_NAME", None) or "products-prod"
     min_quantity = parse_optional_int(overrides.get("min_quantity") or getattr(source, "MIN_QUANTITY", None) or 5)
-    stale_hours = int(overrides.get("stale_hours") or getattr(source, "STALE_HOURS", None) or 48)
     limit = parse_limit_value(overrides.get("limit") or getattr(source, "LIMIT", None) or "none")
 
     return SyncCycleOptions(
@@ -51,7 +50,7 @@ def build_cycle_options(
         ),
         reconcile=ReconcileOptions(
             index_name=index_name,
-            stale_hours=stale_hours,
+            stale_hours=0,
             dry_run=bool(overrides.get("dry_run", False)),
         ),
     )
@@ -99,11 +98,18 @@ async def _apply_explicit_removals(
                     event_type="removed",
                     reason=reason,
                     status="skipped",
+                    disposition="removed",
+                    stage="reconcile",
+                    severity="info",
+                    reason_code=reason,
+                    reason_label="Explicit removal pending (dry run)",
                     product_id=product_id,
                     raw_name=previous_state.get("raw_name"),
+                    normalized_name=previous_state.get("normalized_name"),
                     category=previous_state.get("category"),
                     subcategory=previous_state.get("subcategory"),
                     previous_state=previous_state,
+                    normalized_snapshot=previous_state,
                     details={"dry_run": True},
                 )
             )
@@ -138,11 +144,18 @@ async def _apply_explicit_removals(
                         event_type="removed",
                         reason=target_reasons[product_id],
                         status="applied",
+                        disposition="removed",
+                        stage="reconcile",
+                        severity="applied",
+                        reason_code=target_reasons[product_id],
+                        reason_label="Explicit removal applied",
                         product_id=product_id,
                         raw_name=previous_state.get("raw_name"),
+                        normalized_name=previous_state.get("normalized_name"),
                         category=previous_state.get("category"),
                         subcategory=previous_state.get("subcategory"),
                         previous_state=previous_state,
+                        normalized_snapshot=previous_state,
                     )
                 )
         except Exception as exc:
@@ -154,11 +167,18 @@ async def _apply_explicit_removals(
                         event_type="removed",
                         reason=target_reasons[product_id],
                         status="failed",
+                        disposition="removed",
+                        stage="reconcile",
+                        severity="failed",
+                        reason_code=target_reasons[product_id],
+                        reason_label="Explicit removal failed",
                         product_id=product_id,
                         raw_name=previous_state.get("raw_name"),
+                        normalized_name=previous_state.get("normalized_name"),
                         category=previous_state.get("category"),
                         subcategory=previous_state.get("subcategory"),
                         previous_state=previous_state,
+                        normalized_snapshot=previous_state,
                         details={"error": str(exc)},
                     )
                 )
@@ -182,12 +202,12 @@ async def _apply_explicit_removals(
 def _compat_reconcile_summary(options: SyncCycleOptions, removal: RemovalSummary) -> ReconcileSummary:
     return ReconcileSummary(
         index_name=options.sync.index_name,
-        stale_hours=options.reconcile.stale_hours,
-        candidate_stale_ids=removal.missing_from_fetch_count + removal.low_stock_removed_count,
+        removal_mode="explicit_diff",
+        candidate_removed_ids=removal.missing_from_fetch_count + removal.low_stock_removed_count,
         deleted_vectors=removal.deleted_vectors,
         deleted_d1_rows=removal.deleted_d1_rows,
         failed_batches=0 if removal.failed_removal_count == 0 else 1,
-        sample_stale_ids=list(removal.sample_removed_ids),
+        sample_removed_ids=list(removal.sample_removed_ids),
     )
 
 
@@ -266,10 +286,9 @@ async def run_sync_cycle(
 
 async def async_main() -> None:
     load_local_env()
-    parser = argparse.ArgumentParser(description="Run sync + explicit removal reconciliation")
+    parser = argparse.ArgumentParser(description="Run sync + explicit per-run removal reconciliation")
     parser.add_argument("index", nargs="?", default="products-prod")
     parser.add_argument("min_quantity", nargs="?", default="5")
-    parser.add_argument("stale_hours", nargs="?", default="48")
     parser.add_argument("limit", nargs="?", default="none")
     args = parser.parse_args()
 
@@ -284,7 +303,7 @@ async def async_main() -> None:
         ),
         reconcile=ReconcileOptions(
             index_name=args.index,
-            stale_hours=int(args.stale_hours),
+            stale_hours=0,
             dry_run=False,
         ),
     )

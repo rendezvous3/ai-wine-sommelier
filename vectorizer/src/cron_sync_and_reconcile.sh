@@ -1,19 +1,18 @@
 #!/bin/bash
 # Cron-ready orchestration:
 # 1) Sync catalog into a stable Vectorize index
-# 2) Reconcile stale vectors not seen in recent runs
+# 2) Apply explicit per-run removals for products missing from fetch or low-stock
 #
 # Usage:
-#   ./cron_sync_and_reconcile.sh [INDEX] [MIN_QTY] [STALE_HOURS] [LIMIT]
+#   ./cron_sync_and_reconcile.sh [INDEX] [MIN_QTY] [LIMIT]
 # Example:
-#   ./cron_sync_and_reconcile.sh products-prod 5 48 none
+#   ./cron_sync_and_reconcile.sh products-prod 5 none
 
 set -euo pipefail
 
 INDEX="${1:-products-prod}"
 MIN_QTY="${2:-5}"
-STALE_HOURS="${3:-48}"
-LIMIT="${4:-none}"
+LIMIT="${3:-none}"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -31,10 +30,10 @@ fi
 
 echo "============================================================"
 echo "CRON SYNC + RECONCILE"
-echo "Index: $INDEX | Min Qty: $MIN_QTY | Stale Hours: $STALE_HOURS | Limit: $LIMIT"
+echo "Index: $INDEX | Min Qty: $MIN_QTY | Removal Mode: explicit_diff | Limit: $LIMIT"
 echo "============================================================"
 
-"$PYTHON_BIN" run_sync_cycle.py "$INDEX" "$MIN_QTY" "$STALE_HOURS" "$LIMIT"
+"$PYTHON_BIN" run_sync_cycle.py "$INDEX" "$MIN_QTY" "$LIMIT"
 
 echo "============================================================"
 echo "Cron workflow complete."

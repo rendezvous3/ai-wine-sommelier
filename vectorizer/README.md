@@ -81,8 +81,8 @@ python vectorize.py -x products-prod --limit none --min-quantity 5 --upload
 # Reconcile stale vectors
 python reconcile_stale.py -x products-prod --stale-hours 48
 
-# Run the full sync + reconcile cycle
-python run_sync_cycle.py products-prod 5 48 none
+# Run the full sync + explicit removal cycle
+python run_sync_cycle.py products-prod 5 none
 ```
 
 ### Manual Prod Refresh
@@ -191,7 +191,6 @@ Review `vectorizer/wrangler.toml` defaults:
 
 - `INDEX_NAME`
 - `MIN_QUANTITY`
-- `STALE_HOURS`
 - `LIMIT`
 - `[triggers].crons`
 
@@ -252,14 +251,19 @@ pywrangler deploy --config wrangler.qa.toml
 
 - `INDEX_NAME = "products-qa"`
 - `MIN_QUANTITY = "5"`
-- `STALE_HOURS = "48"`
 - `LIMIT = "none"`
 - `POSTRUN_VERIFIER_URL = "https://postrun-verifier-qa.andresmeona.workers.dev"`
 - twice-daily QA soak cron in `[triggers].crons`:
-  - `17 7,19 * * *`
+  - `15 19 * * *`
+  - `30 13 * * *`
 - explicit Worker capacity limits:
   - `cpu_ms = 300000`
   - `subrequests = 50000`
+
+Cloudflare cron is UTC. The current QA soak schedule maps to:
+
+- `19:15 UTC` = `1:15 PM` Denver/Salt Lake City during daylight time
+- `13:30 UTC` = `7:30 AM` Denver/Salt Lake City during daylight time
 
 Important:
 
@@ -280,7 +284,7 @@ Manual authenticated run:
 curl -X POST http://127.0.0.1:8787/run \
   -H "Authorization: Bearer <ADMIN_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"index_name":"products-prod","min_quantity":5,"stale_hours":48,"limit":"20"}'
+  -d '{"index_name":"products-prod","min_quantity":5,"limit":"20"}'
 ```
 
 Inspect the most recent run:
@@ -298,7 +302,7 @@ Run the same local Worker development flow, but target the QA index when manuall
 curl -X POST http://127.0.0.1:8787/run \
   -H "Authorization: Bearer <ADMIN_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"index_name":"products-qa","min_quantity":5,"stale_hours":48,"limit":"20"}'
+  -d '{"index_name":"products-qa","min_quantity":5,"limit":"20"}'
 ```
 
 Once deployed, the QA soak should use:

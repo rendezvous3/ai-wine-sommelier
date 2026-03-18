@@ -20,7 +20,9 @@ This is a temporary promotion procedure, not the final steady-state operating mo
 - Verifier Worker: `postrun-verifier-qa`
 - Backend Worker: `ecom-chat-backend-qa`
 - Pages project: `cannavita-widget-qa`
-- QA soak cron: `17 7,19 * * *`
+- QA soak cron:
+  - `15 19 * * *`
+  - `30 13 * * *`
 
 ### Prod/live-ish lane
 
@@ -112,7 +114,7 @@ pywrangler deploy --config wrangler.toml
 Current prod config already points to:
 
 - `INDEX_NAME = "products-prod"`
-- cron `17 7,19 * * *`
+- cron `17 7 * * *`
 
 Before expecting full-menu prod support, mirror the QA Worker limits into `vectorizer/wrangler.toml`:
 

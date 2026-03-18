@@ -6,7 +6,6 @@ compatibility_flags = ["python_workers"]
 [vars]
 INDEX_NAME = "products-prod"
 MIN_QUANTITY = "5"
-STALE_HOURS = "48"
 LIMIT = "none"
 POSTRUN_VERIFIER_URL = ""
 

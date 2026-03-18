@@ -36,7 +36,6 @@ Examples:
     parser.add_argument("--strain", type=str, choices=["INDICA", "SATIVA", "HYBRID"], help="Optional strain filter")
     parser.add_argument("--index", "-x", type=str, help="Vectorize index name")
     parser.add_argument("--upload", action="store_true", help="Actually upload to Vectorize")
-    parser.add_argument("--local", action="store_true", help="Use local JSON files instead of the API")
     parser.add_argument("--offset", type=int, default=0, help="Starting offset")
     parser.add_argument(
         "--limit",
@@ -125,7 +124,7 @@ async def async_main() -> None:
         offset=args.offset,
         limit=args.limit,
         dry_run=not args.upload,
-        use_api=not args.local,
+        use_api=True,
         min_quantity=args.min_quantity,
         use_d1_dedup=not args.skip_d1_dedup,
         trigger_source="local",

@@ -801,7 +801,7 @@ Before deploying to production, manually verify:
 - Run stale cleanup against QA:
   - `python reconcile_stale.py -x products-qa --stale-hours 48`
 - Run QA Worker manual smoke:
-  - `curl -X POST http://127.0.0.1:8787/run -H "Authorization: Bearer <ADMIN_TOKEN>" -H "Content-Type: application/json" -d '{"index_name":"products-qa","min_quantity":5,"stale_hours":48,"limit":"20"}'`
+  - `curl -X POST http://127.0.0.1:8787/run -H "Authorization: Bearer <ADMIN_TOKEN>" -H "Content-Type: application/json" -d '{"index_name":"products-qa","min_quantity":5,"limit":"20"}'`
 - Run simplified post-run verification locally against localhost backend:
   - `cd vectorizer/src && python run_postrun_verify.py --suite categories_only --index products-qa --expected-trigger-source manual --skip-email`
 - Run Dutchie/category checks only:

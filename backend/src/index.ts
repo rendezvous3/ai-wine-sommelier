@@ -22,7 +22,13 @@ import {
   generateReRankPrompt
 } from "./prompts";
 import { MODEL_PROVIDER, LLM_PROVIDER, STORE_NAME, AGENT_ROLE, AGENT_ROLE_MODEL, USE_FIRE_AT_2_PROMPT, STREAM_PROVIDER, INTENT_PROVIDER, RERANK_PROVIDER, getModelForRole, getBaseUrl, getApiKey, getTokenLimitsForModel, type Tier } from "./types-and-constants";
-import { formatConversationHistory, validateAndExpandFilters, buildVectorizeFilters, parseRobustJSON } from "./utils";
+import {
+  formatConversationHistory,
+  validateAndExpandFilters,
+  buildVectorizeFilters,
+  parseRobustJSON,
+  sanitizeRecommendationResults,
+} from "./utils";
 import {
   isValidCategory,
   isValidSubcategory,
@@ -1049,7 +1055,7 @@ app.post("/chat/recommendations", async (c) => {
   }
 
 // Transform searchResults to metadata format with similarity scores
-  const results = searchResults.map(([doc, score]) => {
+  const rawResults = searchResults.map(([doc, score]) => {
     const productId = doc.metadata?.id;
     return {
       id: productId || "", // Use metadata.id (should always be present after fix)
@@ -1057,6 +1063,35 @@ app.post("/chat/recommendations", async (c) => {
       similarity_score: score,  // Add similarity score (0.0-1.0, higher is better)
     };
   });
+
+  const {
+    results,
+    removedDemoCount,
+    dedupedCount,
+  } = sanitizeRecommendationResults(rawResults);
+
+  if (removedDemoCount > 0 || dedupedCount > 0) {
+    devLog(
+      c.env,
+      "Recommendation sanitization:",
+      JSON.stringify({
+        removedDemoCount,
+        dedupedCount,
+        rawCount: rawResults.length,
+        finalCount: results.length,
+      })
+    );
+  }
+
+  if (results.length === 0) {
+    return c.json({
+      recommendations: [],
+      preRankedProducts: [],
+      filtersToUse: filtersToUse,
+      error: "No valid catalog results found",
+      service: "recommendations",
+    }, 200);
+  }
 
   // Create product map for ID-based lookup
   const productMap = new Map(results.map((r) => [r.id, r]));

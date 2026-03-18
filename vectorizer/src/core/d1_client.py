@@ -48,9 +48,16 @@ class D1RestClient:
                 headers=self.headers,
                 json={"sql": sql},
             )
-            response.raise_for_status()
+            try:
+                response.raise_for_status()
+            except httpx.HTTPStatusError as exc:
+                body = response.text[:1000]
+                raise RuntimeError(
+                    f"D1 HTTP {response.status_code} for {response.request.url} body={body}"
+                ) from exc
             payload = response.json()
         if not payload.get("success", False):
-            raise RuntimeError(f"D1 query failed: {payload.get('errors', [])}")
+            raise RuntimeError(
+                f"D1 query failed for {self.base_url}: {payload.get('errors', [])}"
+            )
         return payload
-

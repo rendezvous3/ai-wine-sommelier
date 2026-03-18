@@ -128,8 +128,11 @@ class Default(WorkerEntrypoint):
             )
             if not report_store.configured:
                 return _json_response({"ok": False, "error": "d1_not_configured"}, status=500)
-            await report_store.ensure_table()
-            latest = await report_store.get_latest_run()
+            try:
+                await report_store.ensure_table()
+                latest = await report_store.get_latest_run()
+            except Exception as exc:
+                return _json_response({"ok": False, "error": "report_store_unavailable", "details": str(exc)}, status=500)
             return _json_response({"ok": True, "run": latest, "summary": _parse_summary_json(latest)})
 
         if path.startswith("/runs/") and path.endswith("/events"):
@@ -145,8 +148,11 @@ class Default(WorkerEntrypoint):
             )
             if not report_store.configured:
                 return _json_response({"ok": False, "error": "d1_not_configured"}, status=500)
-            await report_store.ensure_table()
-            run = await report_store.get_run(run_id)
+            try:
+                await report_store.ensure_table()
+                run = await report_store.get_run(run_id)
+            except Exception as exc:
+                return _json_response({"ok": False, "error": "report_store_unavailable", "details": str(exc)}, status=500)
             if not run:
                 return _json_response({"ok": False, "error": "not_found"}, status=404)
             events = await report_store.get_run_events(
@@ -154,6 +160,8 @@ class Default(WorkerEntrypoint):
                 event_type=(filters.get("event_type") or [None])[0],
                 reason=(filters.get("reason") or [None])[0],
                 status=(filters.get("status") or [None])[0],
+                stage=(filters.get("stage") or [None])[0],
+                severity=(filters.get("severity") or [None])[0],
             )
             return _json_response({"ok": True, "run": run, "events": events})
 
@@ -169,17 +177,22 @@ class Default(WorkerEntrypoint):
             )
             if not report_store.configured:
                 return _json_response({"ok": False, "error": "d1_not_configured"}, status=500)
-            await report_store.ensure_table()
-            run = await report_store.get_run(run_id)
+            try:
+                await report_store.ensure_table()
+                run = await report_store.get_run(run_id)
+            except Exception as exc:
+                return _json_response({"ok": False, "error": "report_store_unavailable", "details": str(exc)}, status=500)
             if not run:
                 return _json_response({"ok": False, "error": "not_found"}, status=404)
             events = await report_store.get_run_events(run_id)
+            reason_counts = await report_store.get_run_reason_counts(run_id)
             return _json_response(
                 {
                     "ok": True,
                     "run": run,
                     "summary": _parse_summary_json(run),
                     "events": events,
+                    "reason_counts": reason_counts,
                 }
             )
 
@@ -193,7 +206,6 @@ class Default(WorkerEntrypoint):
                 overrides = {
                     "index_name": _payload_get(payload, "index_name"),
                     "min_quantity": parse_optional_int(_payload_get(payload, "min_quantity")),
-                    "stale_hours": parse_optional_int(_payload_get(payload, "stale_hours")),
                     "limit": (
                         parse_limit_value(_payload_get(payload, "limit"))
                         if _payload_get(payload, "limit") is not None

@@ -6,10 +6,11 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 import httpx
 
+from core.audit import audit_source_product, audit_transformed_product
 from core.config import cloudflare_config_from_source, dutchie_config_from_source
 from core.postrun_reports import D1PostrunVerificationStore
 from core.run_reports import D1RunReportStore
-from d1_uniques import D1UniqueStore, build_uniques_table_name
+from d1_uniques import D1UniqueStore, build_uniques_table_name, normalize_product_name
 from dutchie_client import DutchieClient
 from normalize_products import transform_product
 
@@ -33,6 +34,10 @@ def _coerce_str_list(value: Any) -> List[str]:
         return [str(item).strip().lower() for item in value if str(item).strip()]
     normalized = str(value).strip().lower()
     return [normalized] if normalized else []
+
+
+def _has_hard_findings(findings: Sequence[Dict[str, Any]]) -> bool:
+    return any(str(finding.get("severity") or "warning") != "warning" for finding in findings)
 
 
 def _extract_sync_summary(latest_run: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -91,7 +96,11 @@ def _format_delta_line(event: Dict[str, Any]) -> str:
     category = event.get("category") or current_state.get("category") or previous_state.get("category") or ""
     subcategory = event.get("subcategory") or current_state.get("subcategory") or previous_state.get("subcategory") or ""
     reason = event.get("reason") or ""
+    reason_code = event.get("reason_code") or reason
+    reason_label = event.get("reason_label") or reason_code
     event_type = event.get("event_type") or ""
+    stage = event.get("stage") or ""
+    severity = event.get("severity") or ""
 
     if event_type == "removed":
         return (
@@ -113,7 +122,36 @@ def _format_delta_line(event: Dict[str, Any]) -> str:
         ]
         return f"{product_id} | {raw_name} | changed_fields={changed_fields} | " + "; ".join(diffs)
 
-    return f"{product_id} | {raw_name} | reason={reason} | details={json.dumps(details, default=str)}"
+    parts = [f"{product_id} | {raw_name}"]
+    if category or subcategory:
+        parts.append(f"{category}/{subcategory}")
+    parts.append(f"reason={reason_code}")
+    if reason_label and reason_label != reason_code:
+        parts.append(f"label={reason_label}")
+    if stage:
+        parts.append(f"stage={stage}")
+    if severity:
+        parts.append(f"severity={severity}")
+
+    missing_fields = details.get("missing_fields") or []
+    if missing_fields:
+        parts.append(f"missing_fields={missing_fields}")
+
+    if reason_code == "potency_anomaly":
+        potency_bits = {
+            "source_classification": details.get("source_classification"),
+            "source_total_mg": details.get("source_total_mg"),
+            "text_total_mg": details.get("text_total_mg"),
+            "text_per_unit_mg": details.get("text_per_unit_mg"),
+            "pack_count": details.get("pack_count"),
+            "reason": details.get("reason"),
+        }
+        parts.append(f"potency={json.dumps(potency_bits, default=str)}")
+
+    if not missing_fields and details:
+        parts.append(f"details={json.dumps(details, default=str)}")
+
+    return " | ".join(parts)
 
 
 async def _send_run_email(
@@ -138,6 +176,7 @@ async def _send_run_email(
         "added": [event for event in delta_events if event.get("event_type") == "indexed_new"],
         "updated": [event for event in delta_events if event.get("event_type") == "indexed_updated"],
         "excluded": [event for event in delta_events if event.get("event_type") == "excluded"],
+        "warning": [event for event in delta_events if event.get("event_type") == "warning"],
     }
     failed_checks = [check for check in summary.get("checks", []) if check.get("status") == "failed"]
     text_lines = [
@@ -168,6 +207,9 @@ async def _send_run_email(
             "",
             "Excluded:",
             *([f"- {_format_delta_line(event)}" for event in grouped_events["excluded"]] or ["- none"]),
+            "",
+            "Warnings:",
+            *([f"- {_format_delta_line(event)}" for event in grouped_events["warning"]] or ["- none"]),
             "",
             "Failed checks:",
             *(
@@ -359,7 +401,7 @@ async def run_postrun_verification(
             if missing_from_fetch_count == 0 and low_stock_removed_count == 0:
                 missing_from_fetch_count = max(stale_deleted_count, 0)
 
-            previous = await verifier_store.get_latest_success_for_index(
+            previous = await verifier_store.get_latest_count_baseline_for_index(
                 index_name,
                 exclude_vectorizer_run_id=current_run_id,
             ) if verifier_store.configured else None
@@ -367,7 +409,36 @@ async def run_postrun_verification(
                 previous_active_unique_count = _to_int(previous.get("active_unique_count"))
                 expected_active_delta = added_count - missing_from_fetch_count - low_stock_removed_count
                 actual_active_delta = active_unique_count - previous_active_unique_count
-                if actual_active_delta == expected_active_delta:
+                full_reseed_detected = (
+                    previous_active_unique_count > 0
+                    and active_unique_count == added_count
+                    and uploaded_count == active_unique_count
+                    and updated_count == 0
+                    and updated_existing_count == 0
+                    and stale_deleted_count == 0
+                    and missing_from_fetch_count == 0
+                    and low_stock_removed_count == 0
+                )
+                if full_reseed_detected:
+                    await record_check(
+                        "count_reconciliation",
+                        "skipped",
+                        {
+                            "reason": "full_reseed_detected",
+                            "active_unique_count": active_unique_count,
+                            "previous_active_unique_count": previous_active_unique_count,
+                            "expected_active_delta": expected_active_delta,
+                            "actual_active_delta": actual_active_delta,
+                            "new_count": added_count,
+                            "updated_count": updated_count,
+                            "uploaded_count": uploaded_count,
+                            "updated_existing_count": updated_existing_count,
+                            "stale_deleted_count": stale_deleted_count,
+                            "missing_from_fetch_count": missing_from_fetch_count,
+                            "low_stock_removed_count": low_stock_removed_count,
+                        },
+                    )
+                elif actual_active_delta == expected_active_delta:
                     await record_check(
                         "count_reconciliation",
                         "passed",
@@ -465,11 +536,25 @@ async def run_postrun_verification(
 
                         transformed_products: List[Dict[str, Any]] = []
                         transform_errors: List[str] = []
+                        source_hard_omit_count = 0
+                        transform_hard_omit_count = 0
+                        duplicate_sample_skip_count = 0
+                        seen_ids: set[str] = set()
+                        seen_names: set[str] = set()
                         for raw_product in raw_products:
+                            source_findings = audit_source_product(raw_product)
+                            if _has_hard_findings(source_findings):
+                                source_hard_omit_count += 1
+                                continue
                             try:
                                 transformed = transform_product(raw_product)
                             except Exception as exc:
                                 transform_errors.append(f"{raw_product.get('id')}: {exc}")
+                                continue
+
+                            transform_findings = audit_transformed_product(raw_product, transformed)
+                            if _has_hard_findings(transform_findings):
+                                transform_hard_omit_count += 1
                                 continue
 
                             product_id = transformed.get("id")
@@ -478,6 +563,15 @@ async def run_postrun_verification(
                                 continue
                             if quantity < min_quantity:
                                 continue
+
+                            normalized_name = normalize_product_name(str(transformed.get("name") or ""))
+                            if product_id in seen_ids or (normalized_name and normalized_name in seen_names):
+                                duplicate_sample_skip_count += 1
+                                continue
+
+                            seen_ids.add(str(product_id))
+                            if normalized_name:
+                                seen_names.add(normalized_name)
                             transformed_products.append(transformed)
 
                         comparable = transformed_products[:DEFAULT_CATEGORY_COMPARE_LIMIT]
@@ -490,6 +584,9 @@ async def run_postrun_verification(
                                     "raw_fetched": len(raw_products),
                                     "transformed_count": len(transformed_products),
                                     "transform_errors": transform_errors[:5],
+                                    "source_hard_omit_count": source_hard_omit_count,
+                                    "transform_hard_omit_count": transform_hard_omit_count,
+                                    "duplicate_sample_skip_count": duplicate_sample_skip_count,
                                     "min_quantity": min_quantity,
                                 },
                             )
@@ -550,6 +647,9 @@ async def run_postrun_verification(
                             "transformed_count": len(transformed_products),
                             "compared_count": len(comparable),
                             "transform_errors": transform_errors[:5],
+                            "source_hard_omit_count": source_hard_omit_count,
+                            "transform_hard_omit_count": transform_hard_omit_count,
+                            "duplicate_sample_skip_count": duplicate_sample_skip_count,
                             "sample_product_ids": [product["id"] for product in comparable],
                         }
                         if mismatches:

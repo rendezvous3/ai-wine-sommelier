@@ -21,6 +21,121 @@ const formatConversationHistory = (messageList: Array<any>) => {
     return formattedMessages.join('\n');
 }
 
+function normalizeRecommendationValue(value: unknown): string {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
+function isDemoRecommendationId(id: unknown): boolean {
+  return /^demo-prod-/i.test(String(id ?? "").trim());
+}
+
+function recommendationIdentity(product: Record<string, any>): string {
+  const shopLink = normalizeRecommendationValue(product.shopLink);
+  if (shopLink) {
+    return `shop:${shopLink}`;
+  }
+
+  const slug = normalizeRecommendationValue(product.slug);
+  if (slug) {
+    return `slug:${slug}`;
+  }
+
+  const name = normalizeRecommendationValue(product.name);
+  const brand = normalizeRecommendationValue(product.brand);
+  if (name && brand) {
+    return `namebrand:${brand}|${name}`;
+  }
+  if (name) {
+    return `name:${name}`;
+  }
+
+  const id = normalizeRecommendationValue(product.id);
+  return id ? `id:${id}` : "";
+}
+
+function recommendationQualityScore(product: Record<string, any>): number {
+  let score = 0;
+
+  if (!isDemoRecommendationId(product.id)) {
+    score += 1000;
+  }
+  if (typeof product.quantity === "number") {
+    score += 25;
+  }
+  if (typeof product.pack_count === "number") {
+    score += 8;
+  }
+  if (typeof product.brand_tagline === "string" && product.brand_tagline.trim()) {
+    score += 8;
+  }
+  if (typeof product.slug === "string" && product.slug.trim()) {
+    score += 8;
+  }
+  if (typeof product.shopLink === "string" && product.shopLink.trim()) {
+    score += 8;
+  }
+  if (Array.isArray(product.cannabinoids) && product.cannabinoids.length > 0) {
+    score += 6;
+  }
+  if (Array.isArray(product.terpenes) && product.terpenes.length > 0) {
+    score += 4;
+  }
+  if (Array.isArray(product.flavor) && product.flavor.length > 0) {
+    score += 2;
+  }
+  if (typeof product.thc_per_unit_mg === "number") {
+    score += 2;
+  }
+  if (typeof product.thc_total_mg === "number") {
+    score += 2;
+  }
+  if (typeof product.similarity_score === "number") {
+    score += product.similarity_score;
+  }
+
+  return score;
+}
+
+export function sanitizeRecommendationResults(
+  products: Array<Record<string, any>>
+): {
+  results: Array<Record<string, any>>;
+  removedDemoCount: number;
+  dedupedCount: number;
+} {
+  const withoutDemo = products.filter(product => !isDemoRecommendationId(product.id));
+  const removedDemoCount = products.length - withoutDemo.length;
+  const bestByIdentity = new Map<string, Record<string, any>>();
+
+  for (const product of withoutDemo) {
+    const identity = recommendationIdentity(product) || `id:${String(product.id ?? "")}`;
+    const existing = bestByIdentity.get(identity);
+    if (!existing) {
+      bestByIdentity.set(identity, product);
+      continue;
+    }
+
+    if (recommendationQualityScore(product) > recommendationQualityScore(existing)) {
+      bestByIdentity.set(identity, product);
+    }
+  }
+
+  const results = Array.from(bestByIdentity.values()).sort((left, right) => {
+    const leftScore = typeof left.similarity_score === "number" ? left.similarity_score : 0;
+    const rightScore = typeof right.similarity_score === "number" ? right.similarity_score : 0;
+    return rightScore - leftScore;
+  });
+
+  return {
+    results,
+    removedDemoCount,
+    dedupedCount: withoutDemo.length - results.length,
+  };
+}
+
 /**
  * Validates, normalizes, and expands filters for the recommendations API
  * Includes subcategory expansion (adds all subcategories for categories with zero representation)

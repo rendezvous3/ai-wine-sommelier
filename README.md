@@ -519,7 +519,7 @@ npx wrangler pages deploy dist --project-name=cannavita-widget-qa --branch=main
 curl -X POST https://vectorizer-worker-qa.andresmeona.workers.dev/run \
   -H "Authorization: Bearer <QA_VECTORIZER_ADMIN_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"index_name":"products-qa","min_quantity":5,"stale_hours":48,"limit":"1500"}'
+  -d '{"index_name":"products-qa","min_quantity":5,"limit":"1500"}'
 ```
 
 **QA post-run category verification**:
@@ -599,8 +599,9 @@ Current validated QA runtime facts:
   - `cpu_ms = 300000`
   - `subrequests = 50000`
 - QA soak cron is configured twice daily:
-  - `17 7,19 * * *`
-  - `07:17 UTC` and `19:17 UTC`
+  - `15 19 * * *`
+  - `30 13 * * *`
+  - `19:15 UTC` and `13:30 UTC`
 - a `limit = 1500` manual run successfully pulled the full currently observed QA menu:
   - `fetched_count = 824`
   - `uploaded_count = 682`
@@ -628,7 +629,7 @@ Manual authenticated worker trigger:
 curl -X POST http://127.0.0.1:8787/run \
   -H "Authorization: Bearer <ADMIN_TOKEN>" \
   -H "Content-Type: application/json" \
-  -d '{"index_name":"products-prod","min_quantity":5,"stale_hours":48,"limit":"20"}'
+  -d '{"index_name":"products-prod","min_quantity":5,"limit":"20"}'
 ```
 
 ## Development & Deployment
@@ -994,7 +995,6 @@ name = "vectorizer-worker-qa"
 [vars]
 INDEX_NAME = "products-qa"
 MIN_QUANTITY = "5"
-STALE_HOURS = "48"
 LIMIT = "none"
 
 [triggers]

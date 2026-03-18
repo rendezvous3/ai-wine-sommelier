@@ -44,7 +44,8 @@ As of March 13, 2026:
   - `cpu_ms = 300000`
   - `subrequests = 50000`
 - QA soak cron is configured twice daily:
-  - `17 7,19 * * *`
+  - `15 19 * * *`
+  - `30 13 * * *`
 - a bounded high-limit manual run proved full-menu coverage for the current QA catalog:
   - `limit = 1500`
   - actual `fetched_count = 824`

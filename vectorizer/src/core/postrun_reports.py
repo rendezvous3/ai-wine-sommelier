@@ -28,48 +28,86 @@ class D1PostrunVerificationStore:
         return self.client.configured
 
     async def ensure_tables(self) -> None:
-        sql = """
-        CREATE TABLE IF NOT EXISTS postrun_verifications (
-            verification_id TEXT PRIMARY KEY,
-            source TEXT,
-            suite TEXT,
-            index_name TEXT,
-            expected_trigger_source TEXT,
-            vectorizer_run_id TEXT,
-            vectorizer_finished_at TEXT,
-            started_at TEXT,
-            finished_at TEXT,
-            status TEXT,
-            active_unique_count INTEGER,
-            previous_active_unique_count INTEGER,
-            expected_active_delta INTEGER,
-            actual_active_delta INTEGER,
-            summary_json TEXT,
-            error_message TEXT,
-            email_sent INTEGER DEFAULT 0,
-            email_sent_at TEXT
-        );
-        CREATE INDEX IF NOT EXISTS idx_postrun_verifications_started_at
-            ON postrun_verifications (started_at);
-        CREATE INDEX IF NOT EXISTS idx_postrun_verifications_index_name
-            ON postrun_verifications (index_name);
-        CREATE INDEX IF NOT EXISTS idx_postrun_verifications_status
-            ON postrun_verifications (status);
-        CREATE INDEX IF NOT EXISTS idx_postrun_verifications_vectorizer_run_id
-            ON postrun_verifications (vectorizer_run_id);
-
-        CREATE TABLE IF NOT EXISTS postrun_verification_checks (
-            verification_id TEXT NOT NULL,
-            check_id TEXT NOT NULL,
-            status TEXT,
-            details_json TEXT,
-            created_at TEXT,
-            PRIMARY KEY (verification_id, check_id)
-        );
-        CREATE INDEX IF NOT EXISTS idx_postrun_verification_checks_verification_id
-            ON postrun_verification_checks (verification_id);
-        """
-        await self.client.exec_sql(sql)
+        statements = [
+            (
+                "create_postrun_verifications",
+                """
+            CREATE TABLE IF NOT EXISTS postrun_verifications (
+                verification_id TEXT PRIMARY KEY,
+                source TEXT,
+                suite TEXT,
+                index_name TEXT,
+                expected_trigger_source TEXT,
+                vectorizer_run_id TEXT,
+                vectorizer_finished_at TEXT,
+                started_at TEXT,
+                finished_at TEXT,
+                status TEXT,
+                active_unique_count INTEGER,
+                previous_active_unique_count INTEGER,
+                expected_active_delta INTEGER,
+                actual_active_delta INTEGER,
+                summary_json TEXT,
+                error_message TEXT,
+                email_sent INTEGER DEFAULT 0,
+                email_sent_at TEXT
+            );
+            """,
+            ),
+            (
+                "index_postrun_verifications_started_at",
+                """
+            CREATE INDEX IF NOT EXISTS idx_postrun_verifications_started_at
+                ON postrun_verifications (started_at);
+            """,
+            ),
+            (
+                "index_postrun_verifications_index_name",
+                """
+            CREATE INDEX IF NOT EXISTS idx_postrun_verifications_index_name
+                ON postrun_verifications (index_name);
+            """,
+            ),
+            (
+                "index_postrun_verifications_status",
+                """
+            CREATE INDEX IF NOT EXISTS idx_postrun_verifications_status
+                ON postrun_verifications (status);
+            """,
+            ),
+            (
+                "index_postrun_verifications_vectorizer_run_id",
+                """
+            CREATE INDEX IF NOT EXISTS idx_postrun_verifications_vectorizer_run_id
+                ON postrun_verifications (vectorizer_run_id);
+            """,
+            ),
+            (
+                "create_postrun_verification_checks",
+                """
+            CREATE TABLE IF NOT EXISTS postrun_verification_checks (
+                verification_id TEXT NOT NULL,
+                check_id TEXT NOT NULL,
+                status TEXT,
+                details_json TEXT,
+                created_at TEXT,
+                PRIMARY KEY (verification_id, check_id)
+            );
+            """,
+            ),
+            (
+                "index_postrun_verification_checks_verification_id",
+                """
+            CREATE INDEX IF NOT EXISTS idx_postrun_verification_checks_verification_id
+                ON postrun_verification_checks (verification_id);
+            """,
+            ),
+        ]
+        for label, statement in statements:
+            try:
+                await self.client.exec_sql(statement)
+            except Exception as exc:
+                raise RuntimeError(f"postrun_reports.ensure_tables failed at {label}: {exc}") from exc
 
     async def start_run(
         self,
@@ -224,6 +262,32 @@ class D1PostrunVerificationStore:
     ) -> Optional[Dict[str, Any]]:
         where = [
             "status = 'passed'",
+            f"index_name = '{self.client.sql_quote(index_name)}'",
+        ]
+        if exclude_vectorizer_run_id:
+            where.append(
+                f"(vectorizer_run_id IS NULL OR vectorizer_run_id != '{self.client.sql_quote(exclude_vectorizer_run_id)}')"
+            )
+        sql = f"""
+        SELECT *
+        FROM postrun_verifications
+        WHERE {" AND ".join(where)}
+        ORDER BY started_at DESC
+        LIMIT 1;
+        """
+        payload = await self.client.exec_sql(sql)
+        rows = payload.get("result", [{}])[0].get("results", [])
+        return rows[0] if rows else None
+
+    async def get_latest_count_baseline_for_index(
+        self,
+        index_name: str,
+        *,
+        exclude_vectorizer_run_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        where = [
+            "status != 'running'",
+            "active_unique_count IS NOT NULL",
             f"index_name = '{self.client.sql_quote(index_name)}'",
         ]
         if exclude_vectorizer_run_id:

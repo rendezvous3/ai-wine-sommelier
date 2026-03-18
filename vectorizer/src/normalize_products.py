@@ -321,6 +321,47 @@ def clean_effects(effects: list, product_type: str) -> list:
     return normalized
 
 
+def extract_preferred_variant_price(variants: Any) -> Optional[float]:
+    """Return the best available variant price using merch-first priority."""
+    if not isinstance(variants, list) or not variants:
+        return None
+
+    price_fields = ("specialPriceRec", "priceRec", "specialPriceMed", "priceMed")
+    for field_name in price_fields:
+        for variant in variants:
+            if not isinstance(variant, dict):
+                continue
+            value = variant.get(field_name)
+            if value is None or value == "":
+                continue
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                continue
+    return None
+
+
+def extract_max_variant_quantity(variants: Any) -> Optional[int]:
+    """Return the maximum known stock quantity across variants."""
+    if not isinstance(variants, list) or not variants:
+        return None
+
+    max_quantity = None
+    for variant in variants:
+        if not isinstance(variant, dict):
+            continue
+        quantity = variant.get("quantity")
+        if quantity is None or quantity == "":
+            continue
+        try:
+            quantity_int = int(quantity)
+        except (TypeError, ValueError):
+            continue
+        if max_quantity is None or quantity_int > max_quantity:
+            max_quantity = quantity_int
+    return max_quantity
+
+
 def normalize_subcategory(subcategory: str, category: str, schema_data: Optional[Dict] = None) -> Optional[str]:
     """
     Unified subcategory normalization for any data format.
@@ -699,11 +740,6 @@ def cleanup_properties(product: Dict[str, Any]) -> Dict[str, Any]:
         if isinstance(cleaned["flavor"], list) and len(cleaned["flavor"]) == 0:
             cleaned["flavor"] = None
     
-    # Ensure effects is never empty (shouldn't happen per user, but safety check)
-    if "effects" in cleaned:
-        if isinstance(cleaned["effects"], list) and len(cleaned["effects"]) == 0:
-            cleaned["effects"] = ["relaxed"]  # Default fallback
-    
     return cleaned
 
 # ============================================================================
@@ -758,12 +794,12 @@ def extract_pack_and_mg_from_name(name: str) -> Dict[str, Any]:
     # Pattern for "Xpk ... | Ymg" or "Xpk Gummies | Ymg" format
     # More flexible to handle various separators and words between pk and mg
     combined_patterns = [
-        # "20pk Gummies | 100mg" or "20pk | 100mg"
-        r'(\d+)\s*pk\s*(?:\w+\s*)*\|\s*(\d+(?:\.\d+)?)\s*mg',
-        # "[20pk] ... 100mg" or "[20 pk] 100mg"
-        r'\[(\d+)\s*pk\]\s*.*?(\d+(?:\.\d+)?)\s*mg',
-        # "20pk 100mg" (no pipe)
-        r'(\d+)\s*pk\s+(?:\w+\s+)*(\d+(?:\.\d+)?)\s*mg',
+        # "20pk Gummies | 100mg" or "20 pack | 100mg"
+        r'(\d+)\s*(?:pk|pack)\s*(?:\w+\s*)*\|\s*(\d+(?:\.\d+)?)\s*mg',
+        # "[20pk] ... 100mg" or "[20 pack] 100mg"
+        r'\[(\d+)\s*(?:pk|pack)\]\s*.*?(\d+(?:\.\d+)?)\s*mg',
+        # "20pk 100mg" or "20 pack 100mg" (no pipe)
+        r'(\d+)\s*(?:pk|pack)\s+(?:\w+\s+)*(\d+(?:\.\d+)?)\s*mg',
     ]
 
     for pattern in combined_patterns:
@@ -779,6 +815,99 @@ def extract_pack_and_mg_from_name(name: str) -> Dict[str, Any]:
                 return result
 
     return result
+
+
+def extract_total_mg_from_text(name: str, description: str, slug: str) -> Optional[float]:
+    """Extract a package-total mg signal from merch text when it is explicit enough."""
+    explicit_patterns = [
+        r'(?:per\s+package|package|total|contains)\s*:?\s*(\d+(?:\.\d+)?)\s*mg\b',
+        r'(\d+(?:\.\d+)?)\s*mg\b(?:\s*thc)?',
+    ]
+
+    # Name and slug are merch-facing and usually safest for total dosage.
+    for text in (name, slug):
+        if not text:
+            continue
+        for pattern in explicit_patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if not match:
+                continue
+            value = float(match.group(1))
+            if 1 <= value <= 1000:
+                return value
+
+    # Description needs tighter context because it often mentions per-piece values.
+    description_patterns = [
+        r'(?:per\s+package|package|total)\s*:?\s*(\d+(?:\.\d+)?)\s*mg\b',
+        r'(\d+(?:\.\d+)?)\s*mg\s*(?:thc\s*)?per\s+package\b',
+    ]
+    for pattern in description_patterns:
+        match = re.search(pattern, description or "", re.IGNORECASE)
+        if not match:
+            continue
+        value = float(match.group(1))
+        if 1 <= value <= 1000:
+            return value
+
+    return None
+
+
+def extract_per_unit_mg_from_text(name: str, description: str) -> Optional[float]:
+    """Extract a per-piece mg signal from descriptive text."""
+    per_piece_patterns = [
+        r'(\d+(?:\.\d+)?)\s*mg\s*per\s*(?:piece|gummy|serving|dose)',
+        r'(\d+(?:\.\d+)?)\s*mg\s*(?:of\s+)?(?:thc\s+)?(?:per|each)\s+(?:piece|gummy|serving)',
+        r'(\d+(?:\.\d+)?)\s*mg\s*(?:thc\s+)?each\b',
+        r'(?:contains|each\s+(?:piece|gummy)\s+(?:has|contains)?)\s*(\d+(?:\.\d+)?)\s*mg',
+    ]
+
+    for text in (description, name):
+        if not text:
+            continue
+        for pattern in per_piece_patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if not match:
+                continue
+            value = float(match.group(1))
+            if 0 < value <= 200:
+                return value
+    return None
+
+
+def extract_total_mg_from_potency(potency: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Return a safely-usable total mg value only when Dutchie's potency payload is dosage-based.
+
+    Concentration-style units like `%`, `mg/g`, and `mg/ml` are not package dosage.
+    """
+    if not isinstance(potency, dict):
+        return {"value": None, "classification": "missing", "unit": ""}
+
+    unit = str(potency.get("unit") or "").strip().lower()
+    formatted = str(potency.get("formatted") or "").strip().lower()
+    numeric_value = None
+    raw_range = potency.get("range") or []
+    if raw_range:
+        try:
+            numeric_value = float(raw_range[0])
+        except (TypeError, ValueError):
+            numeric_value = None
+    if numeric_value is None and formatted:
+        match = re.search(r'(\d+(?:\.\d+)?)', formatted)
+        if match:
+            numeric_value = float(match.group(1))
+
+    concentration_markers = {"%", "percent", "percentage", "mg/g", "mg/ml"}
+    if unit in concentration_markers or "%" in formatted or "mg/g" in formatted or "mg/ml" in formatted:
+        return {"value": numeric_value, "classification": "concentration", "unit": unit or formatted}
+
+    if unit in {"mg", "milligram", "milligrams"}:
+        return {"value": numeric_value, "classification": "total_mg", "unit": unit}
+
+    if numeric_value is not None and formatted and "mg" in formatted and "/" not in formatted and "%" not in formatted:
+        return {"value": numeric_value, "classification": "total_mg", "unit": unit or "mg"}
+
+    return {"value": numeric_value, "classification": "unknown", "unit": unit or formatted}
 
 
 def extract_pack_count_edibles(name: str, description: str, slug: str, subcategory: str) -> Optional[int]:
@@ -843,127 +972,91 @@ def normalize_thc_for_edibles(
     slug: str
 ) -> Dict[str, Any]:
     """
-    Normalize THC values with subcategory-specific error handling.
-    
-    Logic:
-    - gummies/live-resin-gummies/live-rosin-gummies: 
-      * If 100 <= thc_total <= 120, normalize to 100 (common error)
-      * Extract from name/description if potencyThc seems wrong
-    - cooking-baking: Use potencyThc as-is (no normalization)
-    - drinks: Use potencyThc as-is (no normalization)  
-    - chews/chocolates: Be defensive - try name/description first if >120mg
-    
-    Returns: {"thc_total_mg": float, "thc_per_unit_mg": Optional[float]}
+    Normalize edible THC fields without conflating concentration with package dosage.
+
+    Only direct mg potency payloads are trusted as package-total dosage. Concentration-style
+    values like `%` or `mg/g` must be resolved from safer merch text or the result is marked
+    ambiguous for omission by the audit layer.
     """
     result = {}
-    
-    # Extract thc_total_mg from potencyThc
-    thc_total_mg = None
-    if potency_thc.get("range") and len(potency_thc["range"]) > 0:
-        thc_total_mg = potency_thc["range"][0]
-    elif potency_thc.get("formatted"):
-        # Fallback: parse from formatted string "110mg"
-        match = re.search(r'(\d+(?:\.\d+)?)', potency_thc["formatted"])
-        if match:
-            thc_total_mg = float(match.group(1))
-    
-    if thc_total_mg is None:
-        return result
-    
-    # Subcategory-specific normalization
-    gummy_subcategories = ["gummies", "live-resin-gummies", "live-rosin-gummies"]
-    
-    if subcategory in gummy_subcategories:
-        # Gummies: normalize 100-120mg to 100mg (common error)
-        if 100 <= thc_total_mg <= 120:
-            thc_total_mg = 100.0
-        # If still > 120, try to extract from name/description
-        elif thc_total_mg > 120:
-            # Try to find "100mg" or similar in name/description
-            for text in [name, description, slug]:
-                match = re.search(r'(\d+(?:\.\d+)?)\s*mg', text, re.IGNORECASE)
-                if match:
-                    extracted = float(match.group(1))
-                    if 50 <= extracted <= 150:  # Reasonable range
-                        thc_total_mg = extracted
-                        break
-    
-    elif subcategory in ["chews", "chocolates"]:
-        # Chews/Chocolates: be defensive if >120mg
-        if thc_total_mg > 120:
-            # Try to extract from name/description first
-            for text in [name, description, slug]:
-                match = re.search(r'(\d+(?:\.\d+)?)\s*mg', text, re.IGNORECASE)
-                if match:
-                    extracted = float(match.group(1))
-                    if 50 <= extracted <= 150:
-                        thc_total_mg = extracted
-                        break
-    
-    # cooking-baking and drinks: use as-is (no normalization)
-    
-    result["thc_total_mg"] = round(thc_total_mg, 2)
-    
-    # Calculate thc_per_unit_mg
-    if pack_count and pack_count > 0:
-        result["thc_per_unit_mg"] = round(thc_total_mg / pack_count, 2)
+    potency_resolution = extract_total_mg_from_potency(potency_thc)
+    source_total_mg = potency_resolution.get("value")
+    source_classification = potency_resolution.get("classification")
+    text_total_mg = extract_total_mg_from_text(name, description, slug)
+    text_per_unit_mg = extract_per_unit_mg_from_text(name, description)
+    resolved_pack_count = pack_count or extract_pack_count_edibles(name, description, slug, subcategory)
+
+    audit = {
+        "subcategory": subcategory,
+        "potency_unit": potency_resolution.get("unit"),
+        "source_total_mg": source_total_mg,
+        "source_classification": source_classification,
+        "text_total_mg": text_total_mg,
+        "text_per_unit_mg": text_per_unit_mg,
+        "pack_count": resolved_pack_count,
+        "cannabinoid_panel_not_used_for_dosage": True,
+    }
+
+    resolved_total_mg = None
+    if source_classification == "total_mg" and source_total_mg is not None:
+        resolved_total_mg = source_total_mg
+        if text_total_mg is not None:
+            tolerance = max(1.0, resolved_total_mg * 0.2)
+            if abs(text_total_mg - resolved_total_mg) > tolerance:
+                if 0 < resolved_total_mg <= 120 and 0 < text_total_mg <= 1000 and abs(text_total_mg - resolved_total_mg) <= 20:
+                    resolved_total_mg = text_total_mg
+                    audit["resolution"] = "text_override_for_common_rounding_issue"
+                else:
+                    audit["status"] = "ambiguous"
+                    audit["reason"] = "conflicting_total_mg"
+            else:
+                audit["resolution"] = "potency_total_confirmed_by_text"
+    elif source_classification == "concentration":
+        if text_total_mg is not None:
+            resolved_total_mg = text_total_mg
+            audit["resolution"] = "text_total_from_concentration_source"
+        else:
+            audit["status"] = "ambiguous"
+            audit["reason"] = "concentration_without_safe_total"
+    elif text_total_mg is not None:
+        resolved_total_mg = text_total_mg
+        audit["resolution"] = "text_total_only"
+
+    if resolved_total_mg is None and text_per_unit_mg is not None and resolved_pack_count:
+        resolved_total_mg = text_per_unit_mg * resolved_pack_count
+        audit["resolution"] = audit.get("resolution") or "per_unit_times_pack"
+
+    if resolved_total_mg is not None:
+        result["thc_total_mg"] = round(resolved_total_mg, 2)
+    if resolved_pack_count and pack_count is None:
+        result["pack_count"] = resolved_pack_count
+
+    resolved_per_unit_mg = None
+    if text_per_unit_mg is not None:
+        resolved_per_unit_mg = text_per_unit_mg
+    elif resolved_total_mg is not None and resolved_pack_count:
+        resolved_per_unit_mg = resolved_total_mg / resolved_pack_count
+
+    if resolved_per_unit_mg is not None:
+        result["thc_per_unit_mg"] = round(resolved_per_unit_mg, 2)
+
+    if resolved_total_mg is None:
+        audit["status"] = "ambiguous"
+        audit.setdefault("reason", "missing_resolved_total")
+    elif resolved_pack_count and resolved_per_unit_mg is not None:
+        recomposed_total = round(resolved_per_unit_mg * resolved_pack_count, 2)
+        tolerance = max(1.0, resolved_total_mg * 0.15)
+        if abs(recomposed_total - resolved_total_mg) > tolerance:
+            audit["status"] = "ambiguous"
+            audit["reason"] = "per_unit_total_conflict"
+            result.pop("thc_total_mg", None)
+            result.pop("thc_per_unit_mg", None)
+        else:
+            audit["status"] = "resolved"
     else:
-        # Try multiple per-piece patterns
-        # Pattern list for extracting mg per unit from description
-        per_piece_patterns = [
-            r'(\d+(?:\.\d+)?)\s*mg\s*per\s*(?:piece|gummy|serving|dose)',  # "10mg per piece"
-            r'(\d+(?:\.\d+)?)\s*mg\s*(?:of\s+)?(?:thc\s+)?(?:per|each)\s+(?:piece|gummy|serving)',  # "10 mg of THC per piece"
-            r'(\d+(?:\.\d+)?)\s*mg\s*(?:thc\s+)?(?:per|each)',  # "5mg THC each" or "5 mg per"
-            r'(?:contains|each\s+(?:piece|gummy)\s+(?:has|contains)?)\s*(\d+(?:\.\d+)?)\s*mg',  # "contains 5mg" or "each gummy has 5mg"
-        ]
+        audit["status"] = audit.get("status") or "resolved"
 
-        per_unit_found = False
-        for pattern in per_piece_patterns:
-            per_piece_match = re.search(pattern, description, re.IGNORECASE)
-            if per_piece_match:
-                result["thc_per_unit_mg"] = round(float(per_piece_match.group(1)), 2)
-                per_unit_found = True
-                # Back-calculate pack_count if we found per_unit
-                if thc_total_mg and result.get("thc_per_unit_mg"):
-                    calculated_pack_count = int(thc_total_mg / result["thc_per_unit_mg"])
-                    if 1 <= calculated_pack_count <= 100:
-                        result["pack_count"] = calculated_pack_count
-                break
-
-        # Also try the name if not found in description
-        if not per_unit_found:
-            for pattern in per_piece_patterns:
-                per_piece_match = re.search(pattern, name, re.IGNORECASE)
-                if per_piece_match:
-                    result["thc_per_unit_mg"] = round(float(per_piece_match.group(1)), 2)
-                    if thc_total_mg and result.get("thc_per_unit_mg"):
-                        calculated_pack_count = int(thc_total_mg / result["thc_per_unit_mg"])
-                        if 1 <= calculated_pack_count <= 100:
-                            result["pack_count"] = calculated_pack_count
-                    break
-
-        # Chocolate-specific: try to infer pack count from chocolate patterns
-        # This handles cases where thc_per_unit_mg would be same as thc_total_mg
-        if not per_unit_found and subcategory == "chocolates":
-            chocolate_pack_patterns = [
-                r'(\d+)\s*(?:piece|pieces)\b',      # "10 pieces" or "10 piece"
-                r'(\d+)\s*(?:square|squares)\b',    # "4 squares"
-                r'(\d+)\s*(?:bar|bars)\b',          # "2 bars" (multi-bar packs)
-                r'(\d+)\s*(?:section|sections)\b',  # "6 sections"
-                r'(\d+)\s*(?:serving|servings)\b',  # "10 servings"
-            ]
-            for pattern in chocolate_pack_patterns:
-                for text in [name, description]:
-                    match = re.search(pattern, text, re.IGNORECASE)
-                    if match:
-                        inferred_pack = int(match.group(1))
-                        if 1 <= inferred_pack <= 100:
-                            result["pack_count"] = inferred_pack
-                            result["thc_per_unit_mg"] = round(thc_total_mg / inferred_pack, 2)
-                            break
-                if result.get("thc_per_unit_mg"):
-                    break
-
+    result["_potency_audit"] = audit
     return result
 
 def normalize_cbd_for_edibles(
@@ -978,14 +1071,8 @@ def normalize_cbd_for_edibles(
     """
     result = {}
     
-    # Extract cbd_total_mg from potencyCbd
-    cbd_total_mg = None
-    if potency_cbd.get("range") and len(potency_cbd["range"]) > 0:
-        cbd_total_mg = potency_cbd["range"][0]
-    elif potency_cbd.get("formatted"):
-        match = re.search(r'(\d+(?:\.\d+)?)', potency_cbd["formatted"])
-        if match:
-            cbd_total_mg = float(match.group(1))
+    cbd_resolution = extract_total_mg_from_potency(potency_cbd)
+    cbd_total_mg = cbd_resolution.get("value") if cbd_resolution.get("classification") == "total_mg" else None
     
     if cbd_total_mg is not None:
         result["cbd_total_mg"] = round(cbd_total_mg, 2)
@@ -1199,17 +1286,16 @@ def transform_edible_data(product: Dict[str, Any], schema_data: Optional[Dict] =
             # Truncate brand description to 150 chars for tagline
             normalized["brand_tagline"] = brand_description[:150] + "..." if len(brand_description) > 150 else brand_description
     
-    # Effects (normalize to lowercase)
+    # Effects (normalize to lowercase, then clean)
     effects = product.get("effects", [])
     if isinstance(effects, list):
-        normalized["effects"] = [e.lower() for e in effects if e]
+        normalized["effects"] = clean_effects(
+            [str(e).lower() for e in effects if e],
+            normalized.get("type", ""),
+        )
     else:
         normalized["effects"] = []
-    
-    # Ensure effects is never empty
-    if not normalized["effects"]:
-        normalized["effects"] = ["relaxed"]
-    
+
     # Images
     image = product.get("image")
     images = product.get("images", [])
@@ -1220,19 +1306,14 @@ def transform_edible_data(product: Dict[str, Any], schema_data: Optional[Dict] =
         if isinstance(first_image, dict) and first_image.get("url"):
             normalized["imageLink"] = first_image["url"]
     
-    # Price (from variants)
     variants = product.get("variants", [])
-    if variants and isinstance(variants, list) and len(variants) > 0:
-        first_variant = variants[0]
-        if isinstance(first_variant, dict):
-            price = first_variant.get("priceRec") or first_variant.get("priceMed")
-            if price is not None:
-                normalized["price"] = float(price)
-            
-            # Quantity (inventory from variants)
-            quantity = first_variant.get("quantity")
-            if quantity is not None:
-                normalized["quantity"] = int(quantity)
+    price = extract_preferred_variant_price(variants)
+    if price is not None:
+        normalized["price"] = price
+
+    quantity = extract_max_variant_quantity(variants)
+    if quantity is not None:
+        normalized["quantity"] = quantity
     
     # Staff pick
     if product.get("staffPick"):
@@ -1384,10 +1465,6 @@ class ProductTransformer:
         else:
             normalized["effects"] = []
 
-        # Ensure effects is never empty
-        if not normalized["effects"]:
-            normalized["effects"] = ["relaxed"]
-
         # Images
         image = product.get("image")
         images = product.get("images", [])
@@ -1400,29 +1477,13 @@ class ProductTransformer:
 
         # Price and quantity (from variants)
         variants = product.get("variants", [])
-        if variants and isinstance(variants, list) and len(variants) > 0:
-            first_variant = variants[0]
-            if isinstance(first_variant, dict):
-                price = first_variant.get("priceRec") or first_variant.get("priceMed")
-                if price is not None:
-                    normalized["price"] = float(price)
+        price = extract_preferred_variant_price(variants)
+        if price is not None:
+            normalized["price"] = price
 
-            # Use max variant quantity for stock-aware filtering across multi-variant products.
-            max_quantity = None
-            for variant in variants:
-                if not isinstance(variant, dict):
-                    continue
-                quantity = variant.get("quantity")
-                if quantity is None:
-                    continue
-                try:
-                    quantity_int = int(quantity)
-                except (TypeError, ValueError):
-                    continue
-                if max_quantity is None or quantity_int > max_quantity:
-                    max_quantity = quantity_int
-            if max_quantity is not None:
-                normalized["quantity"] = max_quantity
+        max_quantity = extract_max_variant_quantity(variants)
+        if max_quantity is not None:
+            normalized["quantity"] = max_quantity
 
         # Staff pick
         if product.get("staffPick"):
@@ -1957,16 +2018,13 @@ class AccessoryTransformer(ProductTransformer):
 
         # Price
         variants = product.get("variants", [])
-        if variants and isinstance(variants, list) and len(variants) > 0:
-            first_variant = variants[0]
-            if isinstance(first_variant, dict):
-                price = first_variant.get("priceRec") or first_variant.get("priceMed")
-                if price is not None:
-                    normalized["price"] = float(price)
+        price = extract_preferred_variant_price(variants)
+        if price is not None:
+            normalized["price"] = price
 
-                quantity = first_variant.get("quantity")
-                if quantity is not None:
-                    normalized["quantity"] = int(quantity)
+        quantity = extract_max_variant_quantity(variants)
+        if quantity is not None:
+            normalized["quantity"] = quantity
 
         normalized["inStock"] = True
 

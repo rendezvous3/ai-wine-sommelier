@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-import os
 from typing import Any, AsyncGenerator, Dict, List
 
 from dutchie_client import DutchieClient
@@ -9,42 +7,15 @@ from dutchie_client import DutchieClient
 from .config import DutchieConfig, SyncOptions
 
 
-def load_products_from_file(category: str | None = None) -> List[Dict[str, Any]]:
-    file_mapping = {
-        "edibles": "schema/edibles.json",
-        "EDIBLES": "schema/edibles.json",
-    }
-    if category:
-        file_path = file_mapping.get(category)
-        if file_path:
-            absolute_path = os.path.join(os.path.dirname(__file__), "..", file_path)
-            try:
-                with open(absolute_path, "r") as handle:
-                    return json.load(handle)
-            except FileNotFoundError:
-                pass
-
-    fallback_path = os.path.join(os.path.dirname(__file__), "..", "demo_products_1.json")
-    try:
-        with open(fallback_path, "r") as handle:
-            return json.load(handle)
-    except FileNotFoundError:
-        return []
-
-
 async def iter_product_batches(
     options: SyncOptions,
     dutchie_config: DutchieConfig,
 ) -> AsyncGenerator[List[Dict[str, Any]], None]:
     if not options.use_api:
-        products = load_products_from_file(options.category)
-        if options.offset:
-            products = products[options.offset :]
-        if options.limit is not None:
-            products = products[: options.limit]
-        if products:
-            yield products
-        return
+        raise RuntimeError(
+            "Local file product sources have been removed. "
+            "Vectorizer syncs must read from the Dutchie API."
+        )
 
     client = DutchieClient(
         api_key=dutchie_config.api_key,
