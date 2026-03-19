@@ -14,7 +14,7 @@ binding = "POSTRUN_VERIFIER_SERVICE"
 service = "postrun-verifier-qa"
 
 [triggers]
-crons = ["15 19 * * *", "30 13 * * *"]
+crons = ["30 23 * * *", "30 10 * * *"]
 
 [observability]
 enabled = true

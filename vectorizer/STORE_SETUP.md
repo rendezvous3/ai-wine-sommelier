@@ -119,7 +119,7 @@ LIMIT = "none"
 POSTRUN_VERIFIER_URL = ""
 
 [triggers]
-crons = ["15 19 * * *", "30 13 * * *"]
+crons = ["30 23 * * *", "30 10 * * *"]
 
 [limits]
 cpu_ms = 300000
@@ -130,8 +130,8 @@ Do not omit the `[limits]` block. This is required for full-menu Worker runs at 
 
 For QA/staging soak lanes, the recommended starting schedule is twice daily:
 
-- `15 19 * * *`
-- `30 13 * * *`
+- `30 23 * * *`
+- `30 10 * * *`
 
 That gives a usable validation sample over a few days without waiting a full day between runs.
 

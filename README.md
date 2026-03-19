@@ -599,9 +599,9 @@ Current validated QA runtime facts:
   - `cpu_ms = 300000`
   - `subrequests = 50000`
 - QA soak cron is configured twice daily:
-  - `15 19 * * *`
-  - `30 13 * * *`
-  - `19:15 UTC` and `13:30 UTC`
+  - `30 23 * * *`
+  - `30 10 * * *`
+  - `23:30 UTC` and `10:30 UTC`
 - a `limit = 1500` manual run successfully pulled the full currently observed QA menu:
   - `fetched_count = 824`
   - `uploaded_count = 682`

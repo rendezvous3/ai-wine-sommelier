@@ -254,16 +254,16 @@ pywrangler deploy --config wrangler.qa.toml
 - `LIMIT = "none"`
 - `POSTRUN_VERIFIER_URL = "https://postrun-verifier-qa.andresmeona.workers.dev"`
 - twice-daily QA soak cron in `[triggers].crons`:
-  - `15 19 * * *`
-  - `30 13 * * *`
+  - `30 23 * * *`
+  - `30 10 * * *`
 - explicit Worker capacity limits:
   - `cpu_ms = 300000`
   - `subrequests = 50000`
 
 Cloudflare cron is UTC. The current QA soak schedule maps to:
 
-- `19:15 UTC` = `1:15 PM` Denver/Salt Lake City during daylight time
-- `13:30 UTC` = `7:30 AM` Denver/Salt Lake City during daylight time
+- `23:30 UTC` = `5:30 PM` Denver/Salt Lake City during daylight time
+- `10:30 UTC` = `4:30 AM` Denver/Salt Lake City during daylight time
 
 Important:
 
