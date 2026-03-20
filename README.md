@@ -18,6 +18,15 @@ The codebase now operates as four practical surfaces:
 - **Backend Worker**: Hono API for intent, stream, rerank, and retrieval
 - **Client / Pages**: embeddable Svelte widget built to `widget.js`
 
+## Model Catalog Maintenance
+
+- Last reviewed: March 20, 2026
+- Fast-model constants updated on this date:
+  - OpenAI `gpt-5-mini` replaces `gpt-4o-mini`
+  - Google `gemini-2.5-flash-lite` was added to the backend model registry
+- Periodically re-check official OpenAI, Google Gemini, xAI, and Groq model catalogs and bring it to the maintainer's attention before changing active model defaults.
+- When backend model constants change, update [backend/src/types-and-constants.ts](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/backend/src/types-and-constants.ts) comments and the maintained Markdown docs in the same change.
+
 ## Current Architecture (March 2026)
 
 If a later section conflicts with this March 2026 architecture summary, trust this section first and then verify the live code/config in `backend/`, `client/`, and `vectorizer/`.

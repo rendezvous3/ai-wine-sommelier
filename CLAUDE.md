@@ -20,6 +20,15 @@ The widget delivers a human-like budtender experience:
 - Remembers past recommendations and references them naturally
 - Persists entire chat (including recommendations) across page refreshes via localStorage
 
+## Model Catalog Maintenance
+
+- Last reviewed: March 20, 2026
+- Fast-model constants updated on this date:
+  - OpenAI `gpt-5-mini` replaces `gpt-4o-mini`
+  - Google `gemini-2.5-flash-lite` was added to the backend model registry
+- Periodically re-check official OpenAI, Google Gemini, xAI, and Groq model catalogs and proactively bring it to the maintainer's attention.
+- When backend model constants change, update [backend/src/types-and-constants.ts](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/backend/src/types-and-constants.ts) comments and the maintained Markdown docs in the same change.
+
 The system is built as **four loosely coupled components** for maximum flexibility, scalability, and ease of development.
 
 ## Current Operational Truth (March 2026)

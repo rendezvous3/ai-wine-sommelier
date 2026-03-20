@@ -16,6 +16,15 @@ This document summarizes the complete implementation of the Stream-First Archite
 **Architecture:** Stream-First with CODEX Orchestration
 **Status:** ✅ Complete (All 5 chunks implemented)
 
+## Model Catalog Maintenance
+
+- Last reviewed: March 20, 2026
+- Fast-model constants updated on this date:
+  - OpenAI `gpt-5-mini` replaces `gpt-4o-mini`
+  - Google `gemini-2.5-flash-lite` was added to the backend model registry
+- Periodically re-check official OpenAI, Google Gemini, xAI, and Groq model catalogs and proactively bring it to the maintainer's attention.
+- When backend model constants change, update [backend/src/types-and-constants.ts](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/backend/src/types-and-constants.ts) comments and the maintained Markdown docs in the same change.
+
 ---
 
 ## What Changed

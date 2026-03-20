@@ -10,6 +10,15 @@ Verification source:
 
 This file is the source-of-truth contract for vectorizer reporting tables used by the dashboard and product-history tooling.
 
+## Model Catalog Maintenance
+
+- Last reviewed: March 20, 2026
+- Fast-model constants updated on this date:
+  - OpenAI `gpt-5-mini` replaces `gpt-4o-mini`
+  - Google `gemini-2.5-flash-lite` was added to the backend model registry
+- Periodically re-check official OpenAI, Google Gemini, xAI, and Groq model catalogs and proactively bring it to the maintainer's attention.
+- When backend model constants change, update [backend/src/types-and-constants.ts](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/backend/src/types-and-constants.ts) comments and the maintained Markdown docs in the same change.
+
 Maintenance rule:
 - Any change to vectorizer reporting tables, columns, defaults, retention behavior, or interpretation rules must update this file in the same change.
 - If the reporting contract changes, update [VECTORIZER_REPORTING_DASHBOARD_PROMPT.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/VECTORIZER_REPORTING_DASHBOARD_PROMPT.md) too.

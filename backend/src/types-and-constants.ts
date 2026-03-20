@@ -28,6 +28,12 @@ const enum AGENT_ROLE_MODEL {
 // ============================================
 // MODEL NAME CONSTANTS (no more magic strings)
 // ============================================
+// Model catalog last reviewed: March 20, 2026.
+// Fast-model maintenance note:
+// - OpenAI fast default updated from `gpt-4o-mini` to `gpt-5-mini`
+// - Google `gemini-2.5-flash-lite` added to the registry for future fast-path use
+// Periodically re-check official OpenAI, Google Gemini, xAI, and Groq model catalogs
+// before changing these constants or the active provider/model mappings below.
 const enum GROQ_MODEL_NAMES {
   LLAMA_31_8B_INSTANT = "llama-3.1-8b-instant",
   LLAMA_33_70B_VERSATILE = "llama-3.3-70b-versatile",
@@ -41,10 +47,11 @@ const enum CEREBRAS_MODEL_NAMES {
 
 const enum GOOGLE_MODEL_NAMES {
   GEMINI_25_FLASH = "gemini-2.5-flash",
+  GEMINI_25_FLASH_LITE = "gemini-2.5-flash-lite",
 }
 
 const enum OPENAI_MODEL_NAMES {
-  GPT_4O_MINI = "gpt-4o-mini",
+  GPT_5_MINI = "gpt-5-mini",
   GPT_4O = "gpt-4o",
 }
 
@@ -77,8 +84,8 @@ const GOOGLE_MODELS = {
 
 const OPENAI_MODELS = {
   INTENT: OPENAI_MODEL_NAMES.GPT_4O,
-  STREAM: OPENAI_MODEL_NAMES.GPT_4O_MINI,
-  RECOMMEND: OPENAI_MODEL_NAMES.GPT_4O_MINI,
+  STREAM: OPENAI_MODEL_NAMES.GPT_5_MINI,
+  RECOMMEND: OPENAI_MODEL_NAMES.GPT_5_MINI,
 } as const;
 
 const GROK_MODELS = {
@@ -179,9 +186,10 @@ const enum MODEL_ID {
 
   // GOOGLE
   GOOGLE_GEMINI_25_FLASH = "google_gemini_25_flash",
+  GOOGLE_GEMINI_25_FLASH_LITE = "google_gemini_25_flash_lite",
 
   // OPENAI
-  OPENAI_GPT_4O_MINI = "openai_gpt_4o_mini",
+  OPENAI_GPT_5_MINI = "openai_gpt_5_mini",
   OPENAI_GPT_4O = "openai_gpt_4o",
 
   // GROK (X.AI)
@@ -202,9 +210,10 @@ const MODEL_ID_MAP = {
 
   // Google
   [GOOGLE_MODEL_NAMES.GEMINI_25_FLASH]: MODEL_ID.GOOGLE_GEMINI_25_FLASH,
+  [GOOGLE_MODEL_NAMES.GEMINI_25_FLASH_LITE]: MODEL_ID.GOOGLE_GEMINI_25_FLASH_LITE,
 
   // OpenAI
-  [OPENAI_MODEL_NAMES.GPT_4O_MINI]: MODEL_ID.OPENAI_GPT_4O_MINI,
+  [OPENAI_MODEL_NAMES.GPT_5_MINI]: MODEL_ID.OPENAI_GPT_5_MINI,
   [OPENAI_MODEL_NAMES.GPT_4O]: MODEL_ID.OPENAI_GPT_4O,
 
   // Grok (X.AI)
@@ -273,10 +282,15 @@ const MODEL_TOKEN_LIMITS: Record<
     PAID: { contextWindow: 1_000_000, maxOutputTokens: 8_192 },
   },
 
+  [MODEL_ID.GOOGLE_GEMINI_25_FLASH_LITE]: {
+    FREE: { contextWindow: 1_048_576, maxOutputTokens: 65_536 },
+    PAID: { contextWindow: 1_048_576, maxOutputTokens: 65_536 },
+  },
+
   // ---------- OPENAI ----------
-  [MODEL_ID.OPENAI_GPT_4O_MINI]: {
-    FREE: { contextWindow: 128_000, maxOutputTokens: 16_384 },
-    PAID: { contextWindow: 128_000, maxOutputTokens: 16_384 },
+  [MODEL_ID.OPENAI_GPT_5_MINI]: {
+    FREE: { contextWindow: 400_000, maxOutputTokens: 128_000 },
+    PAID: { contextWindow: 400_000, maxOutputTokens: 128_000 },
   },
 
   [MODEL_ID.OPENAI_GPT_4O]: {

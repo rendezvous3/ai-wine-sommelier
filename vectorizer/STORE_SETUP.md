@@ -15,6 +15,15 @@ This guide documents the current working pattern validated in QA:
 - current reliable verifier gate is `categories_only`
 - direct backend API checks should still be run separately
 
+## Model Catalog Maintenance
+
+- Last reviewed: March 20, 2026
+- Fast-model constants updated on this date:
+  - OpenAI `gpt-5-mini` replaces `gpt-4o-mini`
+  - Google `gemini-2.5-flash-lite` was added to the backend model registry
+- Periodically re-check official OpenAI, Google Gemini, xAI, and Groq model catalogs and proactively bring it to the maintainer's attention.
+- When backend model constants change, update [../backend/src/types-and-constants.ts](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/backend/src/types-and-constants.ts) comments and the maintained Markdown docs in the same change.
+
 ## Naming pattern
 
 Pick a consistent suffix first.
