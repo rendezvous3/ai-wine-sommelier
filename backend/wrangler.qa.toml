@@ -8,3 +8,9 @@ index_name = "products-qa"
 
 [ai]
 binding = "AI"
+
+[[d1_databases]]
+binding = "ANALYTICS_DB"
+database_name = "vectorizer-qa"
+database_id = "1d6c961a-cb0d-4b2e-b514-a47c1ff43cf4"
+preview_database_id = "1d6c961a-cb0d-4b2e-b514-a47c1ff43cf4"

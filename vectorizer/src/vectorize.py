@@ -159,6 +159,19 @@ async def async_main() -> None:
 
         if run_id:
             try:
+                all_events = [event.to_dict() for event in pipeline_result.events]
+                if all_events:
+                    await report_store.record_events(run_id, sync_options.index_name, all_events)
+                if pipeline_result.product_snapshots:
+                    await report_store.record_product_snapshots(
+                        run_id,
+                        sync_options.index_name,
+                        list(pipeline_result.product_snapshots.values()),
+                    )
+                if sync_options.product_history_retention_days >= 0:
+                    await report_store.purge_product_snapshots(
+                        retain_days=sync_options.product_history_retention_days
+                    )
                 await report_store.finish_run(
                     run_id=run_id,
                     summary={

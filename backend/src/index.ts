@@ -11,6 +11,8 @@ import type {
   Request,
   Ai,
   AiModels,
+  D1Database,
+  ExecutionContext,
 } from "@cloudflare/workers-types";
 // import { groq } from '@ai-sdk/groq';
 // import { streamText } from 'ai';
@@ -39,6 +41,14 @@ import {
   shouldUseTHCPerUnitMg,
   getSchemaForPrompt
 } from "./schema";
+import {
+  isAnalyticsEnabled,
+  recordAnalyticsEvent,
+  recordIntentAnalysis,
+  recordProductLookupResult,
+  recordRecommendationResults,
+  recordStreamCompletion,
+} from "./chat-analytics";
 
 interface Bindings {
   CEREBRAS_API_KEY_PROD: string;
@@ -47,6 +57,7 @@ interface Bindings {
   RESEND_API_KEY: string;
   VECTORIZE_INDEX: VectorizeIndex;
   AI: Ai<AiModels>;
+  ANALYTICS_DB?: D1Database;
   ENVIRONMENT?: string;
 }
 
@@ -93,6 +104,35 @@ function buildTokenUsageResponse(
     model: modelName,
     modelContextLimit: tokenLimits.contextWindow,
   };
+}
+
+function getLastUserMessage(messages: any[]): string {
+  const lastUserMessage = [...messages]
+    .reverse()
+    .find((message) => message?.role === "user" && typeof message?.content === "string");
+  return lastUserMessage?.content || "";
+}
+
+function getAnalyticsContext(body: any) {
+  return {
+    sessionId: typeof body?.analytics?.session_id === "string" ? body.analytics.session_id : null,
+    messageId: typeof body?.analytics?.message_id === "string" ? body.analytics.message_id : null,
+    sourcePage: typeof body?.analytics?.source_page === "string" ? body.analytics.source_page : null,
+    storeId: typeof body?.analytics?.store_id === "string" ? body.analytics.store_id : null,
+  };
+}
+
+function trackAnalytics(
+  c: { env: Bindings; executionCtx: ExecutionContext },
+  fn: (db: D1Database) => Promise<void>
+) {
+  if (!isAnalyticsEnabled(c.env.ANALYTICS_DB)) return;
+
+  c.executionCtx.waitUntil(
+    fn(c.env.ANALYTICS_DB).catch((error) => {
+      console.error("[Chat Analytics] Background write failed:", error);
+    })
+  );
 }
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -319,6 +359,9 @@ app.post("/feedback", async (c) => {
 app.post("/chat/intent", async (c) => {
   const body = await c.req.json();
   const messages = body.messages || [];
+  const analytics = getAnalyticsContext(body);
+  const userTextRaw = getLastUserMessage(messages);
+  const intentStartedAt = Date.now();
 
   const lastMessage = messages[messages.length - 1]?.content || "";
 
@@ -344,6 +387,16 @@ app.post("/chat/intent", async (c) => {
 
   // If no CODEX cue, return general immediately (no LLM call needed)
   if (!hasRecommendCue && !hasProductCue) {
+    trackAnalytics(c, (db) =>
+      recordIntentAnalysis(db, {
+        analytics,
+        userTextRaw,
+        predictedIntent: "general",
+        status: "completed",
+        latencyMs: Date.now() - intentStartedAt,
+      })
+    );
+
     return c.json({
       intent: 'general',
       filters: {},
@@ -359,6 +412,18 @@ app.post("/chat/intent", async (c) => {
     const lookupMatch = lastAssistantContent.match(/Let me look up (.+?) for you/i)
                      || lastAssistantContent.match(/I'll pull up the details on (.+)/i);
     const productName = lookupMatch ? lookupMatch[1].trim() : lastMessage;
+
+    trackAnalytics(c, (db) =>
+      recordIntentAnalysis(db, {
+        analytics,
+        userTextRaw,
+        predictedCue: "PRODUCT_LOOKUP",
+        predictedIntent: "product-question",
+        productQuery: productName,
+        status: "completed",
+        latencyMs: Date.now() - intentStartedAt,
+      })
+    );
 
     return c.json({
       intent: 'product-question',
@@ -415,6 +480,19 @@ app.post("/chat/intent", async (c) => {
   } catch (err) {
     const formatError = `/intent api error: ${err}`;
     console.error(formatError);
+
+    trackAnalytics(c, (db) =>
+      recordIntentAnalysis(db, {
+        analytics,
+        userTextRaw,
+        predictedCue: hasRecommendCue ? "RECOMMEND" : hasProductCue ? "PRODUCT_LOOKUP" : null,
+        predictedIntent: hasRecommendCue ? "recommendation" : hasProductCue ? "product-question" : "general",
+        status: "error",
+        errorCode: "intent_api_error",
+        latencyMs: Date.now() - intentStartedAt,
+      })
+    );
+
     return c.json({
       error: "Our AI understanding service is experiencing technical difficulties at the moment. Please try again.",
       service: "intent",
@@ -438,6 +516,18 @@ app.post("/chat/intent", async (c) => {
       error: parseResult.error,
       rawResponse: text?.substring(0, 500)
     });
+
+    trackAnalytics(c, (db) =>
+      recordIntentAnalysis(db, {
+        analytics,
+        userTextRaw,
+        predictedCue: "RECOMMEND",
+        predictedIntent: "recommendation",
+        status: "error",
+        errorCode: "intent_json_parse_error",
+        latencyMs: Date.now() - intentStartedAt,
+      })
+    );
 
     return c.json({
       error: "Filter extraction failed - JSON parsing error",
@@ -674,6 +764,18 @@ app.post("/chat/intent", async (c) => {
         rawResponse: text
       });
 
+      trackAnalytics(c, (db) =>
+        recordIntentAnalysis(db, {
+          analytics,
+          userTextRaw,
+          predictedCue: "RECOMMEND",
+          predictedIntent: "recommendation",
+          status: "error",
+          errorCode: "intent_normalization_error",
+          latencyMs: Date.now() - intentStartedAt,
+        })
+      );
+
       return c.json({
         error: "Filter normalization failed",
         errorType: "NORMALIZATION_ERROR",
@@ -690,6 +792,19 @@ app.post("/chat/intent", async (c) => {
         product_query: null
       }, 400);
     }
+
+    trackAnalytics(c, (db) =>
+      recordIntentAnalysis(db, {
+        analytics,
+        userTextRaw,
+        predictedCue: "RECOMMEND",
+        predictedIntent: "recommendation",
+        predictedFilters: normalizedFilters,
+        semanticSearch: response.semantic_search,
+        status: "completed",
+        latencyMs: Date.now() - intentStartedAt,
+      })
+    );
 
     return c.json({
       intent: "recommendation", // Intent is always "recommendation" when LLM is called (CODEX:RECOMMEND detected)
@@ -708,6 +823,18 @@ app.post("/chat/intent", async (c) => {
       stack: errorStack,
       rawResponse: text
     });
+
+    trackAnalytics(c, (db) =>
+      recordIntentAnalysis(db, {
+        analytics,
+        userTextRaw,
+        predictedCue: "RECOMMEND",
+        predictedIntent: "recommendation",
+        status: "error",
+        errorCode: "intent_filter_parse_error",
+        latencyMs: Date.now() - intentStartedAt,
+      })
+    );
 
     // Return detailed error response (400 Bad Request)
     return c.json({
@@ -735,8 +862,24 @@ app.post("/chat/product-lookup", async (c) => {
   const body = await c.req.json();
   const productQuery = body.product_query || "";
   const retryAttempt = body.retry_attempt || 0;
+  const messages = body.messages || [];
+  const analytics = getAnalyticsContext(body);
+  const userTextRaw = getLastUserMessage(messages) || productQuery;
+  const lookupStartedAt = Date.now();
 
   if (!productQuery) {
+    trackAnalytics(c, (db) =>
+      recordProductLookupResult(db, {
+        analytics,
+        userTextRaw,
+        predictedCue: "PRODUCT_LOOKUP",
+        predictedIntent: "product-question",
+        status: "error",
+        fallbackReason: "missing_product_query",
+        latencyMs: Date.now() - lookupStartedAt,
+      })
+    );
+
     return c.json({
       product: null,
       confidence: 0,
@@ -761,6 +904,19 @@ app.post("/chat/product-lookup", async (c) => {
     });
 
     if (matches.matches.length === 0) {
+      trackAnalytics(c, (db) =>
+        recordProductLookupResult(db, {
+          analytics,
+          userTextRaw,
+          productQuery,
+          predictedCue: "PRODUCT_LOOKUP",
+          predictedIntent: "product-question",
+          status: "completed",
+          fallbackReason: "no_match",
+          latencyMs: Date.now() - lookupStartedAt,
+        })
+      );
+
       return c.json({
         product: null,
         confidence: 0,
@@ -782,6 +938,27 @@ app.post("/chat/product-lookup", async (c) => {
     // Lowered to 0.70 to catch post-clarification queries like "Ayrloom Alaskan Thunder Fuck AIO" (0.72)
     // Brand-only queries (e.g., "Kiva" = 0.61) still trigger clarification
     if (confidence > 0.70) {
+      trackAnalytics(c, (db) =>
+        recordProductLookupResult(db, {
+          analytics,
+          userTextRaw,
+          productQuery,
+          predictedCue: "PRODUCT_LOOKUP",
+          predictedIntent: "product-question",
+          product: {
+            id: topMatch.id,
+            name: typeof topMatch.metadata?.name === "string" ? topMatch.metadata.name : null,
+            brand: typeof topMatch.metadata?.brand === "string" ? topMatch.metadata.brand : null,
+            category: typeof topMatch.metadata?.category === "string" ? topMatch.metadata.category : null,
+            subcategory: typeof topMatch.metadata?.subcategory === "string" ? topMatch.metadata.subcategory : null,
+            rankPosition: 1,
+            sourceKind: "product_lookup",
+          },
+          status: "completed",
+          latencyMs: Date.now() - lookupStartedAt,
+        })
+      );
+
       return c.json({
         product: { id: topMatch.id, ...topMatch.metadata },
         confidence,
@@ -795,6 +972,20 @@ app.post("/chat/product-lookup", async (c) => {
       .slice(0, 3)  // Return top 3 options instead of 2
       .map(m => m.metadata?.name)
       .filter(Boolean);
+
+    trackAnalytics(c, (db) =>
+      recordProductLookupResult(db, {
+        analytics,
+        userTextRaw,
+        productQuery,
+        predictedCue: "PRODUCT_LOOKUP",
+        predictedIntent: "product-question",
+        needsClarification: true,
+        status: "completed",
+        fallbackReason: "clarification",
+        latencyMs: Date.now() - lookupStartedAt,
+      })
+    );
 
     return c.json({
       product: null,
@@ -810,6 +1001,18 @@ app.post("/chat/product-lookup", async (c) => {
 
   } catch (err) {
     console.error("Product lookup error:", err);
+    trackAnalytics(c, (db) =>
+      recordProductLookupResult(db, {
+        analytics,
+        userTextRaw,
+        productQuery,
+        predictedCue: "PRODUCT_LOOKUP",
+        predictedIntent: "product-question",
+        status: "error",
+        fallbackReason: "lookup_error",
+        latencyMs: Date.now() - lookupStartedAt,
+      })
+    );
     return c.json({
       product: null,
       confidence: 0,
@@ -825,6 +1028,9 @@ app.post("/chat/stream", async (c) => {
   const messages = body.messages || [];
   const productContext = body.productContext || null;
   const clarificationContext = body.clarificationContext || null;
+  const analytics = getAnalyticsContext(body);
+  const userTextRaw = getLastUserMessage(messages);
+  const streamStartedAt = Date.now();
 
   // DEBUGGING: Log what context we're receiving
   console.log('[STREAM] Request received');
@@ -858,6 +1064,16 @@ app.post("/chat/stream", async (c) => {
         controller.close();
       }
     });
+
+    trackAnalytics(c, (db) =>
+      recordStreamCompletion(db, {
+        analytics,
+        userTextRaw,
+        assistantResponseText: clarificationContext,
+        latencyMs: Date.now() - streamStartedAt,
+        status: "completed",
+      })
+    );
 
     return new Response(stream, {
       headers: {
@@ -936,6 +1152,15 @@ app.post("/chat/stream", async (c) => {
     if (!response || !response.ok) {
       const errorText = response ? await response.text() : "Network error";
       console.error(`Stream API error (${response?.status || 'network'}):`, errorText);
+      trackAnalytics(c, (db) =>
+        recordStreamCompletion(db, {
+          analytics,
+          userTextRaw,
+          latencyMs: Date.now() - streamStartedAt,
+          status: "error",
+          errorCode: "stream_api_error",
+        })
+      );
       return c.json({
         error: "Our streaming service is experiencing technical difficulties at the moment. Please try again.",
         service: "stream",
@@ -951,6 +1176,15 @@ app.post("/chat/stream", async (c) => {
   } catch (err) {
     const formatError = `Stream Error: ${err}`;
     console.error(formatError);
+    trackAnalytics(c, (db) =>
+      recordStreamCompletion(db, {
+        analytics,
+        userTextRaw,
+        latencyMs: Date.now() - streamStartedAt,
+        status: "error",
+        errorCode: "stream_network_error",
+      })
+    );
     return c.json({
       error: "Our streaming service is experiencing technical difficulties at the moment. Please try again.",
       service: "stream",
@@ -961,18 +1195,129 @@ app.post("/chat/stream", async (c) => {
       }
     }, 503);
   }
-  
-  if (response) {
-    // Pass through stream directly - no filtering
-    return new Response(response.body, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-        "Access-Control-Allow-Origin": "*"
+
+  if (!response?.body) {
+    trackAnalytics(c, (db) =>
+      recordStreamCompletion(db, {
+        analytics,
+        userTextRaw,
+        latencyMs: Date.now() - streamStartedAt,
+        status: "error",
+        errorCode: "stream_missing_body",
+      })
+    );
+
+    return c.json({
+      error: "Our streaming service is experiencing technical difficulties at the moment. Please try again.",
+      service: "stream",
+      details: {
+        status: response?.status || null,
+        statusText: response?.statusText || "Missing response body",
+        provider: STREAM_PROVIDER
       }
-    });
+    }, 503);
   }
+
+  const { readable, writable } = new TransformStream();
+  const upstreamReader = response.body.getReader();
+  const downstreamWriter = writable.getWriter();
+  const decoder = new TextDecoder("utf-8");
+
+  if (isAnalyticsEnabled(c.env.ANALYTICS_DB)) {
+    c.executionCtx.waitUntil((async () => {
+      let buffer = "";
+      let assistantResponseText = "";
+
+      const consumeSseBuffer = (rawBuffer: string, flush = false): string => {
+        const parts = rawBuffer.split("\n\n");
+        const completeParts = flush ? parts : parts.slice(0, -1);
+
+        for (const part of completeParts) {
+          const event = part.trim();
+          if (!event) continue;
+
+          const dataIndex = event.indexOf("data: ");
+          if (dataIndex === -1) continue;
+
+          const jsonStr = event.slice(dataIndex + 6);
+          if (jsonStr === "[DONE]") continue;
+
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const token = parsed.choices?.[0]?.delta?.content ?? "";
+            if (token) {
+              assistantResponseText += token;
+            }
+          } catch (error) {
+            console.error("[STREAM] Failed to parse SSE chunk for analytics:", error);
+          }
+        }
+
+        return flush ? "" : parts[parts.length - 1];
+      };
+
+      try {
+        while (true) {
+          const { done, value } = await upstreamReader.read();
+          if (done) break;
+
+          if (value) {
+            await downstreamWriter.write(value);
+            buffer += decoder.decode(value, { stream: true });
+            buffer = consumeSseBuffer(buffer, false);
+          }
+        }
+
+        buffer += decoder.decode();
+        consumeSseBuffer(buffer, true);
+      } catch (error) {
+        console.error("[STREAM] Failed while mirroring upstream SSE:", error);
+      } finally {
+        try {
+          await downstreamWriter.close();
+        } catch {
+          // Ignore close races if the client disconnects mid-stream.
+        }
+      }
+
+      await recordStreamCompletion(c.env.ANALYTICS_DB, {
+        analytics,
+        userTextRaw,
+        assistantResponseText,
+        latencyMs: Date.now() - streamStartedAt,
+        status: "completed",
+      });
+    })().catch((error) => {
+      console.error("[STREAM] Analytics mirror task failed:", error);
+    }));
+  } else {
+    c.executionCtx.waitUntil((async () => {
+      try {
+        while (true) {
+          const { done, value } = await upstreamReader.read();
+          if (done) break;
+          if (value) {
+            await downstreamWriter.write(value);
+          }
+        }
+      } finally {
+        try {
+          await downstreamWriter.close();
+        } catch {
+          // Ignore close races if the client disconnects mid-stream.
+        }
+      }
+    })());
+  }
+
+  return new Response(readable, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "Access-Control-Allow-Origin": "*"
+    }
+  });
 });
 
 app.post("/chat/recommendations", async (c) => {
@@ -980,6 +1325,9 @@ app.post("/chat/recommendations", async (c) => {
   const messages = body.messages || [];
   let filters = body.filters || {};
   const semantic_search = body.semantic_search || "";
+  const analytics = getAnalyticsContext(body);
+  const userTextRaw = getLastUserMessage(messages);
+  const recommendationsStartedAt = Date.now();
 
   // Validate, normalize, and expand filters
   filters = validateAndExpandFilters(filters);
@@ -1051,6 +1399,23 @@ app.post("/chat/recommendations", async (c) => {
     // searchResults = await store.similaritySearch(queryString, 10, { "effects": { "$in": ["energetic", "happy"] } });
   } catch (err) {
     console.error("Vector search error:", err);
+    trackAnalytics(c, (db) =>
+      recordRecommendationResults(db, {
+        analytics,
+        userTextRaw,
+        predictedCue: "RECOMMEND",
+        predictedIntent: "recommendation",
+        predictedFilters: filters,
+        semanticSearch: semantic_search,
+        recommendations: [],
+        preRankedCount: 0,
+        finalRankCount: 0,
+        status: "error",
+        errorCode: "vector_search_error",
+        fallbackReason: "vector_search_error",
+        latencyMs: Date.now() - recommendationsStartedAt,
+      })
+    );
     return c.json({ recommendations: [], filtersToUse: filtersToUse, error: "Vector search error" }, 200);
   }
 
@@ -1084,6 +1449,23 @@ app.post("/chat/recommendations", async (c) => {
   }
 
   if (results.length === 0) {
+    trackAnalytics(c, (db) =>
+      recordRecommendationResults(db, {
+        analytics,
+        userTextRaw,
+        predictedCue: "RECOMMEND",
+        predictedIntent: "recommendation",
+        predictedFilters: filters,
+        semanticSearch: semantic_search,
+        recommendations: [],
+        preRankedCount: 0,
+        finalRankCount: 0,
+        status: "completed",
+        fallbackReason: "no_valid_catalog_results",
+        latencyMs: Date.now() - recommendationsStartedAt,
+      })
+    );
+
     return c.json({
       recommendations: [],
       preRankedProducts: [],
@@ -1129,6 +1511,32 @@ app.post("/chat/recommendations", async (c) => {
     if (!resp.ok) {
       const errorText = await resp.text();
       console.error(`Groq Re-ranking API error (${resp.status}):`, errorText);
+      trackAnalytics(c, (db) =>
+        recordRecommendationResults(db, {
+          analytics,
+          userTextRaw,
+          predictedCue: "RECOMMEND",
+          predictedIntent: "recommendation",
+          predictedFilters: filters,
+          semanticSearch: semantic_search,
+          recommendations: results.map((result, index) => ({
+            id: typeof result.id === "string" ? result.id : null,
+            name: typeof result.name === "string" ? result.name : null,
+            brand: typeof result.brand === "string" ? result.brand : null,
+            category: typeof result.category === "string" ? result.category : null,
+            subcategory: typeof result.subcategory === "string" ? result.subcategory : null,
+            rankPosition: index + 1,
+            sourceKind: "recommendation",
+          })),
+          preRankedCount: results.length,
+          finalRankCount: results.length,
+          status: "completed",
+          errorCode: "rerank_api_error",
+          fallbackReason: "rerank_api_error",
+          latencyMs: Date.now() - recommendationsStartedAt,
+        })
+      );
+
       // Fallback to original search results without re-ranking
       return c.json({
         recommendations: results,
@@ -1149,6 +1557,32 @@ app.post("/chat/recommendations", async (c) => {
     
     if (!text || text.trim().length === 0) {
       console.error("Groq Re-ranking API returned empty response:", JSON.stringify(data, null, 2));
+      trackAnalytics(c, (db) =>
+        recordRecommendationResults(db, {
+          analytics,
+          userTextRaw,
+          predictedCue: "RECOMMEND",
+          predictedIntent: "recommendation",
+          predictedFilters: filters,
+          semanticSearch: semantic_search,
+          recommendations: results.map((result, index) => ({
+            id: typeof result.id === "string" ? result.id : null,
+            name: typeof result.name === "string" ? result.name : null,
+            brand: typeof result.brand === "string" ? result.brand : null,
+            category: typeof result.category === "string" ? result.category : null,
+            subcategory: typeof result.subcategory === "string" ? result.subcategory : null,
+            rankPosition: index + 1,
+            sourceKind: "recommendation",
+          })),
+          preRankedCount: results.length,
+          finalRankCount: results.length,
+          status: "completed",
+          errorCode: "rerank_empty_response",
+          fallbackReason: "rerank_empty_response",
+          latencyMs: Date.now() - recommendationsStartedAt,
+        })
+      );
+
       // Fallback to original search results
       return c.json({
         recommendations: results,
@@ -1171,6 +1605,32 @@ app.post("/chat/recommendations", async (c) => {
         error: parseResult.error,
         rawResponse: text?.substring(0, 500)
       });
+
+      trackAnalytics(c, (db) =>
+        recordRecommendationResults(db, {
+          analytics,
+          userTextRaw,
+          predictedCue: "RECOMMEND",
+          predictedIntent: "recommendation",
+          predictedFilters: filters,
+          semanticSearch: semantic_search,
+          recommendations: results.map((result, index) => ({
+            id: typeof result.id === "string" ? result.id : null,
+            name: typeof result.name === "string" ? result.name : null,
+            brand: typeof result.brand === "string" ? result.brand : null,
+            category: typeof result.category === "string" ? result.category : null,
+            subcategory: typeof result.subcategory === "string" ? result.subcategory : null,
+            rankPosition: index + 1,
+            sourceKind: "recommendation",
+          })),
+          preRankedCount: results.length,
+          finalRankCount: results.length,
+          status: "completed",
+          errorCode: "rerank_json_parse_error",
+          fallbackReason: "rerank_json_parse_error",
+          latencyMs: Date.now() - recommendationsStartedAt,
+        })
+      );
 
       // Fallback to original search results without re-ranking
       return c.json({
@@ -1195,6 +1655,31 @@ app.post("/chat/recommendations", async (c) => {
 
     // If re-ranking failed or returned empty, fallback to original search results
     if (rankedProducts.length === 0) {
+      trackAnalytics(c, (db) =>
+        recordRecommendationResults(db, {
+          analytics,
+          userTextRaw,
+          predictedCue: "RECOMMEND",
+          predictedIntent: "recommendation",
+          predictedFilters: filters,
+          semanticSearch: semantic_search,
+          recommendations: results.map((result, index) => ({
+            id: typeof result.id === "string" ? result.id : null,
+            name: typeof result.name === "string" ? result.name : null,
+            brand: typeof result.brand === "string" ? result.brand : null,
+            category: typeof result.category === "string" ? result.category : null,
+            subcategory: typeof result.subcategory === "string" ? result.subcategory : null,
+            rankPosition: index + 1,
+            sourceKind: "recommendation",
+          })),
+          preRankedCount: results.length,
+          finalRankCount: results.length,
+          status: "completed",
+          fallbackReason: "no_ranked_ids",
+          latencyMs: Date.now() - recommendationsStartedAt,
+        })
+      );
+
       return c.json({
         recommendations: results,
         filtersToUse: filtersToUse,
@@ -1202,6 +1687,30 @@ app.post("/chat/recommendations", async (c) => {
         ...(tokenUsage ? { tokenUsage } : {})
       }, 200);
     }
+
+    trackAnalytics(c, (db) =>
+      recordRecommendationResults(db, {
+        analytics,
+        userTextRaw,
+        predictedCue: "RECOMMEND",
+        predictedIntent: "recommendation",
+        predictedFilters: filters,
+        semanticSearch: semantic_search,
+        recommendations: rankedProducts.map((product, index) => ({
+          id: typeof product.id === "string" ? product.id : null,
+          name: typeof product.name === "string" ? product.name : null,
+          brand: typeof product.brand === "string" ? product.brand : null,
+          category: typeof product.category === "string" ? product.category : null,
+          subcategory: typeof product.subcategory === "string" ? product.subcategory : null,
+          rankPosition: index + 1,
+          sourceKind: "recommendation",
+        })),
+        preRankedCount: results.length,
+        finalRankCount: rankedProducts.length,
+        status: "completed",
+        latencyMs: Date.now() - recommendationsStartedAt,
+      })
+    );
 
     return c.json({
       recommendations: rankedProducts,
@@ -1213,6 +1722,32 @@ app.post("/chat/recommendations", async (c) => {
 
   } catch (err) {
     console.error("Recommendation service error:", err);
+    trackAnalytics(c, (db) =>
+      recordRecommendationResults(db, {
+        analytics,
+        userTextRaw,
+        predictedCue: "RECOMMEND",
+        predictedIntent: "recommendation",
+        predictedFilters: filters,
+        semanticSearch: semantic_search,
+        recommendations: results.map((result, index) => ({
+          id: typeof result.id === "string" ? result.id : null,
+          name: typeof result.name === "string" ? result.name : null,
+          brand: typeof result.brand === "string" ? result.brand : null,
+          category: typeof result.category === "string" ? result.category : null,
+          subcategory: typeof result.subcategory === "string" ? result.subcategory : null,
+          rankPosition: index + 1,
+          sourceKind: "recommendation",
+        })),
+        preRankedCount: results.length,
+        finalRankCount: results.length,
+        status: "completed",
+        errorCode: "recommendation_service_error",
+        fallbackReason: "recommendation_service_error",
+        latencyMs: Date.now() - recommendationsStartedAt,
+      })
+    );
+
     // Fallback to original search results
     return c.json({
       recommendations: results,
@@ -1224,6 +1759,38 @@ app.post("/chat/recommendations", async (c) => {
         provider: RERANK_PROVIDER
       }
     }, 200);
+  }
+});
+
+app.post("/chat/analytics/event", async (c) => {
+  const body = await c.req.json();
+
+  if (!isAnalyticsEnabled(c.env.ANALYTICS_DB)) {
+    return c.json({ ok: false, error: "analytics_disabled" }, 503);
+  }
+
+  try {
+    await recordAnalyticsEvent(c.env.ANALYTICS_DB, {
+      eventId: typeof body?.event_id === "string" ? body.event_id : null,
+      sessionId: typeof body?.session_id === "string" ? body.session_id : null,
+      messageId: typeof body?.message_id === "string" ? body.message_id : null,
+      eventType: typeof body?.event_type === "string" ? body.event_type : null,
+      productId: typeof body?.product_id === "string" ? body.product_id : null,
+      rankPosition: typeof body?.rank_position === "number" ? body.rank_position : null,
+      payload: body?.payload,
+      occurredAt: typeof body?.occurred_at === "string" ? body.occurred_at : null,
+    });
+
+    return c.json({ ok: true }, 202);
+  } catch (error) {
+    console.error("[Chat Analytics] Event write failed:", error);
+    return c.json(
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      500
+    );
   }
 });
 

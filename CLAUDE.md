@@ -47,6 +47,17 @@ If a later section conflicts with this section, trust this section first and the
 - `vectorizer-worker-qa` now runs with explicit Worker limits (`cpu_ms = 300000`, `subrequests = 50000`) and has been validated against the current full QA catalog using a bounded `limit = 1500` run (`fetched_count = 824`, `uploaded_count = 682`, `transform_errors = 0`).
 - `postrun-verifier-qa` should currently be trusted in `categories_only` mode only. The deployed `full` verifier suite still has a flaky backend API probe from verifier Worker context, so direct backend curls remain the authoritative API sanity check.
 
+## Chat Analytics Schema Contract
+
+- The live chat analytics D1 contract is documented in [CHAT_ANALYTICS_SCHEMA.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/CHAT_ANALYTICS_SCHEMA.md).
+- The current dashboard handoff prompt is documented in [CHAT_ANALYTICS_DASHBOARD_PROMPT.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/CHAT_ANALYTICS_DASHBOARD_PROMPT.md).
+- Any change to chat analytics tables, columns, defaults, or interpretation rules must update both files in the same change.
+- If the schema changes, the dashboard project must be told to update its read model and UI assumptions.
+- The vectorizer reporting contract is documented in [VECTORIZER_REPORTING_SCHEMA.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/VECTORIZER_REPORTING_SCHEMA.md).
+- The current vectorizer dashboard handoff prompt is documented in [VECTORIZER_REPORTING_DASHBOARD_PROMPT.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/VECTORIZER_REPORTING_DASHBOARD_PROMPT.md).
+- Any change to vectorizer reporting tables, columns, defaults, retention behavior, or interpretation rules must update both files in the same change.
+- If the vectorizer reporting contract changes, the dashboard project must be told to update its read model and UI assumptions.
+
 ## Architecture & Components
 
 ### 1. **Vectorizer (`vectorizer/`)**

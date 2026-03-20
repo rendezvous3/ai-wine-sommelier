@@ -5,6 +5,7 @@
   import ProductRecommendation from '../ProductRecommendation/ProductRecommendation.svelte';
 
   interface Product {
+    id?: string;
     image: string;
     title: string;
     price: number;
@@ -19,6 +20,7 @@
     thc_per_unit_mg?: number;
     thc_total_mg?: number;
     pack_count?: number;
+    rankPosition?: number;
   }
 
   interface ChatMessageProps {
@@ -31,6 +33,8 @@
     productsInBubble?: boolean;
     actionType?: 'add-to-cart' | 'link';
     onAddToCart?: (product: Product) => void;
+    onProductAction?: (product: Product) => void;
+    onResultsExpanded?: (details: { isExpanded: boolean; totalProducts: number; visibleProducts: number }) => void;
     onAction?: (action: string, message: string) => void;
     userBubbleBackgroundColor?: string;
     themeBackgroundColor?: string;
@@ -49,6 +53,8 @@
     productsInBubble = true,
     actionType = 'add-to-cart',
     onAddToCart,
+    onProductAction,
+    onResultsExpanded,
     onAction,
     userBubbleBackgroundColor,
     themeBackgroundColor,
@@ -126,6 +132,8 @@
           products={products}
           layout={recommendationLayout}
           onAddToCart={onAddToCart}
+          onProductAction={onProductAction}
+          onResultsExpanded={onResultsExpanded}
           actionType={actionType}
         />
       </div>
@@ -158,6 +166,8 @@
               products={products}
               layout={recommendationLayout}
               onAddToCart={onAddToCart}
+              onProductAction={onProductAction}
+              onResultsExpanded={onResultsExpanded}
               actionType={actionType}
             />
           </div>
@@ -397,4 +407,3 @@
     }
   }
 </style>
-

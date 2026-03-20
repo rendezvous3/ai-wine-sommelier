@@ -170,6 +170,47 @@ class D1RunReportStore:
                 ON vectorizer_run_reason_counts (run_id, stage, severity);
             """,
             ),
+            (
+                "create_vectorizer_run_product_snapshots",
+                """
+            CREATE TABLE IF NOT EXISTS vectorizer_run_product_snapshots (
+                snapshot_id TEXT PRIMARY KEY,
+                run_id TEXT NOT NULL,
+                index_name TEXT NOT NULL,
+                product_id TEXT NOT NULL,
+                raw_name TEXT,
+                normalized_name TEXT,
+                category TEXT,
+                subcategory TEXT,
+                source_seen INTEGER DEFAULT 0,
+                active_after_run INTEGER DEFAULT 0,
+                disposition TEXT NOT NULL,
+                reason_code TEXT,
+                reason_label TEXT,
+                status TEXT NOT NULL,
+                quantity INTEGER,
+                previous_quantity INTEGER,
+                price REAL,
+                previous_price REAL,
+                changed_fields_json TEXT,
+                created_at TEXT NOT NULL
+            );
+            """,
+            ),
+            (
+                "index_vectorizer_run_product_snapshots_run_id",
+                """
+            CREATE INDEX IF NOT EXISTS idx_vectorizer_run_product_snapshots_run_id
+                ON vectorizer_run_product_snapshots (run_id, disposition, status);
+            """,
+            ),
+            (
+                "index_vectorizer_run_product_snapshots_product_id",
+                """
+            CREATE INDEX IF NOT EXISTS idx_vectorizer_run_product_snapshots_product_id
+                ON vectorizer_run_product_snapshots (product_id, created_at);
+            """,
+            ),
         ]
         for label, statement in statements:
             try:
@@ -458,6 +499,100 @@ class D1RunReportStore:
         payload = await self.client.exec_sql(sql)
         return payload.get("result", [{}])[0].get("results", []) or []
 
+    async def record_product_snapshots(
+        self,
+        run_id: str,
+        index_name: str,
+        snapshots: Iterable[Dict[str, Any]],
+    ) -> None:
+        created_at = datetime.now(timezone.utc).isoformat()
+        await self.client.exec_sql(
+            f"DELETE FROM vectorizer_run_product_snapshots WHERE run_id = '{self.client.sql_quote(run_id)}';"
+        )
+        for snapshot in snapshots:
+            product_id = str(snapshot.get("product_id") or "").strip()
+            if not product_id:
+                continue
+            sql = f"""
+            INSERT INTO vectorizer_run_product_snapshots
+                (snapshot_id, run_id, index_name, product_id, raw_name, normalized_name, category, subcategory,
+                 source_seen, active_after_run, disposition, reason_code, reason_label, status,
+                 quantity, previous_quantity, price, previous_price, changed_fields_json, created_at)
+            VALUES
+                ('{self.client.sql_quote(str(uuid4()))}',
+                 '{self.client.sql_quote(run_id)}',
+                 '{self.client.sql_quote(index_name)}',
+                 '{self.client.sql_quote(product_id)}',
+                 {self._nullable_text(snapshot.get('raw_name'))},
+                 {self._nullable_text(snapshot.get('normalized_name'))},
+                 {self._nullable_text(snapshot.get('category'))},
+                 {self._nullable_text(snapshot.get('subcategory'))},
+                 {1 if snapshot.get('source_seen') else 0},
+                 {1 if snapshot.get('active_after_run') else 0},
+                 '{self.client.sql_quote(str(snapshot.get('disposition') or 'unchanged'))}',
+                 {self._nullable_text(snapshot.get('reason_code'))},
+                 {self._nullable_text(snapshot.get('reason_label'))},
+                 '{self.client.sql_quote(str(snapshot.get('status') or 'applied'))}',
+                 {self._nullable_int(snapshot.get('quantity'))},
+                 {self._nullable_int(snapshot.get('previous_quantity'))},
+                 {self._nullable_float(snapshot.get('price'))},
+                 {self._nullable_float(snapshot.get('previous_price'))},
+                 {self._nullable_json(snapshot.get('changed_fields') or [])},
+                 '{self.client.sql_quote(created_at)}');
+            """
+            await self.client.exec_sql(sql)
+
+    async def purge_product_snapshots(self, *, retain_days: int) -> int:
+        cutoff = datetime.now(timezone.utc).timestamp() - max(int(retain_days), 0) * 86400
+        cutoff_iso = datetime.fromtimestamp(cutoff, tz=timezone.utc).isoformat()
+        payload = await self.client.exec_sql(
+            f"""
+            DELETE FROM vectorizer_run_product_snapshots
+            WHERE created_at < '{self.client.sql_quote(cutoff_iso)}';
+            """
+        )
+        meta = payload.get("result", [{}])[0].get("meta", {})
+        return int(meta.get("changes", 0) or 0)
+
+    async def get_run_product_snapshots(
+        self,
+        run_id: str,
+        *,
+        disposition: Optional[str] = None,
+        product_id: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        where = [f"run_id = '{self.client.sql_quote(run_id)}'"]
+        if disposition:
+            where.append(f"disposition = '{self.client.sql_quote(disposition)}'")
+        if product_id:
+            where.append(f"product_id = '{self.client.sql_quote(product_id)}'")
+        sql = f"""
+        SELECT *
+        FROM vectorizer_run_product_snapshots
+        WHERE {" AND ".join(where)}
+        ORDER BY disposition ASC, raw_name ASC, product_id ASC;
+        """
+        payload = await self.client.exec_sql(sql)
+        return payload.get("result", [{}])[0].get("results", []) or []
+
+    async def get_product_snapshot_history(
+        self,
+        index_name: str,
+        product_id: str,
+        *,
+        limit: int = 100,
+    ) -> List[Dict[str, Any]]:
+        sql = f"""
+        SELECT *
+        FROM vectorizer_run_product_snapshots
+        WHERE index_name = '{self.client.sql_quote(index_name)}'
+          AND product_id = '{self.client.sql_quote(product_id)}'
+        ORDER BY created_at DESC
+        LIMIT {max(int(limit), 1)};
+        """
+        payload = await self.client.exec_sql(sql)
+        return payload.get("result", [{}])[0].get("results", []) or []
+
     async def _ensure_run_column(self, column_name: str, column_type: str) -> None:
         payload = await self.client.exec_sql("PRAGMA table_info('vectorizer_runs');")
         rows = payload.get("result", [{}])[0].get("results", []) or []
@@ -513,6 +648,16 @@ class D1RunReportStore:
             return "NULL"
         payload = self.client.sql_quote(json.dumps(value, default=str))
         return f"'{payload}'"
+
+    def _nullable_int(self, value: Any) -> str:
+        if value is None or str(value).strip() == "":
+            return "NULL"
+        return str(int(value))
+
+    def _nullable_float(self, value: Any) -> str:
+        if value is None or str(value).strip() == "":
+            return "NULL"
+        return str(float(value))
 
     def _stringify_value(self, value: Any) -> Optional[str]:
         if value is None:

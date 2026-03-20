@@ -20,6 +20,10 @@ Use only files required for coding, debugging, testing, and architecture decisio
   - `TESTING.md`
   - `TESTING_QUICK_REFERENCE.md`
   - `STREAM_FIRST_IMPLEMENTATION.md`
+  - `CHAT_ANALYTICS_SCHEMA.md`
+  - `CHAT_ANALYTICS_DASHBOARD_PROMPT.md`
+  - `VECTORIZER_REPORTING_SCHEMA.md`
+  - `VECTORIZER_REPORTING_DASHBOARD_PROMPT.md`
   - `.gitignore`
   - `CLAUDE.md`
   - `CODEX.md`
@@ -58,6 +62,16 @@ Use only files required for coding, debugging, testing, and architecture decisio
 - Prefer reading the smallest relevant file set before expanding scope.
 - Do not index ignored paths unless explicitly requested by the user.
 - If context is missing, expand scope incrementally and justify why.
+- Chat analytics D1 work must stay aligned with [CHAT_ANALYTICS_SCHEMA.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/CHAT_ANALYTICS_SCHEMA.md).
+- Any change to chat analytics schema or interpretation rules must update:
+  - [CHAT_ANALYTICS_SCHEMA.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/CHAT_ANALYTICS_SCHEMA.md)
+  - [CHAT_ANALYTICS_DASHBOARD_PROMPT.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/CHAT_ANALYTICS_DASHBOARD_PROMPT.md)
+- If chat analytics schema changes, remind the user to update the dashboard project too.
+- Vectorizer reporting schema work must stay aligned with [VECTORIZER_REPORTING_SCHEMA.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/VECTORIZER_REPORTING_SCHEMA.md).
+- Any change to vectorizer reporting schema or interpretation rules must update:
+  - [VECTORIZER_REPORTING_SCHEMA.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/VECTORIZER_REPORTING_SCHEMA.md)
+  - [VECTORIZER_REPORTING_DASHBOARD_PROMPT.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/VECTORIZER_REPORTING_DASHBOARD_PROMPT.md)
+- If vectorizer reporting schema changes, remind the user to update the dashboard project too.
 
 ## Operational Topology Rules (Mandatory)
 

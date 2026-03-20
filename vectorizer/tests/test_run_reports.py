@@ -68,6 +68,41 @@ class RunReportsTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("INSERT INTO vectorizer_run_event_fields", combined_sql)
         self.assertIn("INSERT INTO vectorizer_run_reason_counts", combined_sql)
 
+    async def test_record_product_snapshots_and_purge_write_snapshot_sql(self) -> None:
+        store = D1RunReportStore(account_id=None, database_id=None, api_token=None)
+        store.client = FakeClient()
+
+        await store.record_product_snapshots(
+            run_id="run-1",
+            index_name="products-qa",
+            snapshots=[
+                {
+                    "product_id": "prod-1",
+                    "raw_name": "Sleep Gummies",
+                    "normalized_name": "sleep gummies",
+                    "category": "edibles",
+                    "subcategory": "gummies",
+                    "source_seen": True,
+                    "active_after_run": True,
+                    "disposition": "unchanged",
+                    "reason_code": "unchanged",
+                    "reason_label": "Tracked metadata unchanged",
+                    "status": "applied",
+                    "quantity": 8,
+                    "previous_quantity": 8,
+                    "price": 27.0,
+                    "previous_price": 27.0,
+                    "changed_fields": [],
+                }
+            ],
+        )
+        await store.purge_product_snapshots(retain_days=14)
+
+        combined_sql = "\n".join(store.client.sql_calls)
+        self.assertIn("DELETE FROM vectorizer_run_product_snapshots WHERE run_id = 'run-1'", combined_sql)
+        self.assertIn("INSERT INTO vectorizer_run_product_snapshots", combined_sql)
+        self.assertIn("DELETE FROM vectorizer_run_product_snapshots", combined_sql)
+
 
 if __name__ == "__main__":
     unittest.main()

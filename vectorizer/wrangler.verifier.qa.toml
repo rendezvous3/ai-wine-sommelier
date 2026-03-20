@@ -8,6 +8,7 @@ INDEX_NAME = "products-qa"
 BACKEND_BASE_URL = "https://ecom-chat-backend-qa.andresmeona.workers.dev"
 VERIFY_ALERT_FROM = "noreply@xtscale.com"
 VERIFY_ALERT_TO = "info@xtscale.com"
+VERIFY_REPORT_BASE_URL = "https://postrun-verifier-qa.andresmeona.workers.dev"
 
 [observability]
 enabled = true

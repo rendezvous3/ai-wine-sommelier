@@ -15,7 +15,7 @@ from .cloudflare_api import CloudflareApiClient
 from .config import CloudflareConfig, DutchieConfig, SyncOptions
 from .documents import build_metadata
 from .product_source import iter_product_batches
-from .types import RunEvent, SyncPipelineResult, SyncSummary
+from .types import RunEvent, RunProductSnapshot, SyncPipelineResult, SyncSummary
 
 
 TRACKED_UPDATE_FIELDS = ("raw_name", "category", "subcategory", "quantity", "price")
@@ -116,6 +116,57 @@ def _change_field_records(previous: Optional[Dict[str, Any]], current: Dict[str,
         }
         for field_name in fields
     ]
+
+
+def _snapshot_record(
+    *,
+    product_id: Optional[str],
+    raw_name: Optional[str],
+    normalized_name: Optional[str],
+    category: Optional[str],
+    subcategory: Optional[str],
+    source_seen: bool,
+    active_after_run: bool,
+    disposition: str,
+    reason_code: Optional[str],
+    reason_label: Optional[str],
+    status: str,
+    quantity: Optional[int],
+    previous_quantity: Optional[int],
+    price: Optional[float],
+    previous_price: Optional[float],
+    changed_fields: Optional[List[str]] = None,
+) -> Optional[Dict[str, Any]]:
+    product_id_value = str(product_id or "").strip()
+    if not product_id_value:
+        return None
+    return RunProductSnapshot(
+        product_id=product_id_value,
+        raw_name=raw_name or None,
+        normalized_name=normalized_name or None,
+        category=category or None,
+        subcategory=subcategory or None,
+        source_seen=source_seen,
+        active_after_run=active_after_run,
+        disposition=disposition,
+        reason_code=reason_code or None,
+        reason_label=reason_label or None,
+        status=status,
+        quantity=quantity,
+        previous_quantity=previous_quantity,
+        price=price,
+        previous_price=previous_price,
+        changed_fields=list(changed_fields or []),
+    ).to_dict()
+
+
+def _store_snapshot(snapshot_rows: Dict[str, Dict[str, Any]], snapshot: Optional[Dict[str, Any]]) -> None:
+    if not snapshot:
+        return
+    product_id = str(snapshot.get("product_id") or "").strip()
+    if not product_id:
+        return
+    snapshot_rows[product_id] = snapshot
 
 
 def _note_quality_audit(summary: SyncSummary, finding: Dict[str, Any]) -> None:
@@ -232,6 +283,7 @@ async def run_sync_pipeline(
     active_rows_before: Dict[str, Dict[str, Any]] = {}
     active_name_owners: Dict[str, str] = {}
     events: List[RunEvent] = []
+    product_snapshots: Dict[str, Dict[str, Any]] = {}
     fetched_ids_raw: Set[str] = set()
     low_stock_active_ids: Set[str] = set()
 
@@ -276,6 +328,27 @@ async def run_sync_pipeline(
             source_hard_findings = [finding for finding in source_findings if finding.get("severity") != "warning"]
             source_warning_findings = [finding for finding in source_findings if finding.get("severity") == "warning"]
             if source_hard_findings:
+                existing_row = active_rows_before.get(raw_id) if raw_id else None
+                _store_snapshot(
+                    product_snapshots,
+                    _snapshot_record(
+                        product_id=raw_id or None,
+                        raw_name=raw_name,
+                        normalized_name=normalize_product_name(raw_name),
+                        category=raw_category,
+                        subcategory=raw_subcategory,
+                        source_seen=bool(raw_id),
+                        active_after_run=bool(existing_row),
+                        disposition="excluded",
+                        reason_code=str(source_hard_findings[0].get("reason_code") or ""),
+                        reason_label=str(source_hard_findings[0].get("reason_label") or source_hard_findings[0].get("reason_code") or ""),
+                        status="skipped",
+                        quantity=None,
+                        previous_quantity=None,
+                        price=None,
+                        previous_price=None,
+                    ),
+                )
                 _append_audit_findings(
                     summary=summary,
                     events=events,
@@ -292,6 +365,27 @@ async def run_sync_pipeline(
                 normalized = transform_product(raw_product)
                 summary.transformed_count += 1
             except Exception as exc:
+                existing_row = active_rows_before.get(raw_id) if raw_id else None
+                _store_snapshot(
+                    product_snapshots,
+                    _snapshot_record(
+                        product_id=raw_id or None,
+                        raw_name=raw_name,
+                        normalized_name=normalize_product_name(raw_name),
+                        category=raw_category,
+                        subcategory=raw_subcategory,
+                        source_seen=bool(raw_id),
+                        active_after_run=bool(existing_row),
+                        disposition="excluded",
+                        reason_code="transform_error",
+                        reason_label="Transform error",
+                        status="skipped",
+                        quantity=None,
+                        previous_quantity=None,
+                        price=None,
+                        previous_price=None,
+                    ),
+                )
                 summary.transform_errors += 1
                 summary.exclusions.transform_error_count += 1
                 summary.errors.append({"name": raw_name or "Unknown", "error": str(exc)})
@@ -320,6 +414,28 @@ async def run_sync_pipeline(
             transform_hard_findings = [finding for finding in transform_findings if finding.get("severity") != "warning"]
             transform_warning_findings = [finding for finding in transform_findings if finding.get("severity") == "warning"]
             if transform_hard_findings:
+                current_state = _product_state(normalized)
+                existing_row = active_rows_before.get(raw_id) if raw_id else None
+                _store_snapshot(
+                    product_snapshots,
+                    _snapshot_record(
+                        product_id=raw_id or None,
+                        raw_name=str(normalized.get("name") or raw_name),
+                        normalized_name=normalize_product_name(str(normalized.get("name") or raw_name)),
+                        category=str(normalized.get("category") or raw_category),
+                        subcategory=str(normalized.get("subcategory") or raw_subcategory),
+                        source_seen=bool(raw_id),
+                        active_after_run=bool(existing_row),
+                        disposition="excluded",
+                        reason_code=str(transform_hard_findings[0].get("reason_code") or ""),
+                        reason_label=str(transform_hard_findings[0].get("reason_label") or transform_hard_findings[0].get("reason_code") or ""),
+                        status="skipped",
+                        quantity=current_state.get("quantity"),
+                        previous_quantity=None,
+                        price=current_state.get("price"),
+                        previous_price=None,
+                    ),
+                )
                 _append_audit_findings(
                     summary=summary,
                     events=events,
@@ -361,7 +477,27 @@ async def run_sync_pipeline(
                     summary.exclusions.low_stock_count += 1
                     if existing_row:
                         low_stock_active_ids.add(product_id)
-                    else:
+                    _store_snapshot(
+                        product_snapshots,
+                        _snapshot_record(
+                            product_id=product_id or None,
+                            raw_name=raw_name,
+                            normalized_name=normalized_name or None,
+                            category=category,
+                            subcategory=subcategory,
+                            source_seen=True,
+                            active_after_run=False,
+                            disposition="removed" if existing_row else "excluded",
+                            reason_code="low_stock",
+                            reason_label="Below minimum quantity threshold",
+                            status="pending_removal" if existing_row else "skipped",
+                            quantity=current_state.get("quantity"),
+                            previous_quantity=_to_int(existing_row.get("quantity")) if existing_row else None,
+                            price=current_state.get("price"),
+                            previous_price=_to_float(existing_row.get("price")) if existing_row else None,
+                        ),
+                    )
+                    if not existing_row:
                         events.append(
                             RunEvent(
                                 event_type="excluded",
@@ -411,6 +547,26 @@ async def run_sync_pipeline(
                 continue
 
             if product_id in seen_ids:
+                _store_snapshot(
+                    product_snapshots,
+                    _snapshot_record(
+                        product_id=product_id,
+                        raw_name=raw_name,
+                        normalized_name=normalized_name or None,
+                        category=category,
+                        subcategory=subcategory,
+                        source_seen=True,
+                        active_after_run=bool(existing_row),
+                        disposition="excluded",
+                        reason_code="duplicate_id",
+                        reason_label="Duplicate product id in fetched batch",
+                        status="skipped",
+                        quantity=current_state.get("quantity"),
+                        previous_quantity=None,
+                        price=current_state.get("price"),
+                        previous_price=None,
+                    ),
+                )
                 summary.duplicate_id_excluded += 1
                 summary.exclusions.duplicate_id_count += 1
                 events.append(
@@ -436,6 +592,26 @@ async def run_sync_pipeline(
                 continue
 
             if normalized_name and normalized_name in seen_names:
+                _store_snapshot(
+                    product_snapshots,
+                    _snapshot_record(
+                        product_id=product_id,
+                        raw_name=raw_name,
+                        normalized_name=normalized_name or None,
+                        category=category,
+                        subcategory=subcategory,
+                        source_seen=True,
+                        active_after_run=bool(existing_row),
+                        disposition="excluded",
+                        reason_code="duplicate_name",
+                        reason_label="Duplicate normalized name in fetched batch",
+                        status="skipped",
+                        quantity=current_state.get("quantity"),
+                        previous_quantity=None,
+                        price=current_state.get("price"),
+                        previous_price=None,
+                    ),
+                )
                 summary.duplicate_name_excluded += 1
                 summary.exclusions.duplicate_name_count += 1
                 events.append(
@@ -464,6 +640,26 @@ async def run_sync_pipeline(
             if options.use_d1_dedup and d1_store.configured and normalized_name:
                 owner = active_name_owners.get(normalized_name)
                 if owner and owner != product_id:
+                    _store_snapshot(
+                        product_snapshots,
+                        _snapshot_record(
+                            product_id=product_id,
+                            raw_name=raw_name,
+                            normalized_name=normalized_name or None,
+                            category=category,
+                            subcategory=subcategory,
+                            source_seen=True,
+                            active_after_run=bool(existing_row),
+                            disposition="excluded",
+                            reason_code="d1_name_conflict",
+                            reason_label="Normalized name conflicts with active D1 record",
+                            status="skipped",
+                            quantity=current_state.get("quantity"),
+                            previous_quantity=None,
+                            price=current_state.get("price"),
+                            previous_price=None,
+                        ),
+                    )
                     summary.d1_name_excluded += 1
                     summary.exclusions.d1_name_conflict_count += 1
                     events.append(
@@ -526,6 +722,27 @@ async def run_sync_pipeline(
             try:
                 metadata = build_metadata(product)
             except Exception as exc:
+                existing_row = active_rows_before.get(str(product.get("id") or "").strip())
+                _store_snapshot(
+                    product_snapshots,
+                    _snapshot_record(
+                        product_id=str(product.get("id") or "").strip() or None,
+                        raw_name=str(product.get("name") or ""),
+                        normalized_name=normalize_product_name(str(product.get("name") or "")) or None,
+                        category=str(product.get("category") or ""),
+                        subcategory=str(product.get("subcategory") or ""),
+                        source_seen=True,
+                        active_after_run=bool(existing_row),
+                        disposition="excluded",
+                        reason_code="metadata_build_error",
+                        reason_label="Metadata build error",
+                        status="skipped",
+                        quantity=_product_state(product).get("quantity"),
+                        previous_quantity=None,
+                        price=_product_state(product).get("price"),
+                        previous_price=None,
+                    ),
+                )
                 summary.transform_errors += 1
                 summary.exclusions.transform_error_count += 1
                 summary.errors.append({"name": str(product.get("name") or "Unknown"), "error": str(exc)})
@@ -605,6 +822,26 @@ async def run_sync_pipeline(
             current_state = _product_state(product)
 
             if previous_state is None:
+                _store_snapshot(
+                    product_snapshots,
+                    _snapshot_record(
+                        product_id=product_id,
+                        raw_name=current_state.get("raw_name"),
+                        normalized_name=current_state.get("normalized_name"),
+                        category=current_state.get("category"),
+                        subcategory=current_state.get("subcategory"),
+                        source_seen=True,
+                        active_after_run=True,
+                        disposition="new",
+                        reason_code="new_product",
+                        reason_label="Indexed new product",
+                        status="applied",
+                        quantity=current_state.get("quantity"),
+                        previous_quantity=None,
+                        price=current_state.get("price"),
+                        previous_price=None,
+                    ),
+                )
                 summary.indexing.new_count += 1
                 events.append(
                     RunEvent(
@@ -630,6 +867,27 @@ async def run_sync_pipeline(
                 summary.d1_existing_ids_allowed += 1
                 changed_fields = _diff_tracked_fields(previous_state, current_state)
                 if changed_fields:
+                    _store_snapshot(
+                        product_snapshots,
+                        _snapshot_record(
+                            product_id=product_id,
+                            raw_name=current_state.get("raw_name"),
+                            normalized_name=current_state.get("normalized_name"),
+                            category=current_state.get("category"),
+                            subcategory=current_state.get("subcategory"),
+                            source_seen=True,
+                            active_after_run=True,
+                            disposition="updated",
+                            reason_code="metadata_changed",
+                            reason_label="Indexed updated product metadata",
+                            status="applied",
+                            quantity=current_state.get("quantity"),
+                            previous_quantity=previous_state.get("quantity"),
+                            price=current_state.get("price"),
+                            previous_price=previous_state.get("price"),
+                            changed_fields=changed_fields,
+                        ),
+                    )
                     summary.indexing.updated_count += 1
                     events.append(
                         RunEvent(
@@ -654,6 +912,27 @@ async def run_sync_pipeline(
                             details={"changed_fields": changed_fields},
                         )
                     )
+                else:
+                    _store_snapshot(
+                        product_snapshots,
+                        _snapshot_record(
+                            product_id=product_id,
+                            raw_name=current_state.get("raw_name"),
+                            normalized_name=current_state.get("normalized_name"),
+                            category=current_state.get("category"),
+                            subcategory=current_state.get("subcategory"),
+                            source_seen=True,
+                            active_after_run=True,
+                            disposition="unchanged",
+                            reason_code="unchanged",
+                            reason_label="Tracked metadata unchanged",
+                            status="applied",
+                            quantity=current_state.get("quantity"),
+                            previous_quantity=previous_state.get("quantity"),
+                            price=current_state.get("price"),
+                            previous_price=previous_state.get("price"),
+                        ),
+                    )
 
     return SyncPipelineResult(
         summary=summary,
@@ -661,4 +940,5 @@ async def run_sync_pipeline(
         active_rows_before=active_rows_before,
         low_stock_active_ids=sorted(low_stock_active_ids),
         events=events,
+        product_snapshots=product_snapshots,
     )

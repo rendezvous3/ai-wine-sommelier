@@ -60,12 +60,16 @@
   const persistChat = false; // Set to true to re-enable localStorage persistence
 
   const STORAGE_KEY = `widget_chat_${store}`;
+  const ANALYTICS_SESSION_KEY = `widget_chat_session_${store}`;
+  const ANALYTICS_SESSION_LAST_ACTIVITY_KEY = `widget_chat_session_last_activity_${store}`;
+  const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
   interface Message {
     role: "user" | "assistant";
     content: string;
     recommendations?: Recommendation[];
     shimmer?: boolean;  // Add shimmer flag for loading messages
     id?: string;  // Unique identifier for Svelte keying
+    analyticsMessageId?: string;
   }
 
   // Counter for generating unique message IDs
@@ -91,11 +95,20 @@
     cbd_total_mg?: number;
     total_weight_ounce?: number;
     pack_count?: number;
+    rankPosition?: number;
+  }
+
+  interface AnalyticsContextPayload {
+    session_id: string;
+    message_id: string;
+    source_page: string;
+    store_id: string;
   }
 
   let messages = $state<Message[]>([]);
   let input = $state("");
   let loading = $state(false);
+  let analyticsSessionId = $state<string | null>(null);
 
   // Helper function to create messages with unique IDs
   function createMessage(role: "user" | "assistant", content: string, extras?: Partial<Message>): Message {
@@ -105,6 +118,92 @@
       content,
       ...extras
     };
+  }
+
+  function updateAnalyticsSessionActivity(timestamp = Date.now()) {
+    if (typeof window === 'undefined') return;
+    sessionStorage.setItem(ANALYTICS_SESSION_LAST_ACTIVITY_KEY, String(timestamp));
+  }
+
+  function getOrCreateAnalyticsSessionId(forceNew = false): string {
+    const now = Date.now();
+
+    if (!forceNew && analyticsSessionId) {
+      updateAnalyticsSessionActivity(now);
+      return analyticsSessionId;
+    }
+
+    const lastActivityRaw = sessionStorage.getItem(ANALYTICS_SESSION_LAST_ACTIVITY_KEY);
+    const lastActivity = lastActivityRaw ? Number(lastActivityRaw) : null;
+    const existingSessionId = sessionStorage.getItem(ANALYTICS_SESSION_KEY);
+    const shouldRotate = forceNew || !existingSessionId || !lastActivity || (now - lastActivity) > SESSION_TIMEOUT_MS;
+    const nextSessionId = shouldRotate ? crypto.randomUUID() : existingSessionId;
+
+    analyticsSessionId = nextSessionId;
+    sessionStorage.setItem(ANALYTICS_SESSION_KEY, nextSessionId);
+    updateAnalyticsSessionActivity(now);
+    return nextSessionId;
+  }
+
+  function createAnalyticsContext(messageId = crypto.randomUUID()): AnalyticsContextPayload {
+    return {
+      session_id: getOrCreateAnalyticsSessionId(),
+      message_id: messageId,
+      source_page: window.location.pathname,
+      store_id: store
+    };
+  }
+
+  async function sendAnalyticsEvent(
+    eventType: string,
+    options: {
+      messageId?: string | null;
+      productId?: string | null;
+      rankPosition?: number | null;
+      payload?: Record<string, unknown>;
+      useBeacon?: boolean;
+      sessionId?: string | null;
+    } = {}
+  ) {
+    const sessionId = options.sessionId ?? analyticsSessionId;
+    if (!sessionId) return;
+
+    updateAnalyticsSessionActivity();
+
+    const body = JSON.stringify({
+      event_id: crypto.randomUUID(),
+      session_id: sessionId,
+      message_id: options.messageId ?? null,
+      event_type: eventType,
+      product_id: options.productId ?? null,
+      rank_position: options.rankPosition ?? null,
+      payload: options.payload ?? {},
+      occurred_at: new Date().toISOString()
+    });
+
+    const url = `${CHAT_BASE_URL}/analytics/event`;
+    if (options.useBeacon && typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+      const blob = new Blob([body], { type: 'application/json' });
+      navigator.sendBeacon(url, blob);
+      return;
+    }
+
+    try {
+      await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        keepalive: options.useBeacon === true
+      });
+    } catch (error) {
+      console.warn('[Analytics] Event send failed:', error);
+    }
+  }
+
+  function resetAnalyticsSession() {
+    analyticsSessionId = null;
+    sessionStorage.removeItem(ANALYTICS_SESSION_KEY);
+    sessionStorage.removeItem(ANALYTICS_SESSION_LAST_ACTIVITY_KEY);
   }
 
   let productRecommendations = $state<Recommendation[]>([]);
@@ -364,6 +463,7 @@
     feedbackNoticeType = null;
 
     try {
+      const submittedFeedbackType = feedbackType;
       const formData = new FormData();
       formData.set('name', feedbackName.trim());
       formData.set('email', feedbackEmail.trim());
@@ -395,6 +495,12 @@
       feedbackType = 'quality';
       feedbackMessage = '';
       removeFeedbackScreenshot();
+      void sendAnalyticsEvent('feedback_submitted', {
+        payload: {
+          feedback_type: submittedFeedbackType,
+          source: 'widget'
+        }
+      });
     } catch (err) {
       feedbackNotice = err instanceof Error ? err.message : 'Unable to send feedback right now.';
       feedbackNoticeType = 'error';
@@ -406,6 +512,14 @@
 
 
   onMount(() => {
+    const existingSessionId = sessionStorage.getItem(ANALYTICS_SESSION_KEY);
+    const lastActivityRaw = sessionStorage.getItem(ANALYTICS_SESSION_LAST_ACTIVITY_KEY);
+    const lastActivity = lastActivityRaw ? Number(lastActivityRaw) : null;
+    if (existingSessionId && lastActivity && (Date.now() - lastActivity) <= SESSION_TIMEOUT_MS) {
+      analyticsSessionId = existingSessionId;
+      updateAnalyticsSessionActivity();
+    }
+
     if (persistChat) {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
@@ -421,6 +535,30 @@
     theme.apply();
 
     isInitialized = true;
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        void sendAnalyticsEvent('session_closed', {
+          payload: { reason: 'visibility_hidden' },
+          useBeacon: true
+        });
+      }
+    };
+
+    const handlePageHide = () => {
+      void sendAnalyticsEvent('session_closed', {
+        payload: { reason: 'pagehide' },
+        useBeacon: true
+      });
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
+    };
   });
 
   $effect(() => {
@@ -433,6 +571,10 @@
     if (feedbackScreenshotPreview) {
       URL.revokeObjectURL(feedbackScreenshotPreview);
     }
+    void sendAnalyticsEvent('session_closed', {
+      payload: { reason: 'widget_destroyed' },
+      useBeacon: true
+    });
   });
 
   function getPanelFocusableElements(): HTMLElement[] {
@@ -530,7 +672,8 @@
 
   // Convert Recommendation to Product format for ChatMessage
   function convertToProducts(recommendations: Recommendation[]) {
-    return recommendations.map(rec => ({
+    return recommendations.map((rec, index) => ({
+      id: rec.id,
       image: rec.imageLink || rec.image || '',  // Prefer imageLink, fallback to image
       title: rec.name || '',
       price: rec.price != null && !isNaN(rec.price) ? rec.price : 0,
@@ -549,8 +692,46 @@
       cbd_per_unit_mg: rec.cbd_per_unit_mg,
       cbd_total_mg: rec.cbd_total_mg,
       total_weight_ounce: rec.total_weight_ounce,
-      pack_count: rec.pack_count
+      pack_count: rec.pack_count,
+      rankPosition: rec.rankPosition ?? index + 1
     }));
+  }
+
+  function handleRecommendationProductAction(
+    messageId: string | undefined,
+    product: {
+      id?: string;
+      title?: string;
+      category?: string;
+      subcategory?: string;
+      rankPosition?: number;
+    }
+  ) {
+    if (!messageId) return;
+    void sendAnalyticsEvent('external_link_clicked', {
+      messageId,
+      productId: product.id ?? null,
+      rankPosition: product.rankPosition ?? null,
+      payload: {
+        product_name: product.title ?? null,
+        category: product.category ?? null,
+        subcategory: product.subcategory ?? null
+      }
+    });
+  }
+
+  function handleRecommendationExpanded(
+    messageId: string | undefined,
+    details: { isExpanded: boolean; totalProducts: number; visibleProducts: number }
+  ) {
+    if (!messageId || !details.isExpanded) return;
+    void sendAnalyticsEvent('results_expanded', {
+      messageId,
+      payload: {
+        total_products: details.totalProducts,
+        visible_products: details.visibleProducts
+      }
+    });
   }
 
   // Wrapper for ChatWidget's onSend
@@ -564,8 +745,13 @@
 
   // Clear chat function
   function handleClearChat() {
+    void sendAnalyticsEvent('session_closed', {
+      payload: { reason: 'clear_chat' },
+      useBeacon: true
+    });
     messages = [];
     localStorage.removeItem(STORAGE_KEY);
+    resetAnalyticsSession();
   }
 
   // Track selected category for dynamic THC scale
@@ -869,12 +1055,13 @@
 
     // Switch to chat mode first
     mode = 'chat';
+
+    const analyticsContext = createAnalyticsContext();
     
     // Add query as user message
-    const queryMessage: Message = {
-      role: "user",
-      content: metadata.guidedFlowQuery
-    };
+    const queryMessage = createMessage("user", metadata.guidedFlowQuery, {
+      analyticsMessageId: analyticsContext.message_id
+    });
     messages = [...messages, queryMessage];
     loading = true;
 
@@ -882,7 +1069,7 @@
     const shimmerIndex = messages.length;
     messages = [
       ...messages,
-      { role: "assistant", content: "Looking for best matches...", shimmer: true }
+      createMessage("assistant", "Looking for best matches...", { shimmer: true, analyticsMessageId: analyticsContext.message_id })
     ];
 
     // Wait a tiny bit for shimmer to render
@@ -898,7 +1085,8 @@
           body: JSON.stringify({
             messages: [queryMessage],
             filters: metadata.filters || {},
-            semantic_search: metadata.guidedFlowQuery || ""
+            semantic_search: metadata.guidedFlowQuery || "",
+            analytics: analyticsContext
           }),
         }
       );
@@ -954,6 +1142,7 @@
           role: "assistant",
           content: "",
           recommendations: productRecommendations,
+          analyticsMessageId: analyticsContext.message_id
         };
         messages = [
           ...messages.slice(0, shimmerIndex),
@@ -966,7 +1155,8 @@
           ...messages.slice(0, shimmerIndex),
           {
             role: "assistant",
-            content: "I couldn't find any products matching those exact specifications. Try adjusting your preferences, or feel free to ask me about specific products!"
+            content: "I couldn't find any products matching those exact specifications. Try adjusting your preferences, or feel free to ask me about specific products!",
+            analyticsMessageId: analyticsContext.message_id
           },
           ...messages.slice(shimmerIndex + 1)
         ];
@@ -1003,7 +1193,11 @@
   // ------------------------------------------------------
   // PRODUCT QUESTION HANDLER (SIMPLIFIED - STREAM HANDLES INTELLIGENCE)
   // ------------------------------------------------------
-  async function handleProductQuestion(productQuery: string, payload: { messages: Message[] }) {
+  async function handleProductQuestion(
+    productQuery: string,
+    payload: { messages: Message[] },
+    analyticsContext: AnalyticsContextPayload
+  ) {
     console.log('[Product Lookup] Query:', productQuery);
 
     // Prevent concurrent lookups
@@ -1028,8 +1222,10 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          messages: payload.messages,
           product_query: productQuery,
-          retry_attempt: retryAttempts
+          retry_attempt: retryAttempts,
+          analytics: analyticsContext
         }),
         signal: currentLookupController.signal
       });
@@ -1053,14 +1249,14 @@
         retryAttempts = 0; // Reset retry counter on success
 
         // Stream product details - WAIT FOR COMPLETION
-        await streamWithProductContext(lookupResult.product, payload);
+        await streamWithProductContext(lookupResult.product, payload, analyticsContext);
 
       } else if (lookupResult.needsClarification) {
         // Low/medium confidence - show clarification question
         console.log('[Product Lookup] Needs clarification, streaming clarification context');
 
         // Stream the clarification question - WAIT FOR COMPLETION
-        await streamFollowUp(lookupResult.message, payload);
+        await streamFollowUp(lookupResult.message, payload, analyticsContext);
 
       } else {
         // No match - offer to search for recommendations
@@ -1081,7 +1277,11 @@
   }
 
   // Stream response with product context
-  async function streamWithProductContext(product: Recommendation | Record<string, any> | null, payload: { messages: Message[] }) {
+  async function streamWithProductContext(
+    product: Recommendation | Record<string, any> | null,
+    payload: { messages: Message[] },
+    analyticsContext: AnalyticsContextPayload
+  ) {
     console.log('[Product Context] Streaming with product:', product?.name);
 
     let buffer = "";
@@ -1104,7 +1304,8 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...payload,
-          productContext: product ? JSON.stringify(product, null, 2) : null
+          productContext: product ? JSON.stringify(product, null, 2) : null,
+          analytics: analyticsContext
         }),
       });
 
@@ -1170,11 +1371,14 @@
 
               if (streamingMessageIndex === null) {
                 streamingMessageIndex = messages.length;
-                messages = [...messages, { role: "assistant", content: cleanContent }];
+                messages = [...messages, createMessage("assistant", cleanContent, { analyticsMessageId: analyticsContext.message_id })];
               } else {
                 messages = [
                   ...messages.slice(0, streamingMessageIndex),
-                  { role: "assistant", content: cleanContent },
+                  createMessage("assistant", cleanContent, {
+                    id: messages[streamingMessageIndex]?.id,
+                    analyticsMessageId: analyticsContext.message_id
+                  }),
                   ...messages.slice(streamingMessageIndex + 1)
                 ];
               }
@@ -1214,13 +1418,17 @@
           cbd_per_unit_mg: product.cbd_per_unit_mg,
           cbd_total_mg: product.cbd_total_mg,
           total_weight_ounce: product.total_weight_ounce,
-          pack_count: product.pack_count
+          pack_count: product.pack_count,
+          rankPosition: 1
         };
 
         // Insert product card immediately after the streaming message
         messages = [
           ...messages.slice(0, streamingMessageIndex + 1),
-          createMessage("assistant", "", { recommendations: [productRecommendation] }),
+          createMessage("assistant", "", {
+            recommendations: [productRecommendation],
+            analyticsMessageId: analyticsContext.message_id
+          }),
           ...messages.slice(streamingMessageIndex + 1)
         ];
 
@@ -1241,7 +1449,11 @@
   }
 
   // Stream follow-up question for clarification
-  async function streamFollowUp(clarificationMessage: string, payload: { messages: Message[] }) {
+  async function streamFollowUp(
+    clarificationMessage: string,
+    payload: { messages: Message[] },
+    analyticsContext: AnalyticsContextPayload
+  ) {
     console.log('[Follow-up] Clarification message:', clarificationMessage);
     console.log('[Follow-up] Payload messages count:', payload.messages.length);
     console.log('[Follow-up] Sending clarificationContext:', clarificationMessage);
@@ -1253,7 +1465,8 @@
     try {
       const requestBody = {
         ...payload,
-        clarificationContext: clarificationMessage
+        clarificationContext: clarificationMessage,
+        analytics: analyticsContext
       };
       console.log('[Follow-up] Request body keys:', Object.keys(requestBody));
       console.log('[Follow-up] clarificationContext in body:', requestBody.clarificationContext);
@@ -1333,12 +1546,15 @@
 
               if (streamingMessageIndex === null) {
                 streamingMessageIndex = messages.length;
-                messages = [...messages, { role: "assistant", content: cleanContent }];
+                messages = [...messages, createMessage("assistant", cleanContent, { analyticsMessageId: analyticsContext.message_id })];
                 console.log('[Follow-up] Created new message at index:', streamingMessageIndex);
               } else {
                 messages = [
                   ...messages.slice(0, streamingMessageIndex),
-                  { role: "assistant", content: cleanContent },
+                  createMessage("assistant", cleanContent, {
+                    id: messages[streamingMessageIndex]?.id,
+                    analyticsMessageId: analyticsContext.message_id
+                  }),
                   ...messages.slice(streamingMessageIndex + 1)
                 ];
               }
@@ -1377,7 +1593,8 @@
     const userMsg = message || input.trim();
     if (!userMsg || loading) return;
 
-    messages = [...messages, { role: "user", content: userMsg }];
+    const analyticsContext = createAnalyticsContext();
+    messages = [...messages, createMessage("user", userMsg, { analyticsMessageId: analyticsContext.message_id })];
     if (!message) {
       input = "";
     }
@@ -1397,7 +1614,10 @@
       const resp = await fetch(`${CHAT_BASE_URL}/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          ...payload,
+          analytics: analyticsContext
+        }),
       });
 
       // Check for error response before trying to read as stream
@@ -1512,12 +1732,15 @@
               // Create message only when we have the first token (avoid empty bubble)
               if (streamingMessageIndex === null) {
                 streamingMessageIndex = messages.length;
-                messages = [...messages, { role: "assistant", content: cleanContent }];
+                messages = [...messages, createMessage("assistant", cleanContent, { analyticsMessageId: analyticsContext.message_id })];
               } else {
                 // Update the existing streaming message
                 messages = [
                   ...messages.slice(0, streamingMessageIndex),
-                  { role: "assistant", content: cleanContent },
+                  createMessage("assistant", cleanContent, {
+                    id: messages[streamingMessageIndex]?.id,
+                    analyticsMessageId: analyticsContext.message_id
+                  }),
                   ...messages.slice(streamingMessageIndex + 1)
                 ];
               }
@@ -1556,7 +1779,7 @@
       const shimmerIndex = finalStreamingIndex + 1;
       messages = [
         ...messages.slice(0, shimmerIndex),
-        { role: "assistant", content: "Looking for best matches...", shimmer: true },
+        createMessage("assistant", "Looking for best matches...", { shimmer: true, analyticsMessageId: analyticsContext.message_id }),
         ...messages.slice(shimmerIndex)
       ];
 
@@ -1570,11 +1793,15 @@
         // IMPORTANT: Filter out shimmer messages (UI-only, not for API)
         const messagesForApi = messages.filter(m => !m.shimmer);
         const intentPayload = { messages: messagesForApi };
+        const analyticsPayload = {
+          ...intentPayload,
+          analytics: analyticsContext
+        };
 
         const intentResp = await fetch(`${CHAT_BASE_URL}/intent`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(intentPayload),
+          body: JSON.stringify(analyticsPayload),
         });
 
         if (!intentResp.ok) {
@@ -1600,7 +1827,8 @@
           body: JSON.stringify({
             messages: messagesForApi,
             filters: intentFilters,
-            semantic_search: semanticSearch
+            semantic_search: semanticSearch,
+            analytics: analyticsContext
           }),
         });
 
@@ -1626,6 +1854,7 @@
             role: "assistant",
             content: "",
             recommendations: productRecommendations,
+            analyticsMessageId: analyticsContext.message_id
           };
           messages = [
             ...messages.slice(0, shimmerIndex),
@@ -1638,7 +1867,8 @@
             ...messages.slice(0, shimmerIndex),
             {
               role: "assistant",
-              content: "I couldn't find any products matching those exact specifications. Try adjusting your preferences, or feel free to ask me about specific products!"
+              content: "I couldn't find any products matching those exact specifications. Try adjusting your preferences, or feel free to ask me about specific products!",
+              analyticsMessageId: analyticsContext.message_id
             },
             ...messages.slice(shimmerIndex + 1)
           ];
@@ -1662,7 +1892,7 @@
 
         try {
           // Call product-lookup flow - it will append new messages
-          await handleProductQuestion(productName, { messages });
+          await handleProductQuestion(productName, { messages }, analyticsContext);
         } finally {
           // Ensure loading state is cleared even if handleProductQuestion fails
           loading = false;
@@ -1685,6 +1915,10 @@
   isOpen={isOpen}
   onToggle={() => (isOpen = !isOpen)}
   onClose={() => {
+    void sendAnalyticsEvent('session_closed', {
+      payload: { reason: 'widget_closed' },
+      useBeacon: true
+    });
     isOpen = false;
     closePanel();
   }}
@@ -1749,6 +1983,8 @@
             productsInBubble={true}
             showHoverActions={false}
             actionType="link"
+            onProductAction={(product) => handleRecommendationProductAction(msg.analyticsMessageId, product)}
+            onResultsExpanded={(details) => handleRecommendationExpanded(msg.analyticsMessageId, details)}
           />
         {/if}
       {/each}

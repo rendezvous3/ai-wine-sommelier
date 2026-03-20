@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta, timezone
+from html import escape as html_escape
 from typing import Any, Dict, Iterable, List, Optional, Sequence
+from urllib.parse import quote
 
 import httpx
 
@@ -154,6 +156,159 @@ def _format_delta_line(event: Dict[str, Any]) -> str:
     return " | ".join(parts)
 
 
+def _build_report_url(env: Any, verification_id: Any) -> Optional[str]:
+    normalized_id = str(verification_id or "").strip()
+    if not normalized_id:
+        return None
+    base_url = str(getattr(env, "VERIFY_REPORT_BASE_URL", "") or "").strip().rstrip("/")
+    if not base_url:
+        return None
+    token = str(getattr(env, "VERIFY_REPORT_TOKEN", "") or getattr(env, "VERIFY_ADMIN_TOKEN", "") or "").strip()
+    query = f"?token={quote(token)}" if token else ""
+    return f"{base_url}/reports/{quote(normalized_id)}{query}"
+
+
+def _build_email_bodies(
+    summary: Dict[str, Any],
+    grouped_events: Dict[str, List[Dict[str, Any]]],
+    failed_checks: Sequence[Dict[str, Any]],
+    report_url: Optional[str],
+) -> tuple[str, str]:
+    counts = {
+        "removed": len(grouped_events["removed"]),
+        "added": len(grouped_events["added"]),
+        "updated": len(grouped_events["updated"]),
+        "excluded": len(grouped_events["excluded"]),
+        "warnings": len(grouped_events["warning"]),
+        "failed_checks": len(failed_checks),
+    }
+    verification_id = summary.get("verification_id", "n/a")
+    suite = summary.get("suite", "n/a")
+    source = summary.get("source", "n/a")
+    index_name = summary.get("index_name", "n/a")
+    vectorizer_run_id = summary.get("vectorizer_run_id", "n/a")
+    status = summary.get("status", "unknown")
+    active_unique_count = summary.get("active_unique_count", "n/a")
+    expected_active_delta = summary.get("expected_active_delta", "n/a")
+    actual_active_delta = summary.get("actual_active_delta", "n/a")
+
+    text_lines = [
+        f"Verification ID: {verification_id}",
+        f"Suite: {suite}",
+        f"Source: {source}",
+        f"Index: {index_name}",
+        f"Vectorizer run: {vectorizer_run_id}",
+        f"Status: {status}",
+        f"Active unique count: {active_unique_count}",
+        f"Expected active delta: {expected_active_delta}",
+        f"Actual active delta: {actual_active_delta}",
+        "",
+        "Summary:",
+        f"- Removed: {counts['removed']}",
+        f"- Added: {counts['added']}",
+        f"- Updated: {counts['updated']}",
+        f"- Excluded: {counts['excluded']}",
+        f"- Warnings: {counts['warnings']}",
+        f"- Failed checks: {counts['failed_checks']}",
+    ]
+    if failed_checks:
+        text_lines.extend(
+            [
+                "",
+                "Failed checks:",
+                *[
+                    f"- {check.get('check_id')}: {json.dumps(check.get('details', {}), default=str)}"
+                    for check in failed_checks
+                ],
+            ]
+        )
+    else:
+        text_lines.extend(["", "Failed checks:", "- none"])
+    if report_url:
+        text_lines.extend(["", f"Full report: {report_url}"])
+
+    status_color = "#16a34a" if str(status).lower() == "passed" else "#dc2626"
+    metric_cards = [
+        ("Active unique count", active_unique_count),
+        ("Expected active delta", expected_active_delta),
+        ("Actual active delta", actual_active_delta),
+        ("Removed", counts["removed"]),
+        ("Added", counts["added"]),
+        ("Updated", counts["updated"]),
+        ("Excluded", counts["excluded"]),
+        ("Warnings", counts["warnings"]),
+        ("Failed checks", counts["failed_checks"]),
+    ]
+    failed_checks_html = "".join(
+        [
+            (
+                "<li style=\"margin:0 0 8px 0;\">"
+                f"<strong>{html_escape(str(check.get('check_id') or 'unknown'))}</strong>"
+                f"<div style=\"color:#475569;font-size:13px;line-height:1.5;\">"
+                f"{html_escape(json.dumps(check.get('details', {}), default=str))}</div>"
+                "</li>"
+            )
+            for check in failed_checks
+        ]
+    ) or "<li>none</li>"
+    cards_html = "".join(
+        [
+            (
+                "<div style=\"background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;"
+                "padding:14px 16px;min-width:150px;\">"
+                f"<div style=\"font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.04em;\">{html_escape(str(label))}</div>"
+                f"<div style=\"font-size:24px;font-weight:700;color:#0f172a;margin-top:6px;\">{html_escape(str(value))}</div>"
+                "</div>"
+            )
+            for label, value in metric_cards
+        ]
+    )
+    report_cta = (
+        "<div style=\"margin-top:24px;\">"
+        f"<a href=\"{html_escape(report_url)}\" target=\"_blank\" rel=\"noopener noreferrer\" "
+        "style=\"display:inline-block;background:#111827;color:#ffffff;text-decoration:none;"
+        "padding:12px 18px;border-radius:10px;font-weight:600;\">Open full report</a>"
+        "</div>"
+        if report_url
+        else ""
+    )
+    html_body = f"""
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f1f5f9;padding:24px;color:#0f172a;">
+      <div style="max-width:920px;margin:0 auto;background:#ffffff;border-radius:18px;padding:28px;border:1px solid #e2e8f0;">
+        <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+          <div>
+            <div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">Cannavita QA Sync</div>
+            <h1 style="margin:8px 0 6px 0;font-size:28px;line-height:1.2;">{html_escape(str(index_name))} verification</h1>
+            <div style="color:#475569;font-size:14px;line-height:1.6;">
+              Verification ID: <code>{html_escape(str(verification_id))}</code><br />
+              Suite: {html_escape(str(suite))}<br />
+              Source: {html_escape(str(source))}<br />
+              Vectorizer run: <code>{html_escape(str(vectorizer_run_id))}</code>
+            </div>
+          </div>
+          <div style="background:{status_color};color:#ffffff;border-radius:999px;padding:10px 14px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;">
+            {html_escape(str(status))}
+          </div>
+        </div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:24px;">
+          {cards_html}
+        </div>
+
+        <div style="margin-top:28px;padding:18px;border:1px solid #e2e8f0;border-radius:12px;background:#fcfcfd;">
+          <div style="font-size:14px;font-weight:700;margin-bottom:10px;">Failed checks</div>
+          <ul style="padding-left:18px;margin:0;color:#0f172a;">
+            {failed_checks_html}
+          </ul>
+        </div>
+
+        {report_cta}
+      </div>
+    </div>
+    """
+    return "\n".join(text_lines), html_body
+
+
 async def _send_run_email(
     env: Any,
     summary: Dict[str, Any],
@@ -179,48 +334,8 @@ async def _send_run_email(
         "warning": [event for event in delta_events if event.get("event_type") == "warning"],
     }
     failed_checks = [check for check in summary.get("checks", []) if check.get("status") == "failed"]
-    text_lines = [
-        f"Verification ID: {summary.get('verification_id', 'n/a')}",
-        f"Suite: {summary.get('suite', 'n/a')}",
-        f"Source: {summary.get('source', 'n/a')}",
-        f"Index: {summary.get('index_name', 'n/a')}",
-        f"Vectorizer run: {summary.get('vectorizer_run_id', 'n/a')}",
-        f"Status: {summary.get('status', 'unknown')}",
-        f"Active unique count: {summary.get('active_unique_count', 'n/a')}",
-        f"Expected active delta: {summary.get('expected_active_delta', 'n/a')}",
-        f"Actual active delta: {summary.get('actual_active_delta', 'n/a')}",
-        "",
-        "Removed:",
-    ]
-    text_lines.extend(
-        [f"- {_format_delta_line(event)}" for event in grouped_events["removed"]]
-        or ["- none"]
-    )
-    text_lines.extend(
-        [
-            "",
-            "Added:",
-            *([f"- {_format_delta_line(event)}" for event in grouped_events["added"]] or ["- none"]),
-            "",
-            "Updated:",
-            *([f"- {_format_delta_line(event)}" for event in grouped_events["updated"]] or ["- none"]),
-            "",
-            "Excluded:",
-            *([f"- {_format_delta_line(event)}" for event in grouped_events["excluded"]] or ["- none"]),
-            "",
-            "Warnings:",
-            *([f"- {_format_delta_line(event)}" for event in grouped_events["warning"]] or ["- none"]),
-            "",
-            "Failed checks:",
-            *(
-                [
-                    f"- {check.get('check_id')}: {json.dumps(check.get('details', {}), default=str)}"
-                    for check in failed_checks
-                ]
-                or ["- none"]
-            ),
-        ]
-    )
+    report_url = _build_report_url(env, summary.get("verification_id"))
+    text_body, html_body = _build_email_bodies(summary, grouped_events, failed_checks, report_url)
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         response = await client.post(
@@ -233,7 +348,8 @@ async def _send_run_email(
                 "from": alert_from,
                 "to": [alert_to],
                 "subject": subject,
-                "text": "\n".join(text_lines),
+                "text": text_body,
+                "html": html_body,
             },
         )
         response.raise_for_status()
@@ -401,11 +517,42 @@ async def run_postrun_verification(
             if missing_from_fetch_count == 0 and low_stock_removed_count == 0:
                 missing_from_fetch_count = max(stale_deleted_count, 0)
 
+            latest_completed_verification = await verifier_store.get_latest_completed_for_index(
+                index_name,
+                exclude_vectorizer_run_id=current_run_id,
+            ) if verifier_store.configured else None
             previous = await verifier_store.get_latest_count_baseline_for_index(
                 index_name,
                 exclude_vectorizer_run_id=current_run_id,
             ) if verifier_store.configured else None
-            if previous and previous.get("active_unique_count") is not None:
+            if (
+                latest_completed_verification
+                and previous
+                and latest_completed_verification.get("verification_id") != previous.get("verification_id")
+            ):
+                await record_check(
+                    "count_reconciliation",
+                    "skipped",
+                    {
+                        "reason": "baseline_gap_due_missing_active_count",
+                        "active_unique_count": active_unique_count,
+                        "latest_completed_verification_id": latest_completed_verification.get("verification_id"),
+                        "latest_completed_vectorizer_run_id": latest_completed_verification.get("vectorizer_run_id"),
+                        "latest_completed_status": latest_completed_verification.get("status"),
+                        "latest_completed_active_unique_count": latest_completed_verification.get("active_unique_count"),
+                        "baseline_verification_id": previous.get("verification_id"),
+                        "baseline_vectorizer_run_id": previous.get("vectorizer_run_id"),
+                        "baseline_active_unique_count": previous.get("active_unique_count"),
+                        "new_count": added_count,
+                        "updated_count": updated_count,
+                        "uploaded_count": uploaded_count,
+                        "updated_existing_count": updated_existing_count,
+                        "stale_deleted_count": stale_deleted_count,
+                        "missing_from_fetch_count": missing_from_fetch_count,
+                        "low_stock_removed_count": low_stock_removed_count,
+                    },
+                )
+            elif previous and previous.get("active_unique_count") is not None:
                 previous_active_unique_count = _to_int(previous.get("active_unique_count"))
                 expected_active_delta = added_count - missing_from_fetch_count - low_stock_removed_count
                 actual_active_delta = active_unique_count - previous_active_unique_count
@@ -479,7 +626,7 @@ async def run_postrun_verification(
                     "count_reconciliation",
                     "skipped",
                     {
-                        "reason": "no_previous_successful_verification",
+                        "reason": "no_previous_count_baseline",
                         "active_unique_count": active_unique_count,
                         "new_count": added_count,
                         "updated_count": updated_count,

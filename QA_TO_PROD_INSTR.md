@@ -21,8 +21,9 @@ This is a temporary promotion procedure, not the final steady-state operating mo
 - Backend Worker: `ecom-chat-backend-qa`
 - Pages project: `cannavita-widget-qa`
 - QA soak cron:
-  - `30 23 * * *`
-  - `30 10 * * *`
+  - `30 21 * * *`
+  - `30 9 * * *`
+  - use manual runs for ad-hoc validation instead of adding a temporary third cron
 
 ### Prod/live-ish lane
 

@@ -6,6 +6,7 @@
   import { formatTHCLabel, formatCBDLabel, formatWeightLabel } from './thcFormatter.js';
 
   interface Product {
+    id?: string;
     image: string;
     title: string;
     price: number;
@@ -25,6 +26,7 @@
     cbd_total_mg?: number;
     total_weight_ounce?: number;
     pack_count?: number;
+    rankPosition?: number;
   }
 
   interface ProductRecommendationProps {
@@ -37,6 +39,8 @@
     actionType?: 'add-to-cart' | 'link';
     themeBackgroundColor?: string;
     maxVisible?: number;
+    onProductAction?: (product: Product) => void;
+    onResultsExpanded?: (details: { isExpanded: boolean; totalProducts: number; visibleProducts: number }) => void;
   }
 
   let {
@@ -48,7 +52,9 @@
     onViewDetails,
     actionType = 'add-to-cart',
     themeBackgroundColor,
-    maxVisible = 3
+    maxVisible = 3,
+    onProductAction,
+    onResultsExpanded
   }: ProductRecommendationProps = $props();
 
   // Expandable list state (compact-list layout only)
@@ -68,11 +74,21 @@
   }
 
   function handleProductAction(product: Product) {
+    onProductAction?.(product);
     if (actionType === 'link' && product.shopLink) {
       window.open(product.shopLink, '_blank', 'noopener,noreferrer');
     } else {
       handleAddToCart(product);
     }
+  }
+
+  function toggleExpanded() {
+    isExpanded = !isExpanded;
+    onResultsExpanded?.({
+      isExpanded,
+      totalProducts: products.length,
+      visibleProducts: isExpanded ? products.length : maxVisible
+    });
   }
 
   function getPlaceholderImage(title: string): string {
@@ -126,6 +142,7 @@
         showTitle={false}
         onAddToCart={handleAddToCart}
         actionType={actionType}
+        onProductAction={onProductAction}
       />
     {:else if layout === 'compact-list'}
       <div class="product-recommendation__compact">
@@ -223,7 +240,7 @@
         {#if hasMore}
           <button
             class="product-recommendation__expand-button"
-            onclick={() => (isExpanded = !isExpanded)}
+            onclick={toggleExpanded}
             type="button"
             style="{effectiveThemeColor ? `color: ${effectiveThemeColor};` : ''}"
           >
@@ -355,8 +372,10 @@
             cbd_total_mg={product.cbd_total_mg}
             total_weight_ounce={product.total_weight_ounce}
             pack_count={product.pack_count}
+            rankPosition={product.rankPosition}
             onAddToCart={() => handleAddToCart(product)}
             actionType={actionType}
+            onProductAction={() => onProductAction?.(product)}
           />
         {/each}
       </div>
@@ -366,6 +385,7 @@
         columns={2}
         onAddToCart={handleAddToCart}
         actionType={actionType}
+        onProductAction={onProductAction}
       />
     {/if}
   </div>
@@ -914,4 +934,3 @@
     }
   }
 </style>
-

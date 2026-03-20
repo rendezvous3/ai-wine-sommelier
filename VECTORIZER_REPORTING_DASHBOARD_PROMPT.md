@@ -1,0 +1,102 @@
+# Vectorizer Reporting Dashboard Handoff Prompt
+
+Last updated: March 19, 2026
+
+Use this prompt when handing the dashboard/FastAPI project the vectorizer reporting contract.
+
+## Prompt
+
+Update the Vectorize dashboard to support full last-run product snapshots and per-product quantity history.
+
+Use this reporting contract as the source of truth:
+- `vectorizer_runs`
+- `vectorizer_run_events`
+- `vectorizer_run_event_fields`
+- `vectorizer_run_reason_counts`
+- `vector_uniques_<index>` such as `vector_uniques_products_qa`
+- `vectorizer_run_product_snapshots`
+
+Important interpretation rules:
+- `vectorizer_run_events` is delta-based and does not prove unchanged by itself.
+- `vectorizer_run_product_snapshots` is the source of truth for explicit unchanged confirmation.
+- `vector_uniques_<index>` is the current active ledger state only.
+- `vector_uniques_<index>.updated_at` should be treated as last synced/upserted, not guaranteed last materially changed quantity time.
+- Product deletion from the active ledger should not erase recent snapshot history immediately. History remains until retention purges it.
+
+Build or update these screens:
+
+### 1. Last Run Snapshot
+- Source: `vectorizer_run_product_snapshots`
+- Filtered by the selected `run_id`
+- Show one row per product in that run
+- Recommended columns:
+  - product_id
+  - raw_name
+  - category
+  - subcategory
+  - quantity
+  - previous_quantity
+  - price
+  - previous_price
+  - disposition
+  - reason_label
+  - status
+
+### 2. Product Inspector
+- Search by `product_id` or product name
+- Show current ledger state from `vector_uniques_<index>`:
+  - product_id
+  - raw_name
+  - category
+  - subcategory
+  - quantity
+  - price
+  - updated_at
+  - last_seen_at
+- Show product snapshot history from `vectorizer_run_product_snapshots`
+- Show field-level change history from `vectorizer_run_event_fields`
+
+### 3. Product Quantity History
+- Source: `vectorizer_run_product_snapshots`
+- Join to `vectorizer_runs` for run timestamps
+- For each run show:
+  - run_id
+  - started_at
+  - quantity
+  - previous_quantity
+  - disposition
+  - reason_label
+  - status
+  - changed_fields_json
+
+### 4. Last Quantity Change
+- Source: `vectorizer_run_event_fields`
+- Filter:
+  - `field_name = 'quantity'`
+  - `field_role = 'changed'`
+- Join to `vectorizer_run_events` for event time and reason
+
+### 5. Existing run detail
+- Keep current:
+  - Removed
+  - Updated
+  - Excluded
+  - Reason counts
+- Add:
+  - Unchanged
+  - Full snapshot
+- Prefer `vectorizer_run_product_snapshots` for the full list rather than trying to infer unchanged rows from event absence.
+
+### Read-layer requirements
+- Build read-only FastAPI endpoints over D1.
+- Do not invent unchanged history from current ledger alone.
+- If a product has no quantity change event, but snapshot rows exist, use snapshot rows as the authoritative per-run qty history.
+- Tolerate null quantity and price values.
+- Keep the current UI structure and styling; this is a reporting/data-model expansion, not a redesign.
+
+## Maintenance Reminder
+
+If the vectorizer reporting schema or interpretation rules change in the main repo:
+- update `VECTORIZER_REPORTING_SCHEMA.md`
+- update this prompt file
+- update the dashboard project’s read model and UI assumptions

@@ -38,6 +38,12 @@ def build_cycle_options(
     index_name = overrides.get("index_name") or getattr(source, "INDEX_NAME", None) or "products-prod"
     min_quantity = parse_optional_int(overrides.get("min_quantity") or getattr(source, "MIN_QUANTITY", None) or 5)
     limit = parse_limit_value(overrides.get("limit") or getattr(source, "LIMIT", None) or "none")
+    product_history_retention_days = parse_optional_int(
+        overrides.get("product_history_retention_days")
+        or getattr(source, "PRODUCT_HISTORY_RETENTION_DAYS", None)
+        or getattr(source, "VECTORIZER_PRODUCT_HISTORY_RETENTION_DAYS", None)
+        or 14
+    ) or 14
 
     return SyncCycleOptions(
         sync=SyncOptions(
@@ -47,6 +53,7 @@ def build_cycle_options(
             use_api=True,
             min_quantity=min_quantity,
             trigger_source=trigger_source,
+            product_history_retention_days=product_history_retention_days,
         ),
         reconcile=ReconcileOptions(
             index_name=index_name,
@@ -211,6 +218,75 @@ def _compat_reconcile_summary(options: SyncCycleOptions, removal: RemovalSummary
     )
 
 
+def _to_optional_int(value: Any) -> Optional[int]:
+    if value is None or str(value).strip() == "":
+        return None
+    return int(value)
+
+
+def _to_optional_float(value: Any) -> Optional[float]:
+    if value is None or str(value).strip() == "":
+        return None
+    return float(value)
+
+
+def _finalize_product_snapshots(
+    *,
+    pipeline_snapshots: Dict[str, Dict[str, Any]],
+    removal_events: Iterable[RunEvent],
+) -> list[Dict[str, Any]]:
+    snapshots = {
+        str(product_id): dict(snapshot)
+        for product_id, snapshot in (pipeline_snapshots or {}).items()
+        if product_id
+    }
+
+    for event in removal_events:
+        product_id = str(event.product_id or "").strip()
+        if not product_id:
+            continue
+
+        previous_state = dict(event.previous_state or {})
+        snapshot = dict(snapshots.get(product_id) or {})
+        if not snapshot:
+            snapshot = {
+                "product_id": product_id,
+                "raw_name": previous_state.get("raw_name") or event.raw_name,
+                "normalized_name": previous_state.get("normalized_name") or event.normalized_name,
+                "category": previous_state.get("category") or event.category,
+                "subcategory": previous_state.get("subcategory") or event.subcategory,
+                "source_seen": False,
+                "active_after_run": event.status != "applied",
+                "disposition": "removed",
+                "reason_code": event.reason_code or event.reason,
+                "reason_label": event.reason_label or event.reason_code or event.reason,
+                "status": event.status,
+                "quantity": _to_optional_int(previous_state.get("quantity")),
+                "previous_quantity": _to_optional_int(previous_state.get("quantity")),
+                "price": _to_optional_float(previous_state.get("price")),
+                "previous_price": _to_optional_float(previous_state.get("price")),
+                "changed_fields": [],
+            }
+        else:
+            snapshot["disposition"] = "removed"
+            snapshot["reason_code"] = event.reason_code or event.reason
+            snapshot["reason_label"] = event.reason_label or event.reason_code or event.reason
+            snapshot["status"] = event.status
+            snapshot["active_after_run"] = event.status != "applied"
+            if snapshot.get("previous_quantity") is None:
+                snapshot["previous_quantity"] = _to_optional_int(previous_state.get("quantity"))
+            if snapshot.get("previous_price") is None:
+                snapshot["previous_price"] = _to_optional_float(previous_state.get("price"))
+            if snapshot.get("quantity") is None:
+                snapshot["quantity"] = _to_optional_int(previous_state.get("quantity"))
+            if snapshot.get("price") is None:
+                snapshot["price"] = _to_optional_float(previous_state.get("price"))
+
+        snapshots[product_id] = snapshot
+
+    return list(snapshots.values())
+
+
 async def run_sync_cycle(
     options: SyncCycleOptions,
     trigger_source: str = "local",
@@ -260,6 +336,20 @@ async def run_sync_cycle(
                 all_events = [event.to_dict() for event in [*pipeline_result.events, *removal_events]]
                 if all_events:
                     await report_store.record_events(run_id, options.sync.index_name, all_events)
+                final_product_snapshots = _finalize_product_snapshots(
+                    pipeline_snapshots=pipeline_result.product_snapshots,
+                    removal_events=removal_events,
+                )
+                if final_product_snapshots:
+                    await report_store.record_product_snapshots(
+                        run_id,
+                        options.sync.index_name,
+                        final_product_snapshots,
+                    )
+                if options.sync.product_history_retention_days >= 0:
+                    await report_store.purge_product_snapshots(
+                        retain_days=options.sync.product_history_retention_days
+                    )
                 await report_store.finish_run(
                     run_id=run_id,
                     summary=cycle_summary.to_dict(),

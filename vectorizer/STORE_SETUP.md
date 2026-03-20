@@ -119,7 +119,7 @@ LIMIT = "none"
 POSTRUN_VERIFIER_URL = ""
 
 [triggers]
-crons = ["30 23 * * *", "30 10 * * *"]
+crons = ["30 21 * * *", "30 9 * * *"]
 
 [limits]
 cpu_ms = 300000
@@ -130,10 +130,12 @@ Do not omit the `[limits]` block. This is required for full-menu Worker runs at 
 
 For QA/staging soak lanes, the recommended starting schedule is twice daily:
 
-- `30 23 * * *`
-- `30 10 * * *`
+- `30 21 * * *`
+- `30 9 * * *`
 
 That gives a usable validation sample over a few days without waiting a full day between runs.
+
+For ad-hoc testing, use a manual trigger instead of temporarily adding a third cron slot.
 
 ### Verifier Worker config requirements
 
@@ -150,6 +152,7 @@ INDEX_NAME = "products-terpli-qa"
 BACKEND_BASE_URL = "https://ecom-chat-backend-terpli-qa.<subdomain>.workers.dev"
 VERIFY_ALERT_TO = ""
 VERIFY_ALERT_FROM = ""
+VERIFY_REPORT_BASE_URL = "https://postrun-verifier-<lane>.<subdomain>.workers.dev"
 ```
 
 ## 5. Populate local env files
@@ -174,9 +177,11 @@ Verifier lane file should contain:
 - `CF_D1_DATABASE_ID`
 - `CANNAVITA_API_KEY`
 - `VERIFY_ADMIN_TOKEN`
+- `VERIFY_REPORT_TOKEN` optional
 - `BACKEND_BASE_URL`
 - `VERIFY_ALERT_TO`
 - `VERIFY_ALERT_FROM`
+- `VERIFY_REPORT_BASE_URL`
 - `RESEND_API_KEY`
 
 Token rule:
@@ -208,6 +213,7 @@ pywrangler secret put CF_VECTORIZE_API_TOKEN --config wrangler.verifier.<lane>.t
 pywrangler secret put CF_D1_DATABASE_ID --config wrangler.verifier.<lane>.toml
 pywrangler secret put CF_D1_API_TOKEN --config wrangler.verifier.<lane>.toml
 pywrangler secret put VERIFY_ADMIN_TOKEN --config wrangler.verifier.<lane>.toml
+pywrangler secret put VERIFY_REPORT_TOKEN --config wrangler.verifier.<lane>.toml
 pywrangler secret put RESEND_API_KEY --config wrangler.verifier.<lane>.toml
 ```
 

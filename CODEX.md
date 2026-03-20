@@ -42,6 +42,16 @@ This repository should be treated with a strict development-only context window.
 - Read only files needed for the current task.
 - Skip excluded paths during search/index operations.
 - Only enter excluded paths when the user explicitly asks.
+- Chat analytics D1 work must stay aligned with [CHAT_ANALYTICS_SCHEMA.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/CHAT_ANALYTICS_SCHEMA.md).
+- Any change to chat analytics schema or interpretation rules must update:
+  - [CHAT_ANALYTICS_SCHEMA.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/CHAT_ANALYTICS_SCHEMA.md)
+  - [CHAT_ANALYTICS_DASHBOARD_PROMPT.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/CHAT_ANALYTICS_DASHBOARD_PROMPT.md)
+- If chat analytics schema changes, remind the user to update the dashboard project too.
+- Vectorizer reporting schema work must stay aligned with [VECTORIZER_REPORTING_SCHEMA.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/VECTORIZER_REPORTING_SCHEMA.md).
+- Any change to vectorizer reporting schema or interpretation rules must update:
+  - [VECTORIZER_REPORTING_SCHEMA.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/VECTORIZER_REPORTING_SCHEMA.md)
+  - [VECTORIZER_REPORTING_DASHBOARD_PROMPT.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/VECTORIZER_REPORTING_DASHBOARD_PROMPT.md)
+- If vectorizer reporting schema changes, remind the user to update the dashboard project too.
 
 ## Current Operational Topology (Mandatory)
 

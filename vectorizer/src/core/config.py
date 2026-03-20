@@ -84,6 +84,7 @@ class SyncOptions:
     min_quantity: Optional[int] = None
     use_d1_dedup: bool = True
     trigger_source: str = "local"
+    product_history_retention_days: int = 14
 
 
 @dataclass(frozen=True)

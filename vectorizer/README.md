@@ -253,22 +253,23 @@ pywrangler deploy --config wrangler.qa.toml
 - `MIN_QUANTITY = "5"`
 - `LIMIT = "none"`
 - `POSTRUN_VERIFIER_URL = "https://postrun-verifier-qa.andresmeona.workers.dev"`
-- twice-daily QA soak cron in `[triggers].crons`:
-  - `30 23 * * *`
-  - `30 10 * * *`
+- QA soak cron in `[triggers].crons`:
+  - `30 21 * * *`
+  - `30 9 * * *`
 - explicit Worker capacity limits:
   - `cpu_ms = 300000`
   - `subrequests = 50000`
 
 Cloudflare cron is UTC. The current QA soak schedule maps to:
 
-- `23:30 UTC` = `5:30 PM` Denver/Salt Lake City during daylight time
-- `10:30 UTC` = `4:30 AM` Denver/Salt Lake City during daylight time
+- `21:30 UTC` = `3:30 PM` Denver/Salt Lake City during daylight time
+- `09:30 UTC` = `3:30 AM` Denver/Salt Lake City during daylight time
 
 Important:
 
 - scheduled post-run verification is currently intended to run `categories_only`
 - auto-trigger becomes active only after `POSTRUN_VERIFIER_TOKEN` is set on `vectorizer-worker-qa`
+- for ad-hoc testing, use the manual `/run` path instead of adding a temporary third cron
 
 ### Testing the Worker
 
@@ -436,6 +437,7 @@ The important separation is:
 - `vectorizer-worker-qa` uses `ADMIN_TOKEN`
 - `postrun-verifier-qa` uses `VERIFY_ADMIN_TOKEN`
 - `vectorizer-worker-qa.POSTRUN_VERIFIER_TOKEN` must equal `postrun-verifier-qa.VERIFY_ADMIN_TOKEN`
+- `postrun-verifier-qa` can optionally use `VERIFY_REPORT_TOKEN` for emailed report links
 
 Do not assume prod and QA token values are interchangeable.
 
@@ -449,6 +451,7 @@ pywrangler secret put CF_VECTORIZE_API_TOKEN --config wrangler.verifier.qa.toml
 pywrangler secret put CF_D1_DATABASE_ID --config wrangler.verifier.qa.toml
 pywrangler secret put CF_D1_API_TOKEN --config wrangler.verifier.qa.toml
 pywrangler secret put VERIFY_ADMIN_TOKEN --config wrangler.verifier.qa.toml
+pywrangler secret put VERIFY_REPORT_TOKEN --config wrangler.verifier.qa.toml
 pywrangler secret put RESEND_API_KEY --config wrangler.verifier.qa.toml
 pywrangler deploy --config wrangler.verifier.qa.toml
 ```
@@ -463,6 +466,7 @@ pywrangler secret put CF_VECTORIZE_API_TOKEN --config wrangler.verifier.toml
 pywrangler secret put CF_D1_DATABASE_ID --config wrangler.verifier.toml
 pywrangler secret put CF_D1_API_TOKEN --config wrangler.verifier.toml
 pywrangler secret put VERIFY_ADMIN_TOKEN --config wrangler.verifier.toml
+pywrangler secret put VERIFY_REPORT_TOKEN --config wrangler.verifier.toml
 pywrangler secret put RESEND_API_KEY --config wrangler.verifier.toml
 pywrangler deploy --config wrangler.verifier.toml
 ```

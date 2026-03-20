@@ -206,6 +206,9 @@ class Default(WorkerEntrypoint):
                 overrides = {
                     "index_name": _payload_get(payload, "index_name"),
                     "min_quantity": parse_optional_int(_payload_get(payload, "min_quantity")),
+                    "product_history_retention_days": parse_optional_int(
+                        _payload_get(payload, "product_history_retention_days")
+                    ),
                     "limit": (
                         parse_limit_value(_payload_get(payload, "limit"))
                         if _payload_get(payload, "limit") is not None

@@ -87,12 +87,36 @@ class RunEvent:
 
 
 @dataclass
+class RunProductSnapshot:
+    product_id: str
+    raw_name: Optional[str] = None
+    normalized_name: Optional[str] = None
+    category: Optional[str] = None
+    subcategory: Optional[str] = None
+    source_seen: bool = False
+    active_after_run: bool = False
+    disposition: str = "unchanged"
+    reason_code: Optional[str] = None
+    reason_label: Optional[str] = None
+    status: str = "applied"
+    quantity: Optional[int] = None
+    previous_quantity: Optional[int] = None
+    price: Optional[float] = None
+    previous_price: Optional[float] = None
+    changed_fields: List[str] = field(default_factory=list)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
 class SyncPipelineResult:
     summary: "SyncSummary"
     fetched_ids_raw: List[str] = field(default_factory=list)
     active_rows_before: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     low_stock_active_ids: List[str] = field(default_factory=list)
     events: List[RunEvent] = field(default_factory=list)
+    product_snapshots: Dict[str, Dict[str, Any]] = field(default_factory=dict)
 
 
 @dataclass

@@ -540,6 +540,7 @@ printf '%s' '{
 
 - `vectorizer-worker-qa` manual auth secret is `ADMIN_TOKEN`
 - `postrun-verifier-qa` manual auth secret is `VERIFY_ADMIN_TOKEN`
+- `postrun-verifier-qa` can optionally use `VERIFY_REPORT_TOKEN` for emailed full-report links
 - `vectorizer-worker-qa` auto-trigger secret is `POSTRUN_VERIFIER_TOKEN`
 - `POSTRUN_VERIFIER_TOKEN` must equal `QA_VERIFY_ADMIN_TOKEN`
 - `QA_VECTORIZER_ADMIN_TOKEN` does not have to equal `QA_VERIFY_ADMIN_TOKEN`
@@ -599,9 +600,11 @@ Current validated QA runtime facts:
   - `cpu_ms = 300000`
   - `subrequests = 50000`
 - QA soak cron is configured twice daily:
-  - `30 23 * * *`
-  - `30 10 * * *`
-  - `23:30 UTC` and `10:30 UTC`
+  - `30 21 * * *`
+  - `30 9 * * *`
+  - `21:30 UTC` and `09:30 UTC`
+  - these map to `3:30 PM` and `3:30 AM` Denver during daylight time
+- for ad-hoc validation, trigger a manual run instead of temporarily adding a third cron slot
 - a `limit = 1500` manual run successfully pulled the full currently observed QA menu:
   - `fetched_count = 824`
   - `uploaded_count = 682`

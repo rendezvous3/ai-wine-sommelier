@@ -44,8 +44,8 @@ As of March 13, 2026:
   - `cpu_ms = 300000`
   - `subrequests = 50000`
 - QA soak cron is configured twice daily:
-  - `30 23 * * *`
-  - `30 10 * * *`
+  - `30 21 * * *`
+  - `30 9 * * *`
 - a bounded high-limit manual run proved full-menu coverage for the current QA catalog:
   - `limit = 1500`
   - actual `fetched_count = 824`
@@ -146,6 +146,7 @@ Secrets:
 - `CF_D1_DATABASE_ID`
 - `CF_D1_API_TOKEN`
 - `VERIFY_ADMIN_TOKEN`
+- `VERIFY_REPORT_TOKEN` optional
 - `RESEND_API_KEY` optional
 
 Vars:
@@ -154,12 +155,19 @@ Vars:
 - `BACKEND_BASE_URL`
 - `VERIFY_ALERT_TO`
 - `VERIFY_ALERT_FROM`
+- `VERIFY_REPORT_BASE_URL`
 
 Use `VERIFY_ADMIN_TOKEN` for:
 
 - `POST /run`
 - `GET /last-run`
 - `GET /runs/:verification_id`
+
+Use `VERIFY_REPORT_TOKEN` for:
+
+- `GET /reports/:verification_id?token=...`
+
+If `VERIFY_REPORT_TOKEN` is not set, report emails fall back to `VERIFY_ADMIN_TOKEN` in the report link.
 
 ## Prod deployed Workers
 

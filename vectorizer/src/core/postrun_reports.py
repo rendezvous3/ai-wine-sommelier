@@ -279,6 +279,31 @@ class D1PostrunVerificationStore:
         rows = payload.get("result", [{}])[0].get("results", [])
         return rows[0] if rows else None
 
+    async def get_latest_completed_for_index(
+        self,
+        index_name: str,
+        *,
+        exclude_vectorizer_run_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        where = [
+            "status != 'running'",
+            f"index_name = '{self.client.sql_quote(index_name)}'",
+        ]
+        if exclude_vectorizer_run_id:
+            where.append(
+                f"(vectorizer_run_id IS NULL OR vectorizer_run_id != '{self.client.sql_quote(exclude_vectorizer_run_id)}')"
+            )
+        sql = f"""
+        SELECT *
+        FROM postrun_verifications
+        WHERE {" AND ".join(where)}
+        ORDER BY started_at DESC
+        LIMIT 1;
+        """
+        payload = await self.client.exec_sql(sql)
+        rows = payload.get("result", [{}])[0].get("results", [])
+        return rows[0] if rows else None
+
     async def get_latest_count_baseline_for_index(
         self,
         index_name: str,

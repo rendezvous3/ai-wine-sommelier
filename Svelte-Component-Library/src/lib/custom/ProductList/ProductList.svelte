@@ -2,6 +2,7 @@
   import ProductCard from '../ProductCard/ProductCard.svelte';
 
   interface Product {
+    id?: string;
     image: string;
     title: string;
     price: number;
@@ -16,6 +17,7 @@
     thc_per_unit_mg?: number;
     thc_total_mg?: number;
     pack_count?: number;
+    rankPosition?: number;
   }
 
   interface ProductListProps {
@@ -24,6 +26,7 @@
     showTitle?: boolean;
     actionType?: 'add-to-cart' | 'link';
     onAddToCart?: (product: Product) => void;
+    onProductAction?: (product: Product) => void;
   }
 
   let {
@@ -31,7 +34,8 @@
     title = 'Products',
     showTitle = true,
     actionType = 'add-to-cart',
-    onAddToCart
+    onAddToCart,
+    onProductAction
   }: ProductListProps = $props();
 
   function handleAddToCart(product: Product) {
@@ -62,8 +66,10 @@
             thc_per_unit_mg={product.thc_per_unit_mg}
             thc_total_mg={product.thc_total_mg}
             pack_count={product.pack_count}
+            rankPosition={product.rankPosition}
             actionType={actionType}
             onAddToCart={() => handleAddToCart(product)}
+            onProductAction={() => onProductAction?.(product)}
           />
         </div>
       {/each}
@@ -148,4 +154,3 @@
     }
   }
 </style>
-

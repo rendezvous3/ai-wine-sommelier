@@ -3,6 +3,7 @@
   import { formatTHCLabel, formatCBDLabel, formatWeightLabel } from '../ProductRecommendation/thcFormatter.js';
 
   interface ProductCardProps {
+    id?: string;
     image: string;
     title: string;
     price: number;
@@ -22,10 +23,13 @@
     cbd_total_mg?: number;
     total_weight_ounce?: number;
     pack_count?: number;
+    rankPosition?: number;
     onAddToCart?: () => void;
+    onProductAction?: () => void;
   }
 
   let {
+    id,
     image,
     title,
     price,
@@ -45,7 +49,9 @@
     cbd_total_mg,
     total_weight_ounce,
     pack_count,
-    onAddToCart
+    rankPosition,
+    onAddToCart,
+    onProductAction
   }: ProductCardProps = $props();
 
   let hasDiscount = $derived(discount !== undefined && discount > 0);
@@ -64,6 +70,7 @@
   }
 
   function handleProductAction() {
+    onProductAction?.();
     if (actionType === 'link' && shopLink) {
       window.open(shopLink, '_blank', 'noopener,noreferrer');
     } else {
@@ -471,4 +478,3 @@
     }
   }
 </style>
-
