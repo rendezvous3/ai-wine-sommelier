@@ -8,3 +8,9 @@ index_name = "products-prod"
 
 [ai]
 binding = "AI"
+
+[[d1_databases]]
+binding = "ANALYTICS_DB"
+database_name = "d1-database"
+database_id = "2224acee-2faa-48db-97cd-5cdab44cfeca"
+preview_database_id = "2224acee-2faa-48db-97cd-5cdab44cfeca"

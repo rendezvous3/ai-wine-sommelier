@@ -29,6 +29,100 @@ def _chunked(items: Iterable[str], size: int) -> list[list[str]]:
     return [values[index : index + size] for index in range(0, len(values), size)]
 
 
+async def _delete_batch_with_fallback(
+    *,
+    api: CloudflareApiClient,
+    d1_store: D1UniqueStore,
+    table_name: str,
+    index_name: str,
+    batch: list[str],
+    removal: RemovalSummary,
+    rows_by_id: Dict[str, Dict[str, Any]],
+    target_reasons: Dict[str, str],
+    removal_events: list[RunEvent],
+    deleted_ids: list[str],
+) -> None:
+    try:
+        await api.delete_vectors(index_name, batch)
+        removal.deleted_vectors += len(batch)
+        removal.deleted_d1_rows += await d1_store.delete_ids(table_name, batch)
+        deleted_ids.extend(batch)
+        for product_id in batch:
+            previous_state = rows_by_id.get(product_id) or {}
+            removal_events.append(
+                RunEvent(
+                    event_type="removed",
+                    reason=target_reasons[product_id],
+                    status="applied",
+                    disposition="removed",
+                    stage="reconcile",
+                    severity="applied",
+                    reason_code=target_reasons[product_id],
+                    reason_label="Explicit removal applied",
+                    product_id=product_id,
+                    raw_name=previous_state.get("raw_name"),
+                    normalized_name=previous_state.get("normalized_name"),
+                    category=previous_state.get("category"),
+                    subcategory=previous_state.get("subcategory"),
+                    previous_state=previous_state,
+                    normalized_snapshot=previous_state,
+                )
+            )
+        return
+    except Exception as exc:
+        if len(batch) > 1:
+            midpoint = max(1, len(batch) // 2)
+            await _delete_batch_with_fallback(
+                api=api,
+                d1_store=d1_store,
+                table_name=table_name,
+                index_name=index_name,
+                batch=batch[:midpoint],
+                removal=removal,
+                rows_by_id=rows_by_id,
+                target_reasons=target_reasons,
+                removal_events=removal_events,
+                deleted_ids=deleted_ids,
+            )
+            await _delete_batch_with_fallback(
+                api=api,
+                d1_store=d1_store,
+                table_name=table_name,
+                index_name=index_name,
+                batch=batch[midpoint:],
+                removal=removal,
+                rows_by_id=rows_by_id,
+                target_reasons=target_reasons,
+                removal_events=removal_events,
+                deleted_ids=deleted_ids,
+            )
+            return
+
+        product_id = batch[0]
+        removal.failed_removal_count += 1
+        previous_state = rows_by_id.get(product_id) or {}
+        removal_events.append(
+            RunEvent(
+                event_type="removed",
+                reason=target_reasons[product_id],
+                status="failed",
+                disposition="removed",
+                stage="reconcile",
+                severity="failed",
+                reason_code=target_reasons[product_id],
+                reason_label="Explicit removal failed",
+                product_id=product_id,
+                raw_name=previous_state.get("raw_name"),
+                normalized_name=previous_state.get("normalized_name"),
+                category=previous_state.get("category"),
+                subcategory=previous_state.get("subcategory"),
+                previous_state=previous_state,
+                normalized_snapshot=previous_state,
+                details={"error": str(exc)},
+            )
+        )
+
+
 def build_cycle_options(
     source: Any,
     overrides: Optional[Dict[str, Any]] = None,
@@ -139,56 +233,18 @@ async def _apply_explicit_removals(
 
     deleted_ids: list[str] = []
     for batch in _chunked(target_reasons.keys(), options.reconcile.batch_size):
-        try:
-            await api.delete_vectors(options.sync.index_name, batch)
-            removal.deleted_vectors += len(batch)
-            removal.deleted_d1_rows += await d1_store.delete_ids(table_name, batch)
-            deleted_ids.extend(batch)
-            for product_id in batch:
-                previous_state = rows_by_id.get(product_id) or {}
-                removal_events.append(
-                    RunEvent(
-                        event_type="removed",
-                        reason=target_reasons[product_id],
-                        status="applied",
-                        disposition="removed",
-                        stage="reconcile",
-                        severity="applied",
-                        reason_code=target_reasons[product_id],
-                        reason_label="Explicit removal applied",
-                        product_id=product_id,
-                        raw_name=previous_state.get("raw_name"),
-                        normalized_name=previous_state.get("normalized_name"),
-                        category=previous_state.get("category"),
-                        subcategory=previous_state.get("subcategory"),
-                        previous_state=previous_state,
-                        normalized_snapshot=previous_state,
-                    )
-                )
-        except Exception as exc:
-            removal.failed_removal_count += len(batch)
-            for product_id in batch:
-                previous_state = rows_by_id.get(product_id) or {}
-                removal_events.append(
-                    RunEvent(
-                        event_type="removed",
-                        reason=target_reasons[product_id],
-                        status="failed",
-                        disposition="removed",
-                        stage="reconcile",
-                        severity="failed",
-                        reason_code=target_reasons[product_id],
-                        reason_label="Explicit removal failed",
-                        product_id=product_id,
-                        raw_name=previous_state.get("raw_name"),
-                        normalized_name=previous_state.get("normalized_name"),
-                        category=previous_state.get("category"),
-                        subcategory=previous_state.get("subcategory"),
-                        previous_state=previous_state,
-                        normalized_snapshot=previous_state,
-                        details={"error": str(exc)},
-                    )
-                )
+        await _delete_batch_with_fallback(
+            api=api,
+            d1_store=d1_store,
+            table_name=table_name,
+            index_name=options.sync.index_name,
+            batch=list(batch),
+            removal=removal,
+            rows_by_id=rows_by_id,
+            target_reasons=target_reasons,
+            removal_events=removal_events,
+            deleted_ids=deleted_ids,
+        )
 
     removal.removed_count = len(deleted_ids)
     removal.sample_removed_ids = deleted_ids[:20]

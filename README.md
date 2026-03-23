@@ -1008,14 +1008,24 @@ name = "vectorizer-worker-qa"
 INDEX_NAME = "products-qa"
 MIN_QUANTITY = "5"
 LIMIT = "none"
+POSTRUN_VERIFIER_URL = "https://postrun-verifier-qa.andresmeona.workers.dev"
+
+[[services]]
+binding = "POSTRUN_VERIFIER_SERVICE"
+service = "postrun-verifier-qa"
 
 [triggers]
-crons = ["17 7 * * *"]
+crons = ["30 21 * * *", "30 9 * * *"]
+
+[limits]
+cpu_ms = 300000
+subrequests = 50000
 ```
 
 **QA run-report and dedup isolation**:
 - use a separate D1 database for QA: `vectorizer-qa`
 - prod/live-ish run reports and QA run reports must not share the same D1 database
+- chat analytics follow the same separation rule: QA and prod backends should write to separate D1 databases
 
 ---
 

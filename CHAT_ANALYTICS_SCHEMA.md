@@ -4,12 +4,19 @@ Last confirmed: March 18, 2026
 Verification source: live `vectorizer-qa` D1 via `PRAGMA table_info(...)`
 Database: `vectorizer-qa`
 
-This file is the source-of-truth contract for the chat analytics tables currently written by the QA backend.
+This file is the source-of-truth contract for the chat analytics tables written by the backend analytics pipeline.
+
+Current lane model:
+- QA backend writes to `vectorizer-qa`
+- prod backend writes to a separate prod D1 database
+- QA and prod analytics must not share one D1 database
+- schema must stay identical across both lanes
 
 Maintenance rule:
 - Any change to chat analytics D1 tables, columns, defaults, or interpretation rules must update this file in the same change.
 - If the schema or interpretation rules change, update [CHAT_ANALYTICS_DASHBOARD_PROMPT.md](/Users/bojanjovanovic/Desktop/Svelte/AiChatBot/CHAT_ANALYTICS_DASHBOARD_PROMPT.md) too.
 - If the schema changes, the dashboard project must be told to update its read model and UI assumptions.
+- If a new analytics lane is enabled, keep it on the same schema contract and document the lane separation here.
 
 ## Model Catalog Maintenance
 

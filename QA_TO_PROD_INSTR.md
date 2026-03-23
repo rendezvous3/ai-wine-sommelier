@@ -41,6 +41,9 @@ This is a temporary promotion procedure, not the final steady-state operating mo
 - Verifier Worker: `postrun-verifier`
 - Backend Worker: `ecom-chat-backend`
 - Pages site: `https://cannavita-widget.pages.dev`
+- prod cron is intentionally staggered 15 minutes before QA for same-window comparison without overlapping load:
+  - `15 21 * * *`
+  - `15 9 * * *`
 
 ## Promotion Gate
 
@@ -83,6 +86,8 @@ cd /Users/bojanjovanovic/Desktop/Svelte/AiChatBot/vectorizer/src
 
 ## One-Time Prod Worker Preparation
 
+If the prod Workers do not exist remotely yet, the first deploy will create them. No new Worker code or extra Wrangler project scaffolding is required.
+
 Run these from `vectorizer/`, not `vectorizer/src/`.
 
 ```bash
@@ -110,29 +115,55 @@ Requirements:
 - `CF_VECTORIZE_API_TOKEN` must have Vectorize read/write access
 - `ADMIN_TOKEN` should be the prod token, separate from QA
 
+Set or re-set prod verifier secrets on `postrun-verifier`:
+
+```bash
+pywrangler secret put CANNAVITA_API_KEY --config wrangler.verifier.toml
+pywrangler secret put CF_ACCOUNT_ID --config wrangler.verifier.toml
+pywrangler secret put CF_VECTORIZE_API_TOKEN --config wrangler.verifier.toml
+pywrangler secret put CF_D1_DATABASE_ID --config wrangler.verifier.toml
+pywrangler secret put CF_D1_API_TOKEN --config wrangler.verifier.toml
+pywrangler secret put VERIFY_ADMIN_TOKEN --config wrangler.verifier.toml
+pywrangler secret put VERIFY_REPORT_TOKEN --config wrangler.verifier.toml
+pywrangler secret put RESEND_API_KEY --config wrangler.verifier.toml
+```
+
+Set the prod auto-trigger token on `vectorizer-worker` so scheduled sync can call the prod verifier:
+
+```bash
+pywrangler secret put POSTRUN_VERIFIER_TOKEN --config wrangler.toml
+```
+
+Requirements:
+
+- `POSTRUN_VERIFIER_TOKEN` on `vectorizer-worker` must equal `VERIFY_ADMIN_TOKEN` on `postrun-verifier`
+- `VERIFY_REPORT_TOKEN` is optional but recommended for emailed full-report links
+- `RESEND_API_KEY` is required if you want verifier emails from prod
+
 ## Prod Worker Deploy
 
-Deploy the prod Worker using the existing prod config:
+Deploy the prod verifier first, then the prod vectorizer Worker:
 
 ```bash
 cd /Users/bojanjovanovic/Desktop/Svelte/AiChatBot/vectorizer
 source venv/bin/activate
 nvm use --lts
+pywrangler deploy --config wrangler.verifier.toml
 pywrangler deploy --config wrangler.toml
 ```
 
 Current prod config already points to:
 
 - `INDEX_NAME = "products-prod"`
-- cron `17 7 * * *`
-
-Before expecting full-menu prod support, mirror the QA Worker limits into `vectorizer/wrangler.toml`:
-
-```toml
-[limits]
-cpu_ms = 300000
-subrequests = 50000
-```
+- `POSTRUN_VERIFIER_URL = "https://postrun-verifier.andresmeona.workers.dev"`
+- service binding `POSTRUN_VERIFIER_SERVICE -> postrun-verifier`
+- staggered prod cron:
+  - `15 21 * * *`
+  - `15 9 * * *`
+- observability logging enabled
+- Worker limits:
+  - `cpu_ms = 300000`
+  - `subrequests = 50000`
 
 ## Manual Prod Smoke Test
 
@@ -176,6 +207,7 @@ Expected result:
 - `"trigger_source": "scheduled"`
 - `"status": "success"`
 - `"index_name": "products-prod"`
+- verifier email/report arrives if prod email secrets are set
 
 If the latest run is still manual, prod cron has not been proven yet.
 

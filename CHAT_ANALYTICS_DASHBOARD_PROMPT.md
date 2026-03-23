@@ -18,6 +18,12 @@ Use this prompt when handing the dashboard/FastAPI project the live chat analyti
 
 Prepare Chat Analytics to consume real Cloudflare D1 data instead of dummy data.
 
+Lane model:
+- QA analytics live in a QA D1 database
+- prod analytics live in a separate prod D1 database
+- QA and prod analytics must not be mixed in one read model by default
+- if the dashboard needs to inspect both, add an explicit `QA | PROD` lane selector and query only one lane at a time
+
 Use this D1 schema as the source of truth:
 - `chat_sessions`
 - `chat_messages`
@@ -118,6 +124,7 @@ Build or update these screens:
 - Do not invent new classification logic in the dashboard
 - Tolerate nulls
 - Keep existing UI structure and styling; this is a data interpretation update, not a redesign
+- If QA and prod are both exposed, keep the selected lane in URL/state and never mix their rows in the same table
 
 ## Maintenance Reminder
 

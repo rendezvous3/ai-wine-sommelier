@@ -7,7 +7,23 @@ compatibility_flags = ["python_workers"]
 INDEX_NAME = "products-prod"
 MIN_QUANTITY = "5"
 LIMIT = "none"
-POSTRUN_VERIFIER_URL = ""
+POSTRUN_VERIFIER_URL = "https://postrun-verifier.andresmeona.workers.dev"
+
+[[services]]
+binding = "POSTRUN_VERIFIER_SERVICE"
+service = "postrun-verifier"
 
 [triggers]
-crons = ["17 7 * * *"]
+crons = ["15 21 * * *", "15 9 * * *"]
+
+[observability]
+enabled = true
+
+  [observability.logs]
+  enabled = true
+  invocation_logs = true
+  head_sampling_rate = 1
+
+[limits]
+cpu_ms = 300000
+subrequests = 50000
