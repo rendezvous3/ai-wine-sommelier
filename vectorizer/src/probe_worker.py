@@ -12,7 +12,7 @@ from workers import Request, Response, WorkerEntrypoint
 from core.config import cloudflare_config_from_source
 from core.postrun_reports import D1PostrunVerificationStore
 from core.run_reports import D1RunReportStore
-from postrun_verify import DEFAULT_CATEGORY_CHECKS, _format_delta_line, run_postrun_verification
+from postrun_verify import DEFAULT_CATEGORY_CHECKS, _format_delta_line, _sync_brand, run_postrun_verification
 
 
 def _json_response(payload: Dict[str, Any], status: int = 200) -> Response:
@@ -147,6 +147,7 @@ def _render_verification_report_html(
     delta_events: list[Dict[str, Any]],
     reason_counts: list[Dict[str, Any]],
 ) -> str:
+    brand = _sync_brand(verification.get("index_name"))
     grouped_events = _group_delta_events(delta_events)
     failed_checks = [check for check in checks if str(check.get("status") or "") == "failed"]
     counts = {
@@ -237,14 +238,14 @@ def _render_verification_report_html(
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Cannavita Verification Report</title>
+        <title>{html_escape(brand)} Verification Report</title>
       </head>
       <body style="margin:0;background:#f1f5f9;color:#0f172a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
         <main style="max-width:1120px;margin:0 auto;padding:28px 20px 48px;">
           <section style="background:#ffffff;border:1px solid #e2e8f0;border-radius:18px;padding:28px;">
             <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap;">
               <div>
-                <div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">Cannavita QA Sync</div>
+                <div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">{html_escape(brand)}</div>
                 <h1 style="margin:8px 0 6px 0;font-size:32px;line-height:1.2;">Verification report</h1>
                 <div style="color:#475569;font-size:14px;line-height:1.7;">
                   Verification ID: <code>{html_escape(str(verification.get('verification_id') or 'n/a'))}</code><br />

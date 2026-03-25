@@ -38,6 +38,32 @@ def _coerce_str_list(value: Any) -> List[str]:
     return [normalized] if normalized else []
 
 
+def _lane_label(index_name: Any) -> str:
+    normalized = str(index_name or "").strip().lower()
+    tokens = [token for token in normalized.replace("_", "-").split("-") if token]
+    if "prod" in tokens:
+        return "PROD"
+    if "qa" in tokens:
+        return "QA"
+    return normalized.upper() if normalized else "UNKNOWN"
+
+
+def _sync_brand(index_name: Any) -> str:
+    lane = _lane_label(index_name)
+    if lane in {"PROD", "QA"}:
+        return f"Cannavita {lane} Sync"
+    return "Cannavita Sync"
+
+
+def _build_email_subject(summary: Dict[str, Any]) -> str:
+    brand = _sync_brand(summary.get("index_name"))
+    return (
+        f"[{brand}][{summary.get('index_name', 'unknown')}]"
+        f"[{summary.get('source', 'unknown')}]"
+        f"[{summary.get('status', 'unknown')}]"
+    )
+
+
 def _has_hard_findings(findings: Sequence[Dict[str, Any]]) -> bool:
     return any(str(finding.get("severity") or "warning") != "warning" for finding in findings)
 
@@ -186,6 +212,7 @@ def _build_email_bodies(
     suite = summary.get("suite", "n/a")
     source = summary.get("source", "n/a")
     index_name = summary.get("index_name", "n/a")
+    brand = _sync_brand(index_name)
     vectorizer_run_id = summary.get("vectorizer_run_id", "n/a")
     status = summary.get("status", "unknown")
     active_unique_count = summary.get("active_unique_count", "n/a")
@@ -193,6 +220,9 @@ def _build_email_bodies(
     actual_active_delta = summary.get("actual_active_delta", "n/a")
 
     text_lines = [
+        brand,
+        f"{index_name} verification",
+        "",
         f"Verification ID: {verification_id}",
         f"Suite: {suite}",
         f"Source: {source}",
@@ -277,7 +307,7 @@ def _build_email_bodies(
       <div style="max-width:920px;margin:0 auto;background:#ffffff;border-radius:18px;padding:28px;border:1px solid #e2e8f0;">
         <div style="display:flex;justify-content:space-between;gap:16px;align-items:flex-start;flex-wrap:wrap;">
           <div>
-            <div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">Cannavita QA Sync</div>
+            <div style="font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;">{html_escape(brand)}</div>
             <h1 style="margin:8px 0 6px 0;font-size:28px;line-height:1.2;">{html_escape(str(index_name))} verification</h1>
             <div style="color:#475569;font-size:14px;line-height:1.6;">
               Verification ID: <code>{html_escape(str(verification_id))}</code><br />
@@ -320,11 +350,7 @@ async def _send_run_email(
     if not api_key or not alert_to or not alert_from:
         return False
 
-    subject = (
-        f"[Cannavita QA Sync][{summary.get('index_name', 'unknown')}]"
-        f"[{summary.get('source', 'unknown')}]"
-        f"[{summary.get('status', 'unknown')}]"
-    )
+    subject = _build_email_subject(summary)
 
     grouped_events: Dict[str, List[Dict[str, Any]]] = {
         "removed": [event for event in delta_events if event.get("event_type") == "removed"],

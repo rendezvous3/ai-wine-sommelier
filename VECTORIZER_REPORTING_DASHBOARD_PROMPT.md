@@ -96,12 +96,26 @@ Build or update these screens:
   - Full snapshot
 - Prefer `vectorizer_run_product_snapshots` for the full list rather than trying to infer unchanged rows from event absence.
 
+### 6. QA/PROD lane UX
+- Keep the interactive `QA | PROD` lane selector on top-level list pages only:
+  - Sync Runs
+  - Verifications
+  - Products
+- Do not keep that toggle on drilldown pages such as:
+  - run detail
+  - full snapshot
+  - product inspector
+- On drilldown pages, show a passive lane badge (`QA` or `PROD`) instead of an interactive toggle.
+- When `lane=prod`, the top-level lists must exclude QA/test/local rows that do not belong to the prod lane.
+- When `lane=qa`, the top-level lists must exclude prod/test/local rows that do not belong to the QA lane.
+
 ### Read-layer requirements
 - Build read-only FastAPI endpoints over D1.
 - Do not invent unchanged history from current ledger alone.
 - If a product has no quantity change event, but snapshot rows exist, use snapshot rows as the authoritative per-run qty history.
 - Tolerate null quantity and price values.
 - Keep the current UI structure and styling; this is a reporting/data-model expansion, not a redesign.
+- Preserve lane in top-level navigation URLs, but treat individual run pages as lane-fixed by the selected run.
 
 ## Maintenance Reminder
 
