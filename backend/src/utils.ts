@@ -99,6 +99,86 @@ function recommendationQualityScore(product: Record<string, any>): number {
   return score;
 }
 
+const RERANK_TEXT_FIELD_LIMIT = 240;
+
+function compactRerankText(value: unknown, maxLen: number = RERANK_TEXT_FIELD_LIMIT): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (normalized.length <= maxLen) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, Math.max(0, maxLen - 3)).trimEnd()}...`;
+}
+
+export function buildCompactRerankCandidates(
+  products: Array<Record<string, any>>
+): Array<Record<string, any>> {
+  return products.map((product) => {
+    const candidate: Record<string, any> = {
+      id: product.id ?? "",
+      name: product.name ?? "",
+      brand: product.brand ?? "",
+      category: product.category ?? "",
+      subcategory: product.subcategory ?? "",
+      type: product.type ?? "",
+      similarity_score: product.similarity_score ?? null,
+    };
+
+    if (Array.isArray(product.effects) && product.effects.length > 0) {
+      candidate.effects = product.effects;
+    }
+    if (Array.isArray(product.flavor) && product.flavor.length > 0) {
+      candidate.flavor = product.flavor;
+    }
+    if (typeof product.brand_tagline === "string" && product.brand_tagline.trim()) {
+      candidate.brand_tagline = product.brand_tagline;
+    }
+
+    const numericFields = [
+      "price",
+      "quantity",
+      "pack_count",
+      "total_weight_grams",
+      "individual_weight_grams",
+      "thc_percentage",
+      "thc_total_mg",
+      "thc_per_unit_mg",
+      "thc_per_serving_mg",
+      "cbd_percentage",
+      "cbd_total_mg",
+      "cbd_per_unit_mg",
+      "cbg_total_mg",
+      "cbg_per_serving_mg",
+    ];
+
+    for (const field of numericFields) {
+      if (product[field] !== undefined && product[field] !== null) {
+        candidate[field] = product[field];
+      }
+    }
+
+    const compactDescription = compactRerankText(product.description);
+    if (compactDescription) {
+      candidate.description = compactDescription;
+    }
+
+    const compactContext = compactDescription || compactRerankText(product.page_content);
+    if (compactContext) {
+      candidate.rerank_context = compactContext;
+    }
+
+    return candidate;
+  });
+}
+
 export function sanitizeRecommendationResults(
   products: Array<Record<string, any>>
 ): {

@@ -703,9 +703,14 @@ VITE_STORE_NAME=cannavita
 - For normal localhost development, use `npm run build:dev`.
 
 **API URL Resolution Order** (in `client/src/main.ts`):
-1. **Runtime override**: `data-api` attribute on script tag (highest priority)
-2. **Compile-time**: `import.meta.env.VITE_API_URL` from .env file (baked into build)
-3. **Fallback**: `http://localhost:8787/chat` (hardcoded default)
+1. **Runtime override**: `data-api` attribute on the embed script (highest priority)
+2. **Compile-time**: `import.meta.env.VITE_API_URL` from the build mode
+3. **Fallback**: `http://localhost:8787/chat`
+
+**Embed script discovery order**:
+1. `document.currentScript`
+2. `#ecom-widget-script`
+3. `script[src*="widget.js"]`
 
 **Important local-dev rule**:
 - The client does **not** choose the Vectorize index.
@@ -718,6 +723,7 @@ VITE_STORE_NAME=cannavita
 ```html
 <!-- Override baked-in URL at embed time -->
 <script
+  id="ecom-widget-script"
   type="module"
   src="/widget.js"
   data-api="https://custom-api.com/chat"
@@ -1083,10 +1089,73 @@ Once deployed, embed the widget on any website:
 </script>
 ```
 
+### Embed Contract
+
+The widget reads runtime config from the script tag on first mount.
+
+| Attribute | Required | Default | Notes |
+|---------|----------|---------|------|
+| `data-api` | no | baked `VITE_API_URL`, then `http://localhost:8787/chat` | Backend chat base URL |
+| `data-store` | no | baked `VITE_STORE_NAME`, then current hostname, then `demo-store` | Store identifier sent to the backend |
+| `data-position` | no | `bottom-right` | One of `bottom-right`, `bottom-left`, `top-right`, `top-left` |
+| `data-offset-x` | no | `20px` | Bare numbers become px, e.g. `24` -> `24px` |
+| `data-offset-y` | no | `20px` | Bare numbers become px |
+| `data-z-index` | no | `2147483000` | Override when host overlays beat the widget |
+| `data-width` | no | `426px` | Desktop widget width |
+| `data-height` | no | `702px` | Desktop widget height |
+| `data-launcher-icon` | no | built-in icon | URL or data URI. Data URI is recommended for lowest friction |
+| `data-launcher-label` | no | `Open chat widget` | Accessibility-only launcher label |
+| `data-launcher-bg` | no | widget default gradient / theme color | Background color for the built-in launcher button |
+| `data-hide-launcher` | no | `false` | Accepts `true`, `1`, or `yes` |
+
+### Singleton Behavior
+
+- The widget is a singleton: one page, one mounted widget.
+- The first successful mount wins.
+- Re-injecting the same script does not create a second widget.
+- Runtime config is read only at first mount. To change config after mount, call `window.EcomWidget.destroy()` and inject the script again.
+
+### Host API
+
+Commands live on `window.EcomWidget`:
+
+```js
+window.EcomWidget.open();
+window.EcomWidget.close();
+window.EcomWidget.toggle();
+window.EcomWidget.destroy();
+window.EcomWidget.isOpen();
+```
+
+Lifecycle events are emitted on `window`, not on `window.EcomWidget`:
+
+```js
+window.addEventListener('ecom-widget:ready', (event) => {
+  console.log(event.detail); // { store, apiBase }
+});
+
+window.addEventListener('ecom-widget:open', (event) => {
+  console.log(event.detail); // { isOpen: true }
+});
+
+window.addEventListener('ecom-widget:close', (event) => {
+  console.log(event.detail); // { isOpen: false }
+});
+
+window.addEventListener('ecom-widget:destroy', (event) => {
+  console.log(event.detail); // { destroyed: true }
+});
+```
+
+This split is intentional:
+- `window.EcomWidget` is the command surface
+- `window` is the event bus
+
 **Option 2: Use CDN (for faster global delivery)**
 ```html
 <!-- Host widget.js on a CDN and reference it -->
 <script
+  id="ecom-widget-script"
   type="module"
   src="https://your-cdn.com/widget.js"
   data-api="https://ecom-chat-backend.andresmeona.workers.dev/chat"
@@ -1098,10 +1167,90 @@ Once deployed, embed the widget on any website:
 ```html
 <!-- API URL already baked into widget.js during build -->
 <script
+  id="ecom-widget-script"
   type="module"
   src="https://cannavita-widget.pages.dev/widget.js">
 </script>
 ```
+
+**Option 4: Custom Placement + Z-Index**
+```html
+<script
+  id="ecom-widget-script"
+  type="module"
+  src="https://cannavita-widget.pages.dev/widget.js"
+  data-api="https://ecom-chat-backend.andresmeona.workers.dev/chat"
+  data-store="cannavita"
+  data-position="bottom-left"
+  data-offset-x="24"
+  data-offset-y="96"
+  data-z-index="2147483000"
+  data-width="426"
+  data-height="702"
+  data-launcher-bg="#15685E">
+</script>
+```
+
+**Option 5: Custom Launcher Icon**
+```html
+<script
+  id="ecom-widget-script"
+  type="module"
+  src="https://cannavita-widget.pages.dev/widget.js"
+  data-api="https://ecom-chat-backend.andresmeona.workers.dev/chat"
+  data-store="cannavita"
+  data-launcher-icon="data:image/svg+xml,%3Csvg ... %3C/svg%3E"
+  data-launcher-label="Open Cannavita chat">
+</script>
+```
+
+**Option 6: Host-Controlled Launcher**
+```html
+<button type="button" id="host-chat-button">Chat with us</button>
+
+<script
+  id="ecom-widget-script"
+  type="module"
+  src="https://cannavita-widget.pages.dev/widget.js"
+  data-api="https://ecom-chat-backend.andresmeona.workers.dev/chat"
+  data-store="cannavita"
+  data-hide-launcher="true">
+</script>
+
+<script>
+  document.getElementById('host-chat-button')?.addEventListener('click', () => {
+    window.EcomWidget.open();
+  });
+
+  window.addEventListener('ecom-widget:open', () => {
+    document.getElementById('host-chat-button')?.setAttribute('aria-hidden', 'true');
+  });
+
+  window.addEventListener('ecom-widget:close', () => {
+    document.getElementById('host-chat-button')?.removeAttribute('aria-hidden');
+  });
+</script>
+```
+
+**Option 7: SPA Teardown / Reconfigure**
+```js
+window.EcomWidget.destroy();
+```
+
+After `destroy()`, inject the widget again with the new script tag config.
+
+### Integration Notes
+
+- **Shadow DOM isolation**: Widget UI styles live inside Shadow DOM, so host CSS collisions are reduced, not eliminated.
+- **Z-index**: Default is `2147483000`, but host overlays can still beat it. Use `data-z-index` if needed.
+- **Google Fonts CSP**: The widget loads Inter from:
+  - `https://fonts.googleapis.com`
+  - `https://fonts.gstatic.com`
+- If those domains are blocked by the host CSP, the widget still mounts and falls back to the local font stack.
+- **Custom launcher icon**:
+  - Remote URLs depend on host CSP/CORS rules.
+  - Data URI is the recommended path for the fewest integration surprises.
+- **Mobile behavior**: On screens `<= 640px`, opening the widget uses fullscreen mode and temporarily locks page scroll. That is intentional.
 
 ---
 

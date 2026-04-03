@@ -36,6 +36,15 @@
     themeBackgroundColor?: string;
     headerBackgroundColor?: string;
     widgetButtonBackgroundColor?: string;
+    launcherButtonBackgroundColor?: string;
+    launcherIconSrc?: string;
+    launcherAriaLabel?: string;
+    hideLauncher?: boolean;
+    offsetX?: string;
+    offsetY?: string;
+    zIndex?: number;
+    windowWidth?: string;
+    windowHeight?: string;
     showBadge?: boolean;
     badgeCount?: number;
     onClearChat?: () => void;
@@ -77,6 +86,15 @@
     themeBackgroundColor,
     headerBackgroundColor,
     widgetButtonBackgroundColor,
+    launcherButtonBackgroundColor,
+    launcherIconSrc,
+    launcherAriaLabel = 'Open chat widget',
+    hideLauncher = false,
+    offsetX = '20px',
+    offsetY = '20px',
+    zIndex = 2147483000,
+    windowWidth = '426px',
+    windowHeight = '702px',
     showBadge = true,
     badgeCount = 1,
     onClearChat,
@@ -124,6 +142,7 @@
   let widgetButtonRef: HTMLButtonElement | null = $state(null);
   let previouslyFocusedElement: HTMLElement | null = $state(null);
   let wasWidgetOpen = $state(false);
+  let launcherIconFailed = $state(false);
   
   // If onToggle is provided, we're in controlled mode - use prop directly
   // Otherwise use internal state
@@ -141,6 +160,17 @@
     ]
       .filter(Boolean)
       .join(' ')
+  );
+
+  let widgetShellStyle = $derived(
+    [
+      `--chat-widget-z-index: ${zIndex};`,
+      `--chat-widget-offset-x: ${offsetX};`,
+      `--chat-widget-offset-y: ${offsetY};`,
+      `--chat-widget-window-width: ${windowWidth};`,
+      `--chat-widget-window-height: ${windowHeight};`,
+      `--chat-widget-button-bg: ${launcherButtonBackgroundColor ?? widgetButtonBackgroundColor ?? themeBackgroundColor ?? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)'};`
+    ].join(' ')
   );
 
   function toggleWidget() {
@@ -167,21 +197,23 @@
   }
 
   function handleClose() {
-    // Small delay to allow animation
-    setTimeout(() => {
-      isWidgetOpen = false;
-      // Reset expanded state when closing widget
-      if (onExpand) {
-        onExpand(false);
+    if (onExpand) {
+      onExpand(false);
+    } else {
+      internalIsExpanded = false;
+    }
+
+    if (onToggle) {
+      if (onClose) {
+        onClose();
       } else {
-        internalIsExpanded = false;
+        onToggle();
       }
-      onClose?.();
-      requestAnimationFrame(() => {
-        (previouslyFocusedElement ?? widgetButtonRef)?.focus();
-        previouslyFocusedElement = null;
-      });
-    }, 200);
+      return;
+    }
+
+    internalIsOpen = false;
+    onClose?.();
   }
 
   function handleSend(message: string) {
@@ -203,14 +235,47 @@
     });
   }
 
+  function getPreferredOpenFocusTarget(): HTMLElement | null {
+    if (!widgetWindowRef) return null;
+
+    const preferredSelectors = [
+      'textarea[aria-label="Message input"]',
+      'input[aria-label="Message input"]',
+      '.chat-header__close',
+      '.chat-header__menu-button'
+    ];
+
+    for (const selector of preferredSelectors) {
+      const preferredTarget = widgetWindowRef.querySelector<HTMLElement>(selector);
+      if (
+        preferredTarget &&
+        !preferredTarget.hasAttribute('disabled') &&
+        preferredTarget.getAttribute('aria-hidden') !== 'true'
+      ) {
+        return preferredTarget;
+      }
+    }
+
+    const [firstFocusable] = getWidgetFocusableElements();
+    return firstFocusable ?? null;
+  }
+
+  function handleLauncherIconError() {
+    launcherIconFailed = true;
+  }
+
+  $effect(() => {
+    launcherIconSrc;
+    launcherIconFailed = false;
+  });
+
   $effect(() => {
     if (!isWidgetOpen || panelOpen) return;
     const root = widgetRootRef?.getRootNode();
     if (!(root instanceof ShadowRoot)) return;
 
     requestAnimationFrame(() => {
-      const focusables = getWidgetFocusableElements();
-      focusables[0]?.focus();
+      getPreferredOpenFocusTarget()?.focus();
     });
 
     function handleKeydown(event: KeyboardEvent) {
@@ -249,6 +314,17 @@
   });
 
   $effect(() => {
+    if (isWidgetOpen && !wasWidgetOpen && typeof document !== 'undefined') {
+      const activeElement = document.activeElement;
+      if (
+        activeElement instanceof HTMLElement &&
+        activeElement !== widgetButtonRef &&
+        !widgetRootRef?.contains(activeElement)
+      ) {
+        previouslyFocusedElement = activeElement;
+      }
+    }
+
     if (!isWidgetOpen && wasWidgetOpen) {
       requestAnimationFrame(() => {
         (previouslyFocusedElement ?? widgetButtonRef)?.focus();
@@ -259,7 +335,12 @@
   });
 </script>
 
-  <div class={widgetClasses} data-theme={darkMode ? 'dark' : 'light'} bind:this={widgetRootRef}>
+  <div
+    class={widgetClasses}
+    data-theme={darkMode ? 'dark' : 'light'}
+    bind:this={widgetRootRef}
+    style={widgetShellStyle}
+  >
   {#if isWidgetOpen}
     <div
       class="chat-widget__window"
@@ -319,73 +400,87 @@
     </div>
   {/if}
   
-  <button
-    bind:this={widgetButtonRef}
-    class="chat-widget__button"
-    onclick={toggleWidget}
-    aria-label={isWidgetOpen ? 'Close chat' : 'Open chat'}
-    aria-expanded={isWidgetOpen}
-    type="button"
-    style="{(widgetButtonBackgroundColor ?? themeBackgroundColor) ? `--chat-widget-button-bg: ${widgetButtonBackgroundColor ?? themeBackgroundColor};` : ''}"
-  >
-    {#if isWidgetOpen}
-      <svg
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="M18 6L6 18M6 6L18 18"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
+  {#if !hideLauncher}
+    <button
+      bind:this={widgetButtonRef}
+      class="chat-widget__button"
+      onclick={toggleWidget}
+      aria-label={isWidgetOpen ? 'Close chat' : launcherAriaLabel}
+      aria-expanded={isWidgetOpen}
+      type="button"
+    >
+      {#if isWidgetOpen}
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <path
+            d="M18 6L6 18M6 6L18 18"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      {:else if launcherIconSrc && !launcherIconFailed}
+        <img
+          class="chat-widget__launcher-icon"
+          src={launcherIconSrc}
+          alt=""
+          aria-hidden="true"
+          onerror={handleLauncherIconError}
         />
-      </svg>
-    {:else}
-      <WidgetIcon type="message-bubble" size="md" color="#ffffff" />
-      {#if showBadge}
-        <span class="chat-widget__badge">{badgeCount}</span>
+        {#if showBadge}
+          <span class="chat-widget__badge">{badgeCount}</span>
+        {/if}
+      {:else}
+        <WidgetIcon type="message-bubble" size="md" color="#ffffff" />
+        {#if showBadge}
+          <span class="chat-widget__badge">{badgeCount}</span>
+        {/if}
       {/if}
-    {/if}
-  </button>
+    </button>
+  {/if}
 </div>
 
 <style>
   .chat-widget {
     position: fixed;
-    z-index: 1000;
+    z-index: var(--chat-widget-z-index, 2147483000);
+    --chat-widget-button-size: 60px;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   }
 
   /* Position variants */
   .chat-widget--bottom-right {
-    bottom: 20px;
-    right: 20px;
+    bottom: var(--chat-widget-offset-y, 20px);
+    right: var(--chat-widget-offset-x, 20px);
   }
 
   .chat-widget--bottom-left {
-    bottom: 20px;
-    left: 20px;
+    bottom: var(--chat-widget-offset-y, 20px);
+    left: var(--chat-widget-offset-x, 20px);
   }
 
   .chat-widget--top-right {
-    top: 20px;
-    right: 20px;
+    top: var(--chat-widget-offset-y, 20px);
+    right: var(--chat-widget-offset-x, 20px);
   }
 
   .chat-widget--top-left {
-    top: 20px;
-    left: 20px;
+    top: var(--chat-widget-offset-y, 20px);
+    left: var(--chat-widget-offset-x, 20px);
   }
 
   /* Widget button */
   .chat-widget__button {
     position: relative;
-    width: 60px;
-    height: 60px;
+    width: var(--chat-widget-button-size);
+    height: var(--chat-widget-button-size);
     border-radius: 50%;
     background: var(--chat-widget-button-bg, linear-gradient(135deg, #3b82f6 0%, #2563eb 100%));
     border: none;
@@ -413,6 +508,13 @@
     outline-offset: 4px;
   }
 
+  .chat-widget__launcher-icon {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    display: block;
+  }
+
   /* Badge */
   .chat-widget__badge {
     position: absolute;
@@ -435,14 +537,12 @@
   /* Chat window */
   .chat-widget__window {
     position: absolute;
-    bottom: 80px;
+    bottom: calc(var(--chat-widget-button-size) + 20px);
     right: 0;
-    /* width: 380px; */
-    width: 426px;
-    max-width: calc(100vw - 40px);
-    height: 702px;
-    /* height: 600px; */
-    max-height: calc(100vh - 120px);
+    width: var(--chat-widget-window-width, 426px);
+    max-width: calc(100vw - (2 * var(--chat-widget-offset-x, 20px)));
+    height: var(--chat-widget-window-height, 702px);
+    max-height: calc(100vh - (2 * var(--chat-widget-offset-y, 20px)) - var(--chat-widget-button-size) - 20px);
     background: #ffffff;
     border-radius: 6px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2), 0 8px 24px rgba(0, 0, 0, 0.15);
@@ -455,38 +555,47 @@
   }
 
   .chat-widget--bottom-left .chat-widget__window {
-    bottom: 80px;
+    bottom: calc(var(--chat-widget-button-size) + 20px);
     left: 0;
     right: auto;
   }
 
   .chat-widget--top-right .chat-widget__window {
     bottom: auto;
-    top: 80px;
+    top: calc(var(--chat-widget-button-size) + 20px);
     right: 0;
   }
 
   .chat-widget--top-left .chat-widget__window {
     bottom: auto;
-    top: 80px;
+    top: calc(var(--chat-widget-button-size) + 20px);
     left: 0;
     right: auto;
   }
 
   .chat-widget--expanded .chat-widget__window {
-    width: min(1200px, calc(100vw - 40px));
-    height: min(900px, calc(100vh - 120px));
-    max-width: none;
-    max-height: none;
-    position: fixed;
-    top: auto;
-    right: 20px;
-    bottom: 100px;
-    left: auto;
-    margin: 0;
-    transform: none;
+    width: min(1200px, calc(100vw - (2 * var(--chat-widget-offset-x, 20px))));
+    height: min(900px, calc(100vh - (2 * var(--chat-widget-offset-y, 20px)) - var(--chat-widget-button-size) - 20px));
+    max-width: calc(100vw - (2 * var(--chat-widget-offset-x, 20px)));
+    max-height: calc(100vh - (2 * var(--chat-widget-offset-y, 20px)) - var(--chat-widget-button-size) - 20px);
     transform-origin: bottom right;
     animation: expand-widget 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .chat-widget--bottom-left.chat-widget--expanded .chat-widget__window {
+    transform-origin: bottom left;
+  }
+
+  .chat-widget--top-left.chat-widget--expanded .chat-widget__window {
+    transform-origin: top left;
+  }
+
+  .chat-widget--bottom-right.chat-widget--expanded .chat-widget__window {
+    transform-origin: bottom right;
+  }
+
+  .chat-widget--top-right.chat-widget--expanded .chat-widget__window {
+    transform-origin: top right;
   }
 
   @keyframes expand-widget {
@@ -546,10 +655,8 @@
   /* Responsive */
   @media (max-width: 968px) {
     .chat-widget--expanded .chat-widget__window {
-      width: min(1200px, calc(100vw - 20px));
-      height: min(900px, calc(100vh - 90px));
-      right: 10px;
-      bottom: 90px;
+      width: min(1200px, calc(100vw - (2 * var(--chat-widget-offset-x, 20px))));
+      height: min(900px, calc(100vh - (2 * var(--chat-widget-offset-y, 20px)) - var(--chat-widget-button-size) - 20px));
     }
   }
 
@@ -557,13 +664,13 @@
     /* Button positioning when widget is NOT open */
     .chat-widget--bottom-right,
     .chat-widget--bottom-left {
-      bottom: 10px;
-      right: 10px;
+      bottom: var(--chat-widget-offset-y, 10px);
+      right: var(--chat-widget-offset-x, 10px);
       left: auto;
     }
 
     .chat-widget--bottom-left {
-      left: 10px;
+      left: var(--chat-widget-offset-x, 10px);
       right: auto;
     }
 

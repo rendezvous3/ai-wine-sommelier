@@ -8,6 +8,14 @@
   import type { QuickStartRequest } from "../../Svelte-Component-Library/src/lib/custom/QuickStartPanel/QuickStartPanel.svelte";
   import type { GuidedFlowConfig } from "../../Svelte-Component-Library/src/lib/custom/GuidedFlow/types.js";
   import { getTHCScaleForCategory } from "../../Svelte-Component-Library/src/lib/custom/GuidedFlow/thcScales.js";
+  import type { WidgetPosition } from "./embed-config";
+  import {
+    WIDGET_CLOSE_EVENT,
+    WIDGET_OPEN_EVENT,
+    WIDGET_ROOT_ID,
+    dispatchWidgetLifecycleEvent,
+    subscribeToWidgetCommands
+  } from "./embed-bridge";
   import { theme } from "./theme.svelte.js";
 
   import flowerIcon from "./icons/categories/flower.png";
@@ -40,13 +48,35 @@
   interface WidgetProps {
     store?: string;
     apiBase?: string;
+    position?: WidgetPosition;
+    offsetX?: string;
+    offsetY?: string;
+    zIndex?: number;
+    width?: string;
+    height?: string;
+    launcherIcon?: string;
+    launcherLabel?: string;
+    launcherBg?: string;
+    hideLauncher?: boolean;
+    onOpenStateChange?: (isOpen: boolean) => void;
   }
 
   const envStoreName = import.meta.env.VITE_STORE_NAME;
   const envApiBase = import.meta.env.VITE_API_URL;
   let {
     store = envStoreName ?? window.location.hostname ?? "demo-store",
-    apiBase = envApiBase ?? "http://localhost:8787"
+    apiBase = envApiBase ?? "http://localhost:8787",
+    position = 'bottom-right',
+    offsetX = '20px',
+    offsetY = '20px',
+    zIndex = 2147483000,
+    width = '426px',
+    height = '702px',
+    launcherIcon,
+    launcherLabel = 'Open chat widget',
+    launcherBg,
+    hideLauncher = false,
+    onOpenStateChange
   }: WidgetProps = $props();
 
   let isOpen = $state(false);
@@ -207,6 +237,7 @@
   }
 
   let productRecommendations = $state<Recommendation[]>([]);
+  let suppressOpenUntil = $state(0);
 
   // Product registry to track ALL products shown to user (recommendations + lookups)
   // Removed productRegistry - stream has full conversation history and handles all intelligence
@@ -372,6 +403,68 @@
     { id: 'delta-9-thc', name: 'Delta-9 THC', flavor: 'Varies', effects: 'Classic potency', benefits: 'Mood and symptom support', summary: 'Primary THC form in most adult-use products and the main contributor to classic cannabis intensity.' }
   ];
 
+  function getWidgetShadowRoot(): ShadowRoot | null {
+    return document.getElementById(WIDGET_ROOT_ID)?.shadowRoot ?? null;
+  }
+
+  function dismissActivePanel({
+    restoreFocus = true,
+    announce = true
+  }: {
+    restoreFocus?: boolean;
+    announce?: boolean;
+  } = {}) {
+    const closingPanel = activePanel;
+    if (!closingPanel) return;
+
+    activePanel = null;
+    feedbackNotice = '';
+    feedbackNoticeType = null;
+    removeFeedbackScreenshot();
+
+    if (announce) {
+      a11yAnnouncement = `${menuItems.find((item) => item.id === closingPanel)?.label ?? 'Panel'} closed.`;
+    }
+
+    if (restoreFocus) {
+      requestAnimationFrame(() => {
+        lastFocusedElement?.focus();
+        lastFocusedElement = null;
+      });
+    } else {
+      lastFocusedElement = null;
+    }
+  }
+
+  async function trackSessionClosed(reason: string, useBeacon = false) {
+    await sendAnalyticsEvent('session_closed', {
+      payload: { reason },
+      useBeacon
+    });
+  }
+
+  function openWidget(force = false) {
+    if (isOpen) return;
+    if (!force && Date.now() < suppressOpenUntil) return;
+    isOpen = true;
+  }
+
+  function closeWidget(reason = 'widget_closed') {
+    if (!isOpen) return;
+    suppressOpenUntil = Date.now() + 250;
+    void trackSessionClosed(reason, reason === 'visibility_hidden' || reason === 'pagehide' || reason === 'widget_destroyed');
+    dismissActivePanel({ restoreFocus: false, announce: false });
+    isOpen = false;
+  }
+
+  function toggleWidget() {
+    if (isOpen) {
+      closeWidget('widget_toggle_close');
+      return;
+    }
+    openWidget();
+  }
+
 
   function handleMenuItemClick(itemId: string) {
     if (itemId === 'menu-section-guides') return;
@@ -388,7 +481,7 @@
       activePanel = itemId;
       a11yAnnouncement = `${menuItems.find((item) => item.id === itemId)?.label ?? 'Panel'} opened.`;
       requestAnimationFrame(() => {
-        const shadowRoot = document.getElementById('AiChatBot-Widget-Root')?.shadowRoot;
+        const shadowRoot = getWidgetShadowRoot();
         const container = shadowRoot?.querySelector('.chat-window__messages') as HTMLElement | null;
         if (container) container.scrollTop = 0;
         panelBackButtonRef?.focus();
@@ -411,16 +504,7 @@
   }
 
   function closePanel() {
-    const closingPanel = activePanel;
-    activePanel = null;
-    feedbackNotice = '';
-    feedbackNoticeType = null;
-    removeFeedbackScreenshot();
-    a11yAnnouncement = `${closingPanel ? menuItems.find((item) => item.id === closingPanel)?.label ?? 'Panel' : 'Panel'} closed.`;
-    requestAnimationFrame(() => {
-      lastFocusedElement?.focus();
-      lastFocusedElement = null;
-    });
+    dismissActivePanel();
   }
 
   function handleFeedbackScreenshotChange(event: Event) {
@@ -538,27 +622,53 @@
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        void sendAnalyticsEvent('session_closed', {
-          payload: { reason: 'visibility_hidden' },
-          useBeacon: true
-        });
+        void trackSessionClosed('visibility_hidden', true);
       }
     };
 
     const handlePageHide = () => {
-      void sendAnalyticsEvent('session_closed', {
-        payload: { reason: 'pagehide' },
-        useBeacon: true
-      });
+      void trackSessionClosed('pagehide', true);
     };
+
+    const unsubscribeWidgetCommands = subscribeToWidgetCommands((command) => {
+      if (command === 'open') {
+        openWidget(true);
+        return;
+      }
+      if (command === 'close') {
+        closeWidget('api_close');
+        return;
+      }
+      toggleWidget();
+    });
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('pagehide', handlePageHide);
 
     return () => {
+      unsubscribeWidgetCommands();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('pagehide', handlePageHide);
     };
+  });
+
+  let lastOpenState = $state<boolean | null>(null);
+
+  $effect(() => {
+    onOpenStateChange?.(isOpen);
+
+    if (lastOpenState === null) {
+      lastOpenState = isOpen;
+      return;
+    }
+
+    if (lastOpenState === isOpen) return;
+
+    dispatchWidgetLifecycleEvent(
+      isOpen ? WIDGET_OPEN_EVENT : WIDGET_CLOSE_EVENT,
+      { isOpen }
+    );
+    lastOpenState = isOpen;
   });
 
   $effect(() => {
@@ -571,10 +681,7 @@
     if (feedbackScreenshotPreview) {
       URL.revokeObjectURL(feedbackScreenshotPreview);
     }
-    void sendAnalyticsEvent('session_closed', {
-      payload: { reason: 'widget_destroyed' },
-      useBeacon: true
-    });
+    void trackSessionClosed('widget_destroyed', true);
   });
 
   function getPanelFocusableElements(): HTMLElement[] {
@@ -595,7 +702,7 @@
 
   $effect(() => {
     if (!activePanel) return;
-    const shadowRoot = document.getElementById('AiChatBot-Widget-Root')?.shadowRoot;
+    const shadowRoot = getWidgetShadowRoot();
     if (!shadowRoot) return;
 
     function handlePanelKeydown(event: KeyboardEvent) {
@@ -649,7 +756,13 @@
     const isMobile = window.innerWidth <= 640;
     if (isOpen && isMobile) {
       const scrollY = window.scrollY;
+      const prevHtmlOverflow = document.documentElement.style.overflow;
       const prevHtmlBg = document.documentElement.style.background;
+      const prevBodyOverflow = document.body.style.overflow;
+      const prevBodyPosition = document.body.style.position;
+      const prevBodyTop = document.body.style.top;
+      const prevBodyLeft = document.body.style.left;
+      const prevBodyRight = document.body.style.right;
       document.documentElement.style.overflow = 'hidden';
       document.documentElement.style.background = '#1e1e1e';
       document.body.style.overflow = 'hidden';
@@ -658,13 +771,13 @@
       document.body.style.left = '0';
       document.body.style.right = '0';
       return () => {
-        document.documentElement.style.overflow = '';
+        document.documentElement.style.overflow = prevHtmlOverflow;
         document.documentElement.style.background = prevHtmlBg;
-        document.body.style.overflow = '';
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.left = '';
-        document.body.style.right = '';
+        document.body.style.overflow = prevBodyOverflow;
+        document.body.style.position = prevBodyPosition;
+        document.body.style.top = prevBodyTop;
+        document.body.style.left = prevBodyLeft;
+        document.body.style.right = prevBodyRight;
         window.scrollTo(0, scrollY);
       };
     }
@@ -1913,17 +2026,10 @@
   <!-- Cannavita Colors - gold Hints: #FAE4C4 #F8D9AC #F4C37D #BD9760 #A38253 #F4C37  -->
 <ChatWidget
   isOpen={isOpen}
-  onToggle={() => (isOpen = !isOpen)}
-  onClose={() => {
-    void sendAnalyticsEvent('session_closed', {
-      payload: { reason: 'widget_closed' },
-      useBeacon: true
-    });
-    isOpen = false;
-    closePanel();
-  }}
+  onToggle={toggleWidget}
+  onClose={() => closeWidget('widget_closed')}
   onSend={handleSend}
-  position="bottom-right"
+  {position}
   expandIcon="dots"
   headerStyle="minimal"
   menuItems={menuItems}
@@ -1933,6 +2039,15 @@
   title="Cannavita Budtender"
   themeBackgroundColor="#F4C37D"
   iconSrc={chatIcon}
+  launcherIconSrc={launcherIcon}
+  launcherAriaLabel={launcherLabel}
+  launcherButtonBackgroundColor={launcherBg}
+  hideLauncher={hideLauncher}
+  {offsetX}
+  {offsetY}
+  zIndex={zIndex}
+  windowWidth={width}
+  windowHeight={height}
   showBadge={false}
   onClearChat={handleClearChat}
   hasMessages={activePanel === null && messages.length > 0}
@@ -1989,7 +2104,7 @@
         {/if}
       {/each}
     {:else}
-      <section
+      <div
         class="widget-panel"
         class:widget-panel--feedback={activePanel === 'feedback'}
         class:widget-panel--scrollable={activePanel === 'terpenes-guide' || activePanel === 'cannabinoids-guide'}
@@ -2103,7 +2218,7 @@
           <p>Cannabinoids are active compounds in cannabis that influence intensity, mood, and body feel. Product outcomes depend on cannabinoid balance, terpene profile, and dose.</p>
           <GuideAccordionTable rows={cannabinoidItems} />
         {/if}
-      </section>
+      </div>
     {/if}
   {/snippet}
 </ChatWidget>

@@ -29,6 +29,7 @@ import {
   validateAndExpandFilters,
   buildVectorizeFilters,
   parseRobustJSON,
+  buildCompactRerankCandidates,
   sanitizeRecommendationResults,
 } from "./utils";
 import {
@@ -63,6 +64,8 @@ interface Bindings {
 
 // Default tier - can be made configurable via environment variable later
 const TIER: Tier = "FREE";
+const RECOMMENDATION_VECTOR_TOP_K = 8;
+const RERANK_SKIP_CANDIDATE_MAX = 3;
 
 // Dev-only logging helper (for debug statements only)
 function devLog(env: Bindings | undefined, ...args: any[]) {
@@ -1395,7 +1398,7 @@ app.post("/chat/recommendations", async (c) => {
     filtersToUse = buildVectorizeFilters(filters);
         // return c.json({ queryString: queryString, filtersToUse: vectorizeFilters }, 200);
     
-    searchResults = await store.similaritySearchWithScore(queryString, 10, filtersToUse);
+    searchResults = await store.similaritySearchWithScore(queryString, RECOMMENDATION_VECTOR_TOP_K, filtersToUse);
     // searchResults = await store.similaritySearch(queryString, 10, { "effects": { "$in": ["energetic", "happy"] } });
   } catch (err) {
     console.error("Vector search error:", err);
@@ -1478,6 +1481,40 @@ app.post("/chat/recommendations", async (c) => {
   // Create product map for ID-based lookup
   const productMap = new Map(results.map((r) => [r.id, r]));
 
+  if (results.length <= RERANK_SKIP_CANDIDATE_MAX) {
+    trackAnalytics(c, (db) =>
+      recordRecommendationResults(db, {
+        analytics,
+        userTextRaw,
+        predictedCue: "RECOMMEND",
+        predictedIntent: "recommendation",
+        predictedFilters: filters,
+        semanticSearch: semantic_search,
+        recommendations: results.map((result, index) => ({
+          id: typeof result.id === "string" ? result.id : null,
+          name: typeof result.name === "string" ? result.name : null,
+          brand: typeof result.brand === "string" ? result.brand : null,
+          category: typeof result.category === "string" ? result.category : null,
+          subcategory: typeof result.subcategory === "string" ? result.subcategory : null,
+          rankPosition: index + 1,
+          sourceKind: "recommendation",
+        })),
+        preRankedCount: results.length,
+        finalRankCount: results.length,
+        status: "completed",
+        fallbackReason: "rerank_skipped_small_candidate_set",
+        latencyMs: Date.now() - recommendationsStartedAt,
+      })
+    );
+
+    return c.json({
+      recommendations: results,
+      preRankedProducts: results,
+      reasoning: "Skipped rerank because the candidate set was already narrow.",
+      filtersToUse: filtersToUse,
+    }, 200);
+  }
+
   // return c.json({ recommendations: results }, 200);
 
   const API_KEY = getApiKey(RERANK_PROVIDER, c.env);
@@ -1488,7 +1525,8 @@ app.post("/chat/recommendations", async (c) => {
 
   // Priority: semantic_search (HYDE) > assistant CODEX message > raw user message
   const queryForReranking = semantic_search || lastAssistantMessage || user_message;
-  const reRankPrompt = generateReRankPrompt(queryForReranking, filters, results);
+  const rerankCandidates = buildCompactRerankCandidates(results);
+  const reRankPrompt = generateReRankPrompt(queryForReranking, filters, rerankCandidates);
 
   let text;
   try {

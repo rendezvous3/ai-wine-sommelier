@@ -117,13 +117,15 @@ Each product has a similarity_score field (0.0-1.0, higher is better):
   - 0.60-0.75: Moderate semantic match
   - Below 0.60: Weak semantic match
 
-### CANDIDATE PRODUCTS (JSON):
+### CANDIDATE PRODUCTS (COMPACT JSON):
 ${JSON.stringify(results)}
+
+**Note**: Candidate products may include a compact \`rerank_context\` excerpt instead of the full long semantic document text. Use it as the primary free-text summary when present.
 
 ### INSTRUCTIONS:
 1. Analyze the User Request holistically - consider subcategory (PRIORITY 1), effects (PRIORITY 2), category, type, flavors, price, THC level (ONLY if explicitly requested), and any other preferences.
 2. Apply ranking priorities in strict order: Subcategory Match > Effects Match > Category Match > Type Match > THC/Potency (ONLY if requested) > Price > Similarity Score > Flavor
-3. Evaluate each candidate product based on ALL relevant fields: category, type, subcategory, description, effects, flavors, price, THC percentage (considering min/max ranges), brand, similarity_score, etc.
+3. Evaluate each candidate product based on ALL relevant fields: category, type, subcategory, description, rerank_context, effects, flavors, price, THC percentage (considering min/max ranges), brand, similarity_score, etc.
 4. **CRITICAL THC RULE**: Do NOT rank by THC unless user explicitly mentioned potency ("strong", "potent", "mild", etc.) OR filters contain thc_percentage_min/max. If user only mentioned effects (uplifting, energizing, sleepy), IGNORE THC entirely and use similarity_score for tiebreaking.
 5. If a product clearly contradicts the user's request (e.g., user wants "not sleepy" but product says "heavy sedative"), remove it entirely.
 6. Return ONLY a JSON object with "ranked_ids" array (product IDs) and "reasoning" string (numbered list format).
