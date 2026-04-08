@@ -375,6 +375,8 @@ The deployed verifier `full` suite is not the authoritative gate yet because its
 - backend intent still routes `relaxing prerolls`
 - backend recommendations still returns at least one edible for `sleepy edibles`
 
+For scheduled post-run verification with an explicit `vectorizer_run_id`, the verifier briefly polls that exact run so D1/reporting lag does not create a false `latest_run_status=running` failure. If no run id is supplied, the verifier resolves the latest successful completed run for the requested index.
+
 ### Local Manual Verification
 
 Run the shared verifier locally any time.

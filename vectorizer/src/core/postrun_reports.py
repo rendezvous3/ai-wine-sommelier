@@ -286,7 +286,7 @@ class D1PostrunVerificationStore:
         exclude_vectorizer_run_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         where = [
-            "status != 'running'",
+            "status IN ('passed', 'failed')",
             f"index_name = '{self.client.sql_quote(index_name)}'",
         ]
         if exclude_vectorizer_run_id:
@@ -311,7 +311,7 @@ class D1PostrunVerificationStore:
         exclude_vectorizer_run_id: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         where = [
-            "status != 'running'",
+            "status IN ('passed', 'failed')",
             "active_unique_count IS NOT NULL",
             f"index_name = '{self.client.sql_quote(index_name)}'",
         ]

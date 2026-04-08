@@ -227,31 +227,34 @@ class Default(WorkerEntrypoint):
     async def scheduled(self, controller, env, ctx) -> None:
         runtime_env = self.env or env
         options = build_cycle_options(runtime_env, trigger_source="scheduled")
-        await run_sync_cycle(options, trigger_source="scheduled", source=runtime_env)
+        cycle_summary = await run_sync_cycle(options, trigger_source="scheduled", source=runtime_env)
+        vectorizer_run_id = cycle_summary.run_id
 
-        cloudflare = cloudflare_config_from_source(runtime_env)
-        report_store = D1RunReportStore(
-            account_id=cloudflare.account_id,
-            database_id=cloudflare.d1_database_id,
-            api_token=cloudflare.resolved_d1_token,
-        )
-        latest_run = None
-        if report_store.configured:
-            try:
-                await report_store.ensure_table()
-                latest_run = await report_store.get_latest_run()
-            except Exception as exc:
-                print(f"Warning: unable to load latest run for verifier trigger: {exc}")
+        if not vectorizer_run_id:
+            cloudflare = cloudflare_config_from_source(runtime_env)
+            report_store = D1RunReportStore(
+                account_id=cloudflare.account_id,
+                database_id=cloudflare.d1_database_id,
+                api_token=cloudflare.resolved_d1_token,
+            )
+            latest_run = None
+            if report_store.configured:
+                try:
+                    await report_store.ensure_table()
+                    latest_run = await report_store.get_latest_run()
+                except Exception as exc:
+                    print(f"Warning: unable to load latest run for verifier trigger: {exc}")
+            vectorizer_run_id = (
+                (latest_run or {}).get("run_id")
+                if latest_run and latest_run.get("index_name") == options.sync.index_name
+                else None
+            )
 
         try:
             await _trigger_postrun_verifier(
                 runtime_env,
                 index_name=options.sync.index_name,
-                vectorizer_run_id=(
-                    (latest_run or {}).get("run_id")
-                    if latest_run and latest_run.get("index_name") == options.sync.index_name
-                    else None
-                ),
+                vectorizer_run_id=vectorizer_run_id,
             )
         except Exception as exc:
             print(f"Warning: post-run verifier trigger failed: {exc}")

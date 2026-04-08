@@ -603,6 +603,8 @@ What this simplified V1 verifier checks:
   - `CONCENTRATES`
 - remote `categories_only` is the currently reliable deployed verifier gate
 
+When a scheduled post-run trigger provides an explicit `vectorizer_run_id`, the verifier now briefly polls that exact run before failing on `status=running`. Manual/ad-hoc verification without a specific run id resolves against the latest successful completed run for the target index.
+
 Current validated QA runtime facts:
 
 - `vectorizer-worker-qa` has explicit Worker limits:

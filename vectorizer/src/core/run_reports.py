@@ -1,11 +1,90 @@
 from __future__ import annotations
 
+import asyncio
 import json
+from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 from uuid import uuid4
 
 from .d1_client import D1RestClient
+
+
+RUN_REPORT_FINALIZE_ATTEMPTS = 3
+RUN_REPORT_FINALIZE_RETRY_SECONDS = 1.0
+
+
+def attach_reporting_metadata(summary: Dict[str, Any], warnings: Iterable[str]) -> Dict[str, Any]:
+    summary_copy = deepcopy(summary or {})
+    normalized_warnings = [str(warning).strip() for warning in warnings if str(warning).strip()]
+    summary_copy["reporting"] = {
+        "status": "warning" if normalized_warnings else "ok",
+        "warning_count": len(normalized_warnings),
+        "warnings": normalized_warnings,
+    }
+    return summary_copy
+
+
+async def finalize_run_report(
+    store: "D1RunReportStore",
+    *,
+    run_id: str,
+    index_name: str,
+    summary: Dict[str, Any],
+    stale_deleted_count: int,
+    events: Optional[Iterable[Dict[str, Any]]] = None,
+    product_snapshots: Optional[Iterable[Dict[str, Any]]] = None,
+    retain_days: Optional[int] = None,
+    finalize_attempts: int = RUN_REPORT_FINALIZE_ATTEMPTS,
+    finalize_retry_seconds: float = RUN_REPORT_FINALIZE_RETRY_SECONDS,
+) -> List[str]:
+    warnings: List[str] = []
+    materialized_events = list(events or [])
+    materialized_snapshots = list(product_snapshots or [])
+
+    if materialized_events:
+        try:
+            await store.record_events(run_id, index_name, materialized_events)
+        except Exception as exc:
+            warnings.append(f"record_events failed: {exc}")
+
+    if materialized_snapshots:
+        try:
+            await store.record_product_snapshots(run_id, index_name, materialized_snapshots)
+        except Exception as exc:
+            warnings.append(f"record_product_snapshots failed: {exc}")
+
+    if retain_days is not None and retain_days >= 0:
+        try:
+            await store.purge_product_snapshots(retain_days=retain_days)
+        except Exception as exc:
+            warnings.append(f"purge_product_snapshots failed: {exc}")
+
+    attempts = max(int(finalize_attempts or 1), 1)
+    retry_seconds = max(float(finalize_retry_seconds or 0.0), 0.0)
+    summary_with_reporting = attach_reporting_metadata(summary, warnings)
+    last_exc: Exception | None = None
+
+    for attempt in range(1, attempts + 1):
+        try:
+            await store.finish_run(
+                run_id=run_id,
+                summary=summary_with_reporting,
+                stale_deleted_count=stale_deleted_count,
+            )
+            return warnings
+        except Exception as exc:
+            last_exc = exc
+            if attempt >= attempts:
+                break
+            warnings.append(f"finish_run attempt {attempt} failed: {exc}")
+            summary_with_reporting = attach_reporting_metadata(summary, warnings)
+            if retry_seconds > 0:
+                await asyncio.sleep(retry_seconds)
+
+    raise RuntimeError(
+        f"finish_run failed after {attempts} attempt(s): {last_exc}"
+    ) from last_exc
 
 
 class D1RunReportStore:
@@ -346,6 +425,28 @@ class D1RunReportStore:
             LIMIT 1;
             """
         )
+        rows = payload.get("result", [{}])[0].get("results", [])
+        return rows[0] if rows else None
+
+    async def get_latest_successful_run(
+        self,
+        *,
+        index_name: Optional[str] = None,
+        trigger_source: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        where = ["status = 'success'"]
+        if index_name:
+            where.append(f"index_name = '{self.client.sql_quote(index_name)}'")
+        if trigger_source and str(trigger_source).strip().lower() != "any":
+            where.append(f"trigger_source = '{self.client.sql_quote(trigger_source)}'")
+        sql = f"""
+        SELECT *
+        FROM vectorizer_runs
+        WHERE {" AND ".join(where)}
+        ORDER BY started_at DESC
+        LIMIT 1;
+        """
+        payload = await self.client.exec_sql(sql)
         rows = payload.get("result", [{}])[0].get("results", [])
         return rows[0] if rows else None
 

@@ -19,7 +19,7 @@ from core.config import (
 )
 from core.cloudflare_api import CloudflareApiClient
 from core.pipeline import run_sync_pipeline
-from core.run_reports import D1RunReportStore
+from core.run_reports import D1RunReportStore, finalize_run_report
 from core.types import ReconcileSummary, RemovalSummary, RunEvent, SyncCycleSummary
 from d1_uniques import D1UniqueStore, build_uniques_table_name
 
@@ -385,32 +385,31 @@ async def run_sync_cycle(
             sync=pipeline_result.summary,
             removal=removal_summary,
             reconcile=reconcile_summary,
+            run_id=run_id,
         )
 
         if run_id:
             try:
                 all_events = [event.to_dict() for event in [*pipeline_result.events, *removal_events]]
-                if all_events:
-                    await report_store.record_events(run_id, options.sync.index_name, all_events)
                 final_product_snapshots = _finalize_product_snapshots(
                     pipeline_snapshots=pipeline_result.product_snapshots,
                     removal_events=removal_events,
                 )
-                if final_product_snapshots:
-                    await report_store.record_product_snapshots(
-                        run_id,
-                        options.sync.index_name,
-                        final_product_snapshots,
-                    )
-                if options.sync.product_history_retention_days >= 0:
-                    await report_store.purge_product_snapshots(
-                        retain_days=options.sync.product_history_retention_days
-                    )
-                await report_store.finish_run(
+                reporting_warnings = await finalize_run_report(
+                    report_store,
                     run_id=run_id,
+                    index_name=options.sync.index_name,
                     summary=cycle_summary.to_dict(),
                     stale_deleted_count=removal_summary.removed_count,
+                    events=all_events,
+                    product_snapshots=final_product_snapshots,
+                    retain_days=options.sync.product_history_retention_days,
                 )
+                if reporting_warnings:
+                    print(
+                        "Warning: vectorizer run report completed with warnings: "
+                        + "; ".join(reporting_warnings)
+                    )
             except Exception as exc:
                 print(f"Warning: failed to write run report completion: {exc}")
 

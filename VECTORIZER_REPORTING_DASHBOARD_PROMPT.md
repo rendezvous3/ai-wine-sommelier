@@ -1,6 +1,6 @@
 # Vectorizer Reporting Dashboard Handoff Prompt
 
-Last updated: March 19, 2026
+Last updated: April 3, 2026
 
 ## Model Catalog Maintenance
 
@@ -19,6 +19,8 @@ Update the Vectorize dashboard to support full last-run product snapshots and pe
 
 Use this reporting contract as the source of truth:
 - `vectorizer_runs`
+- `postrun_verifications`
+- `postrun_verification_checks`
 - `vectorizer_run_events`
 - `vectorizer_run_event_fields`
 - `vectorizer_run_reason_counts`
@@ -26,6 +28,10 @@ Use this reporting contract as the source of truth:
 - `vectorizer_run_product_snapshots`
 
 Important interpretation rules:
+- `vectorizer_runs.status` is vectorizer execution state, not verifier state.
+- `postrun_verifications.status` is verifier state and can differ from `vectorizer_runs.status`.
+- Treat verifier `deferred` as “verification not yet final,” not as a vectorization failure.
+- Surface `vectorizer_runs.summary_json.reporting.status` and `vectorizer_runs.summary_json.reporting.warnings` as reporting-health metadata.
 - `vectorizer_run_events` is delta-based and does not prove unchanged by itself.
 - `vectorizer_run_product_snapshots` is the source of truth for explicit unchanged confirmation.
 - `vector_uniques_<index>` is the current active ledger state only.
@@ -94,9 +100,31 @@ Build or update these screens:
 - Add:
   - Unchanged
   - Full snapshot
+- Add separate status presentation for:
+  - vectorizer status
+  - verifier status
+  - reporting health (`ok` vs `warning`)
 - Prefer `vectorizer_run_product_snapshots` for the full list rather than trying to infer unchanged rows from event absence.
 
-### 6. QA/PROD lane UX
+### 6. Verification detail / verification list
+- Source: `postrun_verifications`
+- Show:
+  - verification_id
+  - suite
+  - source
+  - index_name
+  - status
+  - vectorizer_run_id
+  - active_unique_count
+  - expected_active_delta
+  - actual_active_delta
+  - started_at
+  - finished_at
+- On verification detail pages, resolve and show the linked vectorizer run status alongside verifier status.
+- If verifier status is `deferred`, explain that the linked vectorizer run may still be `running` or may have succeeded later.
+- Show the underlying verification checks from `postrun_verification_checks`, including deferred checks separately from failed checks.
+
+### 7. QA/PROD lane UX
 - Keep the interactive `QA | PROD` lane selector on top-level list pages only:
   - Sync Runs
   - Verifications
@@ -114,6 +142,7 @@ Build or update these screens:
 - Do not invent unchanged history from current ledger alone.
 - If a product has no quantity change event, but snapshot rows exist, use snapshot rows as the authoritative per-run qty history.
 - Tolerate null quantity and price values.
+- Do not collapse verifier status and vectorizer status into a single field in the read model.
 - Keep the current UI structure and styling; this is a reporting/data-model expansion, not a redesign.
 - Preserve lane in top-level navigation URLs, but treat individual run pages as lane-fixed by the selected run.
 

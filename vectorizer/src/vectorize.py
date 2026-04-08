@@ -16,7 +16,7 @@ from core.config import (
     load_local_env,
     parse_limit_value,
 )
-from core.run_reports import D1RunReportStore
+from core.run_reports import D1RunReportStore, finalize_run_report
 from core.pipeline import run_sync_pipeline
 
 
@@ -160,20 +160,10 @@ async def async_main() -> None:
         if run_id:
             try:
                 all_events = [event.to_dict() for event in pipeline_result.events]
-                if all_events:
-                    await report_store.record_events(run_id, sync_options.index_name, all_events)
-                if pipeline_result.product_snapshots:
-                    await report_store.record_product_snapshots(
-                        run_id,
-                        sync_options.index_name,
-                        list(pipeline_result.product_snapshots.values()),
-                    )
-                if sync_options.product_history_retention_days >= 0:
-                    await report_store.purge_product_snapshots(
-                        retain_days=sync_options.product_history_retention_days
-                    )
-                await report_store.finish_run(
+                reporting_warnings = await finalize_run_report(
+                    report_store,
                     run_id=run_id,
+                    index_name=sync_options.index_name,
                     summary={
                         "sync": summary,
                         "indexing": summary.get("indexing", {}),
@@ -182,7 +172,15 @@ async def async_main() -> None:
                         "reconcile": {},
                     },
                     stale_deleted_count=0,
+                    events=all_events,
+                    product_snapshots=list(pipeline_result.product_snapshots.values()),
+                    retain_days=sync_options.product_history_retention_days,
                 )
+                if reporting_warnings:
+                    print(
+                        "Warning: vectorizer run report completed with warnings: "
+                        + "; ".join(reporting_warnings)
+                    )
             except Exception as exc:
                 print(f"Warning: failed to write run report completion: {exc}")
     except Exception as exc:

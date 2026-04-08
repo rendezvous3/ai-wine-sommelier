@@ -12,7 +12,16 @@ from workers import Request, Response, WorkerEntrypoint
 from core.config import cloudflare_config_from_source
 from core.postrun_reports import D1PostrunVerificationStore
 from core.run_reports import D1RunReportStore
-from postrun_verify import DEFAULT_CATEGORY_CHECKS, _format_delta_line, _sync_brand, run_postrun_verification
+from postrun_verify import (
+    DEFAULT_CATEGORY_CHECKS,
+    _format_delta_line,
+    _partition_checks,
+    _status_badge_html,
+    _sync_brand,
+    _verification_status_color,
+    _vectorizer_status_color,
+    run_postrun_verification,
+)
 
 
 def _json_response(payload: Dict[str, Any], status: int = 200) -> Response:
@@ -149,7 +158,7 @@ def _render_verification_report_html(
 ) -> str:
     brand = _sync_brand(verification.get("index_name"))
     grouped_events = _group_delta_events(delta_events)
-    failed_checks = [check for check in checks if str(check.get("status") or "") == "failed"]
+    failed_checks, deferred_checks = _partition_checks(checks)
     counts = {
         "removed": len(grouped_events["removed"]),
         "added": len(grouped_events["added"]),
@@ -157,9 +166,19 @@ def _render_verification_report_html(
         "excluded": len(grouped_events["excluded"]),
         "warnings": len(grouped_events["warning"]),
         "failed_checks": len(failed_checks),
+        "deferred_checks": len(deferred_checks),
     }
     status = str(verification.get("status") or "unknown")
-    status_color = "#16a34a" if status.lower() == "passed" else "#dc2626"
+    verification_status = str(verification.get("verification_status") or status or "unknown")
+    vectorizer_status = str(
+        verification.get("vectorizer_status")
+        or (vectorizer_run or {}).get("status")
+        or "unknown"
+    )
+    vectorizer_reporting_status = str(verification.get("vectorizer_reporting_status") or "ok")
+    vectorizer_reporting_warnings = verification.get("vectorizer_reporting_warnings") or []
+    status_color = _verification_status_color(verification_status)
+    vectorizer_status_color = _vectorizer_status_color(vectorizer_status)
     metric_cards = [
         ("Active unique count", verification.get("active_unique_count", "n/a")),
         ("Expected active delta", verification.get("expected_active_delta", "n/a")),
@@ -170,6 +189,8 @@ def _render_verification_report_html(
         ("Excluded", counts["excluded"]),
         ("Warnings", counts["warnings"]),
         ("Failed checks", counts["failed_checks"]),
+        ("Deferred checks", counts["deferred_checks"]),
+        ("Reporting warnings", len(vectorizer_reporting_warnings)),
     ]
     cards_html = "".join(
         [
@@ -193,6 +214,18 @@ def _render_verification_report_html(
                 "</li>"
             )
             for check in failed_checks
+        ]
+    ) or "<li>none</li>"
+    deferred_checks_html = "".join(
+        [
+            (
+                "<li style=\"margin:0 0 8px 0;\">"
+                f"<strong>{html_escape(str(check.get('check_id') or 'unknown'))}</strong>"
+                f"<div style=\"color:#475569;font-size:13px;line-height:1.5;\">"
+                f"{html_escape(json.dumps(_parse_json_value(check.get('details_json')) or {}, default=str))}</div>"
+                "</li>"
+            )
+            for check in deferred_checks
         ]
     ) or "<li>none</li>"
     reason_rows = "".join(
@@ -231,6 +264,26 @@ def _render_verification_report_html(
             ]
         )
     run_summary_html = "".join([f"<li style=\"margin:0 0 6px 0;\">{bit}</li>" for bit in run_bits]) or "<li>n/a</li>"
+    status_badges_html = "".join(
+        [
+            _status_badge_html("Verification", verification_status, status_color),
+            _status_badge_html("Vectorizer", vectorizer_status, vectorizer_status_color),
+        ]
+    )
+    deferred_note_html = (
+        "<section style=\"margin-top:18px;padding:18px;border:1px solid #fbbf24;border-radius:12px;background:#fff7ed;color:#9a3412;\">"
+        "<strong>Verification deferred.</strong> The targeted vectorizer run was still running or had not finalized in D1/reporting before the verifier timeout. "
+        "This does not by itself mean the vectorization job failed."
+        "</section>"
+        if verification_status.lower() == "deferred"
+        else ""
+    )
+    reporting_warnings_html = "".join(
+        [
+            f"<li style=\"margin:0 0 8px 0;\">{html_escape(str(warning))}</li>"
+            for warning in vectorizer_reporting_warnings
+        ]
+    ) or "<li>none</li>"
 
     return f"""
     <!doctype html>
@@ -255,14 +308,16 @@ def _render_verification_report_html(
                   Vectorizer run: <code>{html_escape(str(verification.get('vectorizer_run_id') or 'n/a'))}</code>
                 </div>
               </div>
-              <div style="background:{status_color};color:#ffffff;border-radius:999px;padding:10px 14px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;">
-                {html_escape(status)}
+              <div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;">
+                {status_badges_html}
               </div>
             </div>
 
             <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:24px;">
               {cards_html}
             </div>
+
+            {deferred_note_html}
 
             <section style="margin-top:28px;padding:18px;border:1px solid #e2e8f0;border-radius:12px;background:#fcfcfd;">
               <h2 style="font-size:18px;margin:0 0 12px 0;">Vectorizer run summary</h2>
@@ -272,6 +327,19 @@ def _render_verification_report_html(
             <section style="margin-top:28px;padding:18px;border:1px solid #e2e8f0;border-radius:12px;background:#fcfcfd;">
               <h2 style="font-size:18px;margin:0 0 12px 0;">Failed checks</h2>
               <ul style="padding-left:18px;margin:0;">{failed_checks_html}</ul>
+            </section>
+
+            <section style="margin-top:18px;padding:18px;border:1px solid #e2e8f0;border-radius:12px;background:#fcfcfd;">
+              <h2 style="font-size:18px;margin:0 0 12px 0;">Deferred checks</h2>
+              <ul style="padding-left:18px;margin:0;">{deferred_checks_html}</ul>
+            </section>
+
+            <section style="margin-top:18px;padding:18px;border:1px solid #e2e8f0;border-radius:12px;background:#fcfcfd;">
+              <h2 style="font-size:18px;margin:0 0 12px 0;">Vectorizer reporting warnings</h2>
+              <div style="color:#475569;font-size:13px;line-height:1.5;margin-bottom:10px;">
+                Reporting status: {html_escape(vectorizer_reporting_status)}
+              </div>
+              <ul style="padding-left:18px;margin:0;">{reporting_warnings_html}</ul>
             </section>
 
             <section style="margin-top:28px;">
@@ -353,6 +421,8 @@ class Default(WorkerEntrypoint):
             verification = await verification_store.get_run(verification_id)
             if not verification:
                 return _json_response({"ok": False, "error": "not_found"}, status=404)
+            verification_summary = _parse_summary_json(verification) or {}
+            verification_view = {**verification, **verification_summary}
             checks = await verification_store.get_checks(verification_id)
             vectorizer_run = None
             vectorizer_summary = None
@@ -367,7 +437,7 @@ class Default(WorkerEntrypoint):
                 reason_counts = await run_store.get_run_reason_counts(str(vectorizer_run_id))
             return _html_response(
                 _render_verification_report_html(
-                    verification=verification,
+                    verification=verification_view,
                     checks=checks,
                     vectorizer_run=vectorizer_run,
                     vectorizer_summary=vectorizer_summary,

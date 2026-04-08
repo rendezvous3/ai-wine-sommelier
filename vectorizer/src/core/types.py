@@ -169,9 +169,11 @@ class SyncCycleSummary:
     sync: SyncSummary
     removal: RemovalSummary
     reconcile: ReconcileSummary
+    run_id: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         return {
+            "vectorizer_run_id": self.run_id,
             "sync": self.sync.to_dict(),
             "indexing": self.sync.indexing.to_dict(),
             "exclusions": self.sync.exclusions.to_dict(),

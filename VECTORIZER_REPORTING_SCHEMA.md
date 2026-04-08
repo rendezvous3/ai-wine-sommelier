@@ -1,6 +1,6 @@
 # Vectorizer Reporting Schema Contract
 
-Last updated: March 19, 2026
+Last updated: April 3, 2026
 Verification source:
 - existing live tables verified previously in `vectorizer-qa`
 - new snapshot contract verified against the current code in:
@@ -29,6 +29,7 @@ Maintenance rule:
 ### `vectorizer_runs`
 Meaning:
 - One row per vectorizer run.
+- This row is the source of truth for vectorizer execution state, not verifier state.
 
 Key columns:
 - `run_id`
@@ -49,6 +50,70 @@ Key columns:
 - `low_stock_removed_count`
 - `stale_deleted_count`
 - `summary_json`
+
+Interpretation:
+- `status = 'success'` means the sync/vectorization job itself completed successfully.
+- `status = 'failed'` means the sync/vectorization job failed.
+- Auxiliary reporting writes are tracked separately from vectorization success.
+- `summary_json.reporting.status` captures reporting health for an otherwise completed run:
+  - `ok`
+  - `warning`
+- `summary_json.reporting.warnings` contains non-fatal reporting issues such as partial event/snapshot persistence failures.
+
+### `postrun_verifications`
+Meaning:
+- One row per post-run verifier execution.
+- This table reports verifier state separately from vectorizer execution state.
+
+Key columns:
+- `verification_id`
+- `source`
+- `suite`
+- `index_name`
+- `expected_trigger_source`
+- `vectorizer_run_id`
+- `vectorizer_finished_at`
+- `started_at`
+- `finished_at`
+- `status`
+- `active_unique_count`
+- `previous_active_unique_count`
+- `expected_active_delta`
+- `actual_active_delta`
+- `summary_json`
+- `error_message`
+- `email_sent`
+- `email_sent_at`
+
+Interpretation:
+- Verifier status is distinct from vectorizer run status.
+- Current verifier statuses:
+  - `running`
+  - `passed`
+  - `failed`
+  - `deferred`
+- `deferred` means the verifier could not yet make a final judgment, most commonly because the targeted vectorizer run was still `running` or had not finalized in D1/reporting before timeout.
+- A verifier `failed` or `deferred` row does not by itself mean vectorization failed.
+- The authoritative vectorizer execution state remains `vectorizer_runs.status` for the linked `vectorizer_run_id`.
+
+### `postrun_verification_checks`
+Meaning:
+- One row per verifier check within a given verification run.
+
+Key columns:
+- `verification_id`
+- `check_id`
+- `status`
+- `details_json`
+- `created_at`
+
+Interpretation:
+- Check-level statuses may differ from the overall verification status.
+- Current check statuses may include:
+  - `passed`
+  - `failed`
+  - `skipped`
+  - `deferred`
 
 ### `vectorizer_run_events`
 Meaning:
@@ -191,6 +256,16 @@ Interpretation:
 - `changed_fields_json` lists tracked fields that changed for `updated` rows.
 
 ## What Can Be Answered Reliably
+
+### Did vectorization fail, or just verification?
+Use:
+- `vectorizer_runs.status` for vectorizer execution state
+- `postrun_verifications.status` for verifier execution state
+
+Interpretation:
+- `vectorizer_runs.status = 'success'` and `postrun_verifications.status = 'failed'` means verification failed after a successful sync.
+- `vectorizer_runs.status = 'running'` and `postrun_verifications.status = 'deferred'` means verification timed out waiting for final vectorizer completion/report finalization.
+- Check `vectorizer_runs.summary_json.reporting` before assuming a reporting issue implies a vectorization failure.
 
 ### Current product state
 Use:
