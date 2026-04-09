@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getContext } from 'svelte';
+  import { getContext, untrack } from 'svelte';
 
   interface ChatInputProps {
     placeholder?: string;
@@ -53,7 +53,7 @@
 
   let isTwoLine = $derived(variant === 'two-line');
 
-  let inputValue = $state(value);
+  let inputValue = $state(untrack(() => value));
   let isRecording = $state(false);
   let isFocused = $state(false);
   let useKeyboardFocusStyles = $state(false);
@@ -1315,7 +1315,7 @@
     opacity: 1;
   }
 
-  .chat-input--two-line.chat-input--focused .chat-input__wrapper {
+  :global(.chat-input--two-line.chat-input--focused) .chat-input__wrapper {
     background: rgba(255, 255, 255, 0.95);
     border-color: rgba(59, 130, 246, 0.3);
     box-shadow: 0 4px 16px rgba(59, 130, 246, 0.15), 0 0 0 3px rgba(59, 130, 246, 0.1);

@@ -1,0 +1,49 @@
+{
+  "wine_types": ["red", "white", "rose", "sparkling", "dessert"],
+
+  "varietals": [
+    "cabernet-sauvignon", "merlot", "pinot-noir", "syrah", "malbec",
+    "zinfandel", "tempranillo", "sangiovese", "nebbiolo", "grenache",
+    "chardonnay", "sauvignon-blanc", "riesling", "pinot-grigio",
+    "gewurztraminer", "viognier", "chenin-blanc", "moscato",
+    "champagne-blend", "prosecco-blend", "red-blend", "white-blend"
+  ],
+
+  "regions": [
+    "napa-valley", "sonoma", "willamette-valley", "paso-robles",
+    "bordeaux", "burgundy", "champagne", "rhone-valley", "loire-valley",
+    "tuscany", "piedmont", "veneto",
+    "rioja", "ribera-del-duero",
+    "barossa-valley", "marlborough", "mendoza",
+    "mosel", "stellenbosch"
+  ],
+
+  "body": ["light", "medium", "full"],
+  "sweetness": ["dry", "off-dry", "sweet"],
+  "acidity": ["low", "medium", "high"],
+  "tannin": ["low", "medium", "high"],
+
+  "flavor_families": {
+    "berry-cherry": ["berry", "cherry", "plum", "blackberry"],
+    "citrus-green-apple": ["citrus", "green-apple", "lemon", "grapefruit"],
+    "tropical-stone-fruit": ["tropical", "peach", "mango", "pineapple"],
+    "chocolate-coffee": ["chocolate", "coffee", "cocoa", "mocha"],
+    "vanilla-caramel": ["vanilla", "caramel", "butterscotch", "toffee"],
+    "pepper-spice": ["pepper", "spice", "clove", "cinnamon"],
+    "floral-herbal": ["floral", "rose", "violet", "herbal", "mint"],
+    "earthy-mineral": ["earthy", "mineral", "slate", "mushroom"]
+  },
+
+  "occasions": [
+    "dinner-party", "date-night", "gift", "casual", "celebration", "cooking"
+  ],
+
+  "food_pairings": [
+    "steak", "lamb", "poultry", "pork",
+    "salmon", "seafood", "shellfish",
+    "pasta", "pizza", "risotto",
+    "cheese", "charcuterie",
+    "salad", "vegetables",
+    "chocolate", "dessert", "fruit"
+  ]
+}

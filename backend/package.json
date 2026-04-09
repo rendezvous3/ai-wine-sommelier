@@ -1,19 +1,13 @@
 {
-  "name": "ecom-chat-backend",
+  "name": "wine-chat-backend",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "dev:qa": "wrangler dev --config wrangler.qa.toml",
-    "deploy": "wrangler deploy",
-    "deploy:qa": "wrangler deploy --config wrangler.qa.toml"
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
-    "@ai-sdk/groq": "^2.0.32",
-    "@langchain/cloudflare": "^1.0.1",
-    "@langchain/core": "^1.1.0",
-    "ai": "^5.0.106",
     "hono": "^4.6.0"
   },
   "devDependencies": {

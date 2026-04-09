@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getContext } from 'svelte';
+  import { getContext, untrack } from 'svelte';
 
   interface PriceSelectorProps {
     value: { mode: 'no-max' | 'set-max'; max?: number } | null;
@@ -30,11 +30,11 @@
   let maxValue = $derived(category ? (categoryMaxValues[category] || 100) : 100);
 
   // Default slider value: 30 for edibles, 50 for others
-  const defaultSliderValue = category === 'edibles' ? 30 : 50;
+  const defaultSliderValue = untrack(() => category === 'edibles' ? 30 : 50);
 
   // Internal state
-  let mode = $state<'no-max' | 'set-max'>(value?.mode || 'no-max');
-  let sliderValue = $state(value?.max || defaultSliderValue);
+  let mode = $state<'no-max' | 'set-max'>(untrack(() => value?.mode || 'no-max'));
+  let sliderValue = $state(untrack(() => value?.max || defaultSliderValue));
 
   // Auto-select "No Max" on mount if value is null
   let hasAutoSelected = $state(false);

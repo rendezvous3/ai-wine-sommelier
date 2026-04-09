@@ -3,7 +3,7 @@
   import ProductCard from '../ProductCard/ProductCard.svelte';
   import ProductList from '../ProductList/ProductList.svelte';
   import ProductGrid from '../ProductGrid/ProductGrid.svelte';
-  import { formatTHCLabel, formatCBDLabel, formatWeightLabel } from './thcFormatter.js';
+  import { formatBodyBadge, formatTypeBadge, formatWineSubtitle } from './thcFormatter.js';
 
   interface Product {
     id?: string;
@@ -14,18 +14,17 @@
     rating?: number;
     discount?: number;
     category?: string;
-    subcategory?: string;
-    type?: string;
+    wine_type?: string;
+    varietal?: string;
+    region?: string;
+    vintage?: number;
+    body?: string;
+    sweetness?: string;
     shopLink?: string;
     brand?: string;
-    thc_percentage?: number;
-    thc_per_unit_mg?: number;
-    thc_total_mg?: number;
-    cbd_percentage?: number;
-    cbd_per_unit_mg?: number;
-    cbd_total_mg?: number;
-    total_weight_ounce?: number;
-    pack_count?: number;
+    tasting_notes?: string;
+    flavor_profile?: string[];
+    food_pairings?: string[];
     rankPosition?: number;
   }
 
@@ -114,16 +113,16 @@
     return Boolean(image && image.trim() !== '' && !image.includes('placeholder.com') && !image.startsWith('data:image/svg'));
   }
 
-  function getTHCLabel(product: Product) {
-    return formatTHCLabel(product);
+  function getBodyBadge(product: Product) {
+    return formatBodyBadge(product);
   }
 
-  function getCBDLabel(product: Product) {
-    return formatCBDLabel(product);
+  function getTypeBadge(product: Product) {
+    return formatTypeBadge(product);
   }
 
-  function getWeightLabel(product: Product) {
-    return formatWeightLabel(product);
+  function getSubtitle(product: Product) {
+    return formatWineSubtitle(product);
   }
 </script>
 
@@ -166,17 +165,9 @@
                 {/if}
                 <h4 class="product-recommendation__compact-title">{product.title}</h4>
               </div>
-              <div class="product-recommendation__compact-meta">
-                {#if product.category}
-                  <span class="product-recommendation__compact-badge">{product.category}</span>
-                {/if}
-                {#if product.type}
-                  <span class="product-recommendation__compact-badge">{product.type}</span>
-                {/if}
-                {#if product.pack_count && (product.category === 'prerolls' || product.category === 'edibles')}
-                  <span class="product-recommendation__compact-badge">{product.category === 'prerolls' ? (product.pack_count === 1 ? 'Single' : `${product.pack_count} pack`) : `${product.pack_count} ${product.pack_count === 1 ? 'piece' : 'pieces'}`}</span>
-                {/if}
-              </div>
+              {#if getSubtitle(product)}
+                <div class="product-recommendation__compact-subtitle">{getSubtitle(product)}</div>
+              {/if}
               <div class="product-recommendation__compact-footer">
                 <div class="product-recommendation__compact-footer-left">
                   <div
@@ -185,34 +176,18 @@
                   >
                     ${product.price != null ? product.price.toFixed(2) : '0.00'}
                   </div>
-                  {#if getTHCLabel(product)}
-                    {@const thcLabel = getTHCLabel(product)!}
+                  {#if getBodyBadge(product)}
+                    {@const bodyBadge = getBodyBadge(product)!}
                     <div class="product-recommendation__compact-thc-badge">
-                      <div class="product-recommendation__compact-thc-label">THC</div>
-                      <div class="product-recommendation__compact-thc-value">{thcLabel.value}</div>
-                      {#if thcLabel.label}
-                        <div class="product-recommendation__compact-thc-sublabel">{thcLabel.label}</div>
-                      {/if}
+                      <div class="product-recommendation__compact-thc-label">{bodyBadge.topLabel}</div>
+                      <div class="product-recommendation__compact-thc-value">{bodyBadge.value}</div>
                     </div>
                   {/if}
-                  {#if getCBDLabel(product)}
-                    {@const cbdLabel = getCBDLabel(product)!}
+                  {#if getTypeBadge(product)}
+                    {@const typeBadge = getTypeBadge(product)!}
                     <div class="product-recommendation__compact-thc-badge">
-                      <div class="product-recommendation__compact-thc-label">{cbdLabel.topLabel}</div>
-                      <div class="product-recommendation__compact-thc-value">{cbdLabel.value}</div>
-                      {#if cbdLabel.sublabel}
-                        <div class="product-recommendation__compact-thc-sublabel">{cbdLabel.sublabel}</div>
-                      {/if}
-                    </div>
-                  {/if}
-                  {#if getWeightLabel(product)}
-                    {@const weightLabel = getWeightLabel(product)!}
-                    <div class="product-recommendation__compact-thc-badge">
-                      <div class="product-recommendation__compact-thc-label">{weightLabel.topLabel}</div>
-                      <div class="product-recommendation__compact-thc-value">{weightLabel.value}</div>
-                      {#if weightLabel.sublabel}
-                        <div class="product-recommendation__compact-thc-sublabel">{weightLabel.sublabel}</div>
-                      {/if}
+                      <div class="product-recommendation__compact-thc-label">{typeBadge.topLabel}</div>
+                      <div class="product-recommendation__compact-thc-value">{typeBadge.value}</div>
                     </div>
                   {/if}
                 </div>
@@ -278,17 +253,9 @@
                 <div class="product-recommendation__compact-grid-brand">{product.brand}</div>
               {/if}
               <h4 class="product-recommendation__compact-grid-title">{product.title}</h4>
-              <div class="product-recommendation__compact-grid-meta">
-                {#if product.category}
-                  <span class="product-recommendation__compact-grid-badge">{product.category}</span>
-                {/if}
-                {#if product.type}
-                  <span class="product-recommendation__compact-grid-badge">{product.type}</span>
-                {/if}
-                {#if product.pack_count && (product.category === 'prerolls' || product.category === 'edibles')}
-                  <span class="product-recommendation__compact-grid-badge">{product.category === 'prerolls' ? (product.pack_count === 1 ? 'Single' : `${product.pack_count} pack`) : `${product.pack_count} ${product.pack_count === 1 ? 'piece' : 'pieces'}`}</span>
-                {/if}
-              </div>
+              {#if getSubtitle(product)}
+                <div class="product-recommendation__compact-grid-subtitle">{getSubtitle(product)}</div>
+              {/if}
               <div class="product-recommendation__compact-grid-footer">
                 <div 
                   class="product-recommendation__compact-grid-price"
@@ -296,34 +263,18 @@
                 >
                   ${product.price != null ? product.price.toFixed(2) : '0.00'}
                 </div>
-                {#if getTHCLabel(product)}
-                  {@const thcLabel = getTHCLabel(product)!}
+                {#if getBodyBadge(product)}
+                  {@const bodyBadge = getBodyBadge(product)!}
                   <div class="product-recommendation__compact-grid-thc">
-                    <div class="product-recommendation__compact-grid-thc-label">THC</div>
-                    <div class="product-recommendation__compact-grid-thc-value">{thcLabel.value}</div>
-                    {#if thcLabel.label}
-                      <div class="product-recommendation__compact-grid-thc-sublabel">{thcLabel.label}</div>
-                    {/if}
+                    <div class="product-recommendation__compact-grid-thc-label">{bodyBadge.topLabel}</div>
+                    <div class="product-recommendation__compact-grid-thc-value">{bodyBadge.value}</div>
                   </div>
                 {/if}
-                {#if getCBDLabel(product)}
-                  {@const cbdLabel = getCBDLabel(product)!}
+                {#if getTypeBadge(product)}
+                  {@const typeBadge = getTypeBadge(product)!}
                   <div class="product-recommendation__compact-grid-thc">
-                    <div class="product-recommendation__compact-grid-thc-label">{cbdLabel.topLabel}</div>
-                    <div class="product-recommendation__compact-grid-thc-value">{cbdLabel.value}</div>
-                    {#if cbdLabel.sublabel}
-                      <div class="product-recommendation__compact-grid-thc-sublabel">{cbdLabel.sublabel}</div>
-                    {/if}
-                  </div>
-                {/if}
-                {#if getWeightLabel(product)}
-                  {@const weightLabel = getWeightLabel(product)!}
-                  <div class="product-recommendation__compact-grid-thc">
-                    <div class="product-recommendation__compact-grid-thc-label">{weightLabel.topLabel}</div>
-                    <div class="product-recommendation__compact-grid-thc-value">{weightLabel.value}</div>
-                    {#if weightLabel.sublabel}
-                      <div class="product-recommendation__compact-grid-thc-sublabel">{weightLabel.sublabel}</div>
-                    {/if}
+                    <div class="product-recommendation__compact-grid-thc-label">{typeBadge.topLabel}</div>
+                    <div class="product-recommendation__compact-grid-thc-value">{typeBadge.value}</div>
                   </div>
                 {/if}
               </div>
@@ -334,17 +285,10 @@
                 aria-label={actionType === 'link' ? `Open ${product.title} in shop` : `Add ${product.title} to cart`}
                 style="{effectiveThemeColor ? `background: ${effectiveThemeColor};` : ''}"
               >
-                {#if actionType === 'link'}
-                  <span>Shop Now</span>
-                  <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
-                    <path d="M7 4H4C2.89543 4 2 4.89543 2 6V14C2 15.1046 2.89543 16 4 16H12C13.1046 16 14 15.1046 14 14V11M11 2H16M16 2V7M16 2L7 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                {:else}
-                  <span>Add to Cart</span>
-                  <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
-                    <path d="M9 4V14M4 9H14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                {/if}
+                <span>View Wine</span>
+                <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+                  <path d="M7 4H4C2.89543 4 2 4.89543 2 6V14C2 15.1046 2.89543 16 4 16H12C13.1046 16 14 15.1046 14 14V11M11 2H16M16 2V7M16 2L7 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
               </button>
             </div>
           </div>
@@ -363,15 +307,14 @@
             shopLink={product.shopLink}
             brand={product.brand}
             category={product.category}
-            subcategory={product.subcategory}
-            thc_percentage={product.thc_percentage}
-            thc_per_unit_mg={product.thc_per_unit_mg}
-            thc_total_mg={product.thc_total_mg}
-            cbd_percentage={product.cbd_percentage}
-            cbd_per_unit_mg={product.cbd_per_unit_mg}
-            cbd_total_mg={product.cbd_total_mg}
-            total_weight_ounce={product.total_weight_ounce}
-            pack_count={product.pack_count}
+            varietal={product.varietal}
+            region={product.region}
+            vintage={product.vintage}
+            body={product.body}
+            sweetness={product.sweetness}
+            tasting_notes={product.tasting_notes}
+            flavor_profile={product.flavor_profile}
+            food_pairings={product.food_pairings}
             rankPosition={product.rankPosition}
             onAddToCart={() => handleAddToCart(product)}
             actionType={actionType}
@@ -487,6 +430,17 @@
     -webkit-box-orient: vertical;
     line-height: 1.3;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  }
+
+  .product-recommendation__compact-subtitle {
+    font-size: 12px;
+    color: #6b7280;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  }
+
+  :global(.dark) .product-recommendation__compact-subtitle,
+  :global([data-theme="dark"]) .product-recommendation__compact-subtitle {
+    color: #858585;
   }
 
   .product-recommendation__compact-meta {
@@ -731,6 +685,17 @@
     -webkit-box-orient: vertical;
     line-height: 1.3;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  }
+
+  .product-recommendation__compact-grid-subtitle {
+    font-size: 11px;
+    color: #6b7280;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  }
+
+  :global(.dark) .product-recommendation__compact-grid-subtitle,
+  :global([data-theme="dark"]) .product-recommendation__compact-grid-subtitle {
+    color: #858585;
   }
 
   .product-recommendation__compact-grid-meta {

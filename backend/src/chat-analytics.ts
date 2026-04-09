@@ -326,8 +326,8 @@ function detectPredictedCue(text: string | null | undefined): string | null {
   if (
     content.includes("I completely understand what you're looking for") ||
     content.includes("Let me check what we have that matches your preferences") ||
-    content.includes("I'm pulling up products that fit your criteria") ||
-    content.includes("Checking our inventory based on what you described")
+    content.includes("I'm pulling up wines that fit your criteria") ||
+    content.includes("Checking our selection based on what you described")
   ) {
     return "RECOMMEND";
   }

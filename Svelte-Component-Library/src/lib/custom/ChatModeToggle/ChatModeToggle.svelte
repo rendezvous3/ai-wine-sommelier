@@ -92,7 +92,7 @@
     flex-shrink: 0;
   }
 
-  .chat-mode-toggle__icon svg {
+  .chat-mode-toggle__icon :global(svg) {
     width: 100%;
     height: 100%;
   }

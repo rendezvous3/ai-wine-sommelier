@@ -4,10 +4,8 @@
   import ChatMessage from "../../Svelte-Component-Library/src/lib/custom/ChatMessage/ChatMessage.svelte";
   import ShimmerText from "../../Svelte-Component-Library/src/lib/custom/ShimmerText/ShimmerText.svelte";
   import WelcomeQuickStart from "../../Svelte-Component-Library/src/lib/custom/WelcomeQuickStart/WelcomeQuickStart.svelte";
-  import GuideAccordionTable from "../../Svelte-Component-Library/src/lib/custom/GuideAccordionTable/GuideAccordionTable.svelte";
   import type { QuickStartRequest } from "../../Svelte-Component-Library/src/lib/custom/QuickStartPanel/QuickStartPanel.svelte";
   import type { GuidedFlowConfig } from "../../Svelte-Component-Library/src/lib/custom/GuidedFlow/types.js";
-  import { getTHCScaleForCategory } from "../../Svelte-Component-Library/src/lib/custom/GuidedFlow/thcScales.js";
   import type { WidgetPosition } from "./embed-config";
   import {
     WIDGET_CLOSE_EVENT,
@@ -18,32 +16,25 @@
   } from "./embed-bridge";
   import { theme } from "./theme.svelte.js";
 
-  import flowerIcon from "./icons/categories/flower.png";
-  import prerollIcon from "./icons/categories/preroll.png";
-  import vapeIcon from "./icons/categories/vape.png";
-  import ediblesIcon from "./icons/categories/edibles.png";
-  import concentrateIcon from "./icons/categories/concentrate.png";
-  import concentrateTwoIcon from "./icons/categories/concentrate2.png";
   import chatIcon from "./icons/assistant/chat.png";
 
-  import calmIcon from "./icons/effects/calm.png";
-  import creativeIcon from "./icons/effects/creative.png";
-  import energizedIcon from "./icons/effects/energized.png";
-  import euphoricIcon from "./icons/effects/euphoric.png";
-  import focusedIcon from "./icons/effects/focused.png";
-  import relaxedIcon from "./icons/effects/relaxed.png";
-  import sedatedIcon from "./icons/effects/sedated.png";
-  import sleepyIcon from "./icons/effects/sleepy.png";
-  import stimulatedIcon from "./icons/effects/stimulated.png";
-  import upliftedIcon from "./icons/effects/uplifted.png";
+  // Wine SVG icons (inline for POC — no external icon files needed)
+  const wineRedIcon = '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6C16 6 12 14 12 20C12 24.4 15.6 28 20 28C24.4 28 28 24.4 28 20C28 14 24 6 20 6Z" fill="#8B2252"/><rect x="18.5" y="28" width="3" height="6" rx="1" fill="currentColor"/><rect x="14" y="33" width="12" height="2" rx="1" fill="currentColor"/></svg>';
+  const wineWhiteIcon = '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6C16 6 12 14 12 20C12 24.4 15.6 28 20 28C24.4 28 28 24.4 28 20C28 14 24 6 20 6Z" fill="#F0E68C"/><rect x="18.5" y="28" width="3" height="6" rx="1" fill="currentColor"/><rect x="14" y="33" width="12" height="2" rx="1" fill="currentColor"/></svg>';
+  const wineRoseIcon = '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6C16 6 12 14 12 20C12 24.4 15.6 28 20 28C24.4 28 28 24.4 28 20C28 14 24 6 20 6Z" fill="#FFB6C1"/><rect x="18.5" y="28" width="3" height="6" rx="1" fill="currentColor"/><rect x="14" y="33" width="12" height="2" rx="1" fill="currentColor"/></svg>';
+  const wineSparklingIcon = '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6C16 6 12 14 12 20C12 24.4 15.6 28 20 28C24.4 28 28 24.4 28 20C28 14 24 6 20 6Z" fill="#E8E8A0"/><circle cx="16" cy="16" r="1" fill="white" opacity="0.8"/><circle cx="22" cy="14" r="1.2" fill="white" opacity="0.6"/><circle cx="19" cy="19" r="0.8" fill="white" opacity="0.7"/><rect x="18.5" y="28" width="3" height="6" rx="1" fill="currentColor"/><rect x="14" y="33" width="12" height="2" rx="1" fill="currentColor"/></svg>';
+  const wineDessertIcon = '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 6C16 6 12 14 12 20C12 24.4 15.6 28 20 28C24.4 28 28 24.4 28 20C28 14 24 6 20 6Z" fill="#DAA520"/><rect x="18.5" y="28" width="3" height="6" rx="1" fill="currentColor"/><rect x="14" y="33" width="12" height="2" rx="1" fill="currentColor"/></svg>';
+  const wineSurpriseIcon = '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="14" fill="none" stroke="currentColor" stroke-width="2"/><text x="20" y="26" text-anchor="middle" fill="currentColor" font-size="18" font-weight="bold">?</text></svg>';
 
-  import chewsIcon from "./icons/edible_subcategories/chews.png";
-  import chocolatesIcon from "./icons/edible_subcategories/chocolates.png";
-  import cookingBakingIcon from "./icons/edible_subcategories/cooking_baking.png";
-  import drinksIcon from "./icons/edible_subcategories/drinks.png";
-  import gummiesIcon from "./icons/edible_subcategories/gummies.png";
-  import liveResinGummiesIcon from "./icons/edible_subcategories/live_resin_gummies.png";
-  import liveRosinGummiesIcon from "./icons/edible_subcategories/live_rosin_gummies.png";
+  // Flavor family icons (simple colored circles for POC)
+  const flavorBerryIcon = '<svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="14" fill="#C41E3A"/></svg>';
+  const flavorCitrusIcon = '<svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="14" fill="#FFD700"/></svg>';
+  const flavorTropicalIcon = '<svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="14" fill="#FF8C00"/></svg>';
+  const flavorChocolateIcon = '<svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="14" fill="#5C3317"/></svg>';
+  const flavorVanillaIcon = '<svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="14" fill="#F3E5AB"/></svg>';
+  const flavorPepperIcon = '<svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="14" fill="#B22222"/></svg>';
+  const flavorFloralIcon = '<svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="14" fill="#DDA0DD"/></svg>';
+  const flavorEarthyIcon = '<svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="14" fill="#8B7355"/></svg>';
 
   interface WidgetProps {
     store?: string;
@@ -82,16 +73,16 @@
   let isOpen = $state(false);
   let mode = $state<'chat' | 'guided-flow'>('chat');
 
-  const BASE_URL = apiBase.replace(/\/chat\/?$/, "").replace(/\/$/, "");
-  const CHAT_BASE_URL = `${BASE_URL}/chat`;
+  let BASE_URL = $derived(apiBase.replace(/\/chat\/?$/, "").replace(/\/$/, ""));
+  let CHAT_BASE_URL = $derived(`${BASE_URL}/chat`);
 
   let isInitialized = $state(false);
 
   const persistChat = false; // Set to true to re-enable localStorage persistence
 
-  const STORAGE_KEY = `widget_chat_${store}`;
-  const ANALYTICS_SESSION_KEY = `widget_chat_session_${store}`;
-  const ANALYTICS_SESSION_LAST_ACTIVITY_KEY = `widget_chat_session_last_activity_${store}`;
+  let STORAGE_KEY = $derived(`widget_chat_${store}`);
+  let ANALYTICS_SESSION_KEY = $derived(`widget_chat_session_${store}`);
+  let ANALYTICS_SESSION_LAST_ACTIVITY_KEY = $derived(`widget_chat_session_last_activity_${store}`);
   const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
   interface Message {
     role: "user" | "assistant";
@@ -109,22 +100,22 @@
     id: string;
     name: string;
     price: number;
-    image: string;  // This should map to imageLink from backend
-    imageLink?: string;  // Backend returns this
-    shopLink?: string;  // Add this
-    description: string;
-    category?: string;
-    subcategory?: string;
-    type?: string;
+    image?: string;
+    image_url?: string;
+    shop_link?: string;
+    description?: string;
+    wine_type?: string;
+    varietal?: string;
+    region?: string;
+    vintage?: number;
+    body?: string;
+    sweetness?: string;
+    tasting_notes?: string;
+    flavor_profile?: string[];
+    food_pairings?: string[];
+    occasions?: string[];
     brand?: string;
-    thc_percentage?: number;
-    thc_per_unit_mg?: number;
-    thc_total_mg?: number;
-    cbd_percentage?: number;
-    cbd_per_unit_mg?: number;
-    cbd_total_mg?: number;
-    total_weight_ounce?: number;
-    pack_count?: number;
+    alcohol_pct?: number;
     rankPosition?: number;
   }
 
@@ -308,35 +299,18 @@
     <path d="M10 6V14M6 10H14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
   </svg>`;
 
-  const terpeneIcon = `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M10 17C10 13.6 12.1 11.2 15.5 10.3C13.7 13.1 12.1 15.2 10 17Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M10 17C10 13.6 7.9 11.2 4.5 10.3C6.3 13.1 7.9 15.2 10 17Z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M10 4V17" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
-  </svg>`;
-
-  const cannabinoidIcon = `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="10" cy="10" r="2" stroke="currentColor" stroke-width="1.4"/>
-    <circle cx="5" cy="7" r="1.5" stroke="currentColor" stroke-width="1.2"/>
-    <circle cx="14.5" cy="6" r="1.5" stroke="currentColor" stroke-width="1.2"/>
-    <circle cx="15" cy="13.5" r="1.5" stroke="currentColor" stroke-width="1.2"/>
-    <path d="M8.5 9L6.3 7.8M11.5 8.8L13.4 6.9M11.4 11.2L13.7 12.7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-  </svg>`;
 
   const menuItems = [
     { id: 'ai-disclosure', label: 'AI Disclosure', icon: 'about', iconType: 'svg' as const },
     { id: 'medical-disclosure', label: 'Medical Disclosure', icon: medicalDisclosureIcon, iconType: 'svg' as const },
     { id: 'feedback', label: 'Send Feedback', icon: 'feedback', iconType: 'svg' as const },
-    { id: 'menu-section-guides', label: 'Guides', type: 'section' as const },
-    { id: 'terpenes-guide', label: 'Terpenes Guide', icon: terpeneIcon, iconType: 'svg' as const },
-    { id: 'cannabinoids-guide', label: 'Cannabinoids Guide', icon: cannabinoidIcon, iconType: 'svg' as const }
+    { id: 'feedback', label: 'Send Feedback', icon: 'feedback', iconType: 'svg' as const }
   ];
 
   type PanelId =
     | 'ai-disclosure'
     | 'medical-disclosure'
-    | 'feedback'
-    | 'terpenes-guide'
-    | 'cannabinoids-guide';
+    | 'feedback';
   let activePanel = $state<PanelId | null>(null);
   let feedbackName = $state('');
   let feedbackEmail = $state('');
@@ -352,56 +326,21 @@
   let lastFocusedElement = $state<HTMLElement | null>(null);
   let a11yAnnouncement = $state('');
   const popularRequests: QuickStartRequest[] = [
-    { label: 'Potent Flower', prompt: 'potent flower', icon: flowerIcon },
-    { label: 'Uplifting Vape', prompt: 'uplifting vape', icon: vapeIcon },
-    { label: 'Sleepy Edibles', prompt: 'sleepy edibles', icon: gummiesIcon },
-    { label: 'Calm Pre-Rolls', prompt: 'calm pre-rolls', icon: prerollIcon },
-    { label: 'CBD Oil', prompt: 'cbd oil', icon: concentrateTwoIcon },
-    { label: 'Berry Gummies', prompt: 'berry gummies', icon: gummiesIcon }
+    { label: 'Bold Red', prompt: 'full-bodied red wine' },
+    { label: 'Crisp White', prompt: 'crisp white wine' },
+    { label: 'Date Night', prompt: 'wine for date night' },
+    { label: 'Under $25', prompt: 'good wine under $25' },
+    { label: 'Sparkling', prompt: 'sparkling wine for celebration' },
+    { label: 'Surprise Me', prompt: 'surprise me' }
   ];
 
   const menuRoutes: Record<string, string> = {
     'ai-disclosure': '/disclosures/ai-disclosure.html',
     'medical-disclosure': '/disclosures/medical-disclosure.html',
     feedback: '/support/feedback.html',
-    'terpenes-guide': '/guides/terpenes.html',
-    'cannabinoids-guide': '/guides/cannabinoids.html'
   };
 
-  type GuideItem = {
-    id: string;
-    name: string;
-    flavor: string;
-    effects: string;
-    benefits: string;
-    summary: string;
-  };
-
-  const terpeneItems: GuideItem[] = [
-    { id: 'caryophyllene', name: 'Caryophyllene', flavor: 'Peppery / Spicy', effects: 'Grounding', benefits: 'Stress support', summary: 'Known for a pepper-forward profile and a balanced, grounding feel. Often chosen by shoppers looking for evening calm without heavy sedation.' },
-    { id: 'limonene', name: 'Limonene', flavor: 'Citrus', effects: 'Uplifting', benefits: 'Mood support', summary: 'Bright citrus-forward terpene commonly associated with energetic, daytime-friendly experiences and positive mood support.' },
-    { id: 'myrcene', name: 'Myrcene', flavor: 'Earthy / Hoppy', effects: 'Relaxing', benefits: 'Body ease', summary: 'One of the most common terpenes in cannabis, typically linked to deeper body relaxation and wind-down support.' },
-    { id: 'linalool', name: 'Linalool', flavor: 'Lavender / Floral', effects: 'Calming', benefits: 'Rest support', summary: 'Floral terpene associated with calmer sessions and nighttime routines, often selected for stress-heavy days.' },
-    { id: 'pinene', name: 'Pinene', flavor: 'Pine / Herbal', effects: 'Clear-headed', benefits: 'Focus support', summary: 'Fresh pine aroma and a crisp profile often preferred for clearer, alert, daytime product experiences.' },
-    { id: 'terpinolene', name: 'Terpinolene', flavor: 'Floral / Citrus', effects: 'Energizing', benefits: 'Creative support', summary: 'Complex aromatic terpene often found in lively profiles and selected by shoppers who want a brighter, more active experience.' },
-    { id: 'ocimene', name: 'Ocimene', flavor: 'Sweet / Herbal', effects: 'Bright', benefits: 'Daytime support', summary: 'A lighter terpene profile often associated with daytime products and a clean, upbeat character.' },
-    { id: 'humulene', name: 'Humulene', flavor: 'Woody / Earthy', effects: 'Centered', benefits: 'Balance support', summary: 'Earthy and grounding terpene commonly found in hops and cannabis, often chosen for more measured sessions.' },
-    { id: 'bisabolol', name: 'Bisabolol', flavor: 'Floral / Soft', effects: 'Soothing', benefits: 'Comfort support', summary: 'Gentle floral terpene known for a softer profile and supportive calming characteristics.' },
-    { id: 'nerolidol', name: 'Nerolidol', flavor: 'Woody / Floral', effects: 'Settling', benefits: 'Evening support', summary: 'Typically found in slower, heavier profiles and often selected for nighttime or low-key routines.' }
-  ];
-
-  const cannabinoidItems: GuideItem[] = [
-    { id: 'thc', name: 'THC', flavor: 'Varies by strain', effects: 'Euphoric / Potent', benefits: 'Symptom relief support', summary: 'Primary psychoactive cannabinoid. Usually drives intensity, mood shift, and overall strength of a product experience.' },
-    { id: 'cbd', name: 'CBD', flavor: 'Mild / Earthy', effects: 'Balancing', benefits: 'Calm support', summary: 'Non-intoxicating cannabinoid often used to soften intensity and support balance, comfort, and a more controlled experience.' },
-    { id: 'cbg', name: 'CBG', flavor: 'Herbal', effects: 'Steady / Focused', benefits: 'Daytime support', summary: 'Often described as clear and centered. Commonly selected in products designed for daytime use and functional calm.' },
-    { id: 'cbn', name: 'CBN', flavor: 'Mild', effects: 'Settling', benefits: 'Sleep support', summary: 'Frequently included in nighttime formulas and products aimed at wind-down routines and deeper relaxation.' },
-    { id: 'thcv', name: 'THCV', flavor: 'Varies', effects: 'Light / Energetic', benefits: 'Focus support', summary: 'Can feel lighter and more activating than classic THC-dominant products, often used in daytime or productivity-focused offerings.' },
-    { id: 'cbc', name: 'CBC', flavor: 'Subtle', effects: 'Supportive', benefits: 'Recovery support', summary: 'Minor cannabinoid typically used alongside others to round out broad-spectrum formulations and wellness-focused effects.' },
-    { id: 'cbda', name: 'CBDA', flavor: 'Mild / Green', effects: 'Balancing', benefits: 'Comfort support', summary: 'Acidic precursor to CBD found in raw plant material and some minimally processed formulations.' },
-    { id: 'thca', name: 'THCA', flavor: 'Mild / Herbal', effects: 'Non-intoxicating', benefits: 'Wellness support', summary: 'Acidic precursor to THC that is not intoxicating until heated; appears in raw flower and extract contexts.' },
-    { id: 'delta-8-thc', name: 'Delta-8 THC', flavor: 'Varies', effects: 'Milder euphoria', benefits: 'Calm support', summary: 'Alternative THC isomer often described as gentler than Delta-9 with a softer psychoactive profile.' },
-    { id: 'delta-9-thc', name: 'Delta-9 THC', flavor: 'Varies', effects: 'Classic potency', benefits: 'Mood and symptom support', summary: 'Primary THC form in most adult-use products and the main contributor to classic cannabis intensity.' }
-  ];
+  // Guide data removed — cannabis terpene/cannabinoid guides not applicable to wine POC
 
   function getWidgetShadowRoot(): ShadowRoot | null {
     return document.getElementById(WIDGET_ROOT_ID)?.shadowRoot ?? null;
@@ -471,9 +410,7 @@
     if (
       itemId === 'ai-disclosure' ||
       itemId === 'medical-disclosure' ||
-      itemId === 'feedback' ||
-      itemId === 'terpenes-guide' ||
-      itemId === 'cannabinoids-guide'
+      itemId === 'feedback'
     ) {
       if (document.activeElement instanceof HTMLElement) {
         lastFocusedElement = document.activeElement;
@@ -787,25 +724,24 @@
   function convertToProducts(recommendations: Recommendation[]) {
     return recommendations.map((rec, index) => ({
       id: rec.id,
-      image: rec.imageLink || rec.image || '',  // Prefer imageLink, fallback to image
+      image: rec.image_url || rec.image || '',
       title: rec.name || '',
       price: rec.price != null && !isNaN(rec.price) ? rec.price : 0,
       originalPrice: undefined,
       rating: undefined,
       discount: undefined,
-      category: rec.category,
-      subcategory: rec.subcategory,
-      type: rec.type,
-      shopLink: rec.shopLink,
+      category: rec.wine_type,
+      shopLink: rec.shop_link,
       brand: rec.brand,
-      thc_percentage: rec.thc_percentage,
-      thc_per_unit_mg: rec.thc_per_unit_mg,
-      thc_total_mg: rec.thc_total_mg,
-      cbd_percentage: rec.cbd_percentage,
-      cbd_per_unit_mg: rec.cbd_per_unit_mg,
-      cbd_total_mg: rec.cbd_total_mg,
-      total_weight_ounce: rec.total_weight_ounce,
-      pack_count: rec.pack_count,
+      varietal: rec.varietal,
+      region: rec.region,
+      vintage: rec.vintage,
+      body: rec.body,
+      sweetness: rec.sweetness,
+      description: rec.description,
+      tasting_notes: rec.tasting_notes,
+      flavor_profile: rec.flavor_profile,
+      food_pairings: rec.food_pairings,
       rankPosition: rec.rankPosition ?? index + 1
     }));
   }
@@ -827,8 +763,7 @@
       rankPosition: product.rankPosition ?? null,
       payload: {
         product_name: product.title ?? null,
-        category: product.category ?? null,
-        subcategory: product.subcategory ?? null
+        category: product.category ?? null
       }
     });
   }
@@ -867,83 +802,49 @@
     resetAnalyticsSession();
   }
 
-  // Track selected category for dynamic THC scale
-  let selectedCategory = $state<string | null>(null);
+  // ============================================
+  // WINE GUIDED FLOW STEPS
+  // ============================================
 
-  // Helper function to create THC percentage options from scale
-  function createTHCOptions(scale: ReturnType<typeof getTHCScaleForCategory>) {
-    return scale.map(option => ({
-      id: option.id,
-      label: option.label,
-      value: option.value,
-      description: option.description,
-      icon: getTHCIcon(option.id)
-    }));
-  }
-
-  // Helper function to get icon for THC percentage option
-  function getTHCIcon(id: string): string {
-    const icons: Record<string, string> = {
-      'mild': '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="18" width="20" height="4" rx="2" fill="currentColor"/></svg>',
-      'balanced': '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="16" width="20" height="8" rx="2" fill="currentColor"/></svg>',
-      'moderate': '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="14" width="20" height="12" rx="2" fill="currentColor"/></svg>',
-      'strong': '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="12" width="20" height="16" rx="2" fill="currentColor"/></svg>',
-      'very-strong': '<svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="10" width="20" height="20" rx="2" fill="currentColor"/></svg>'
-    };
-    return icons[id] || icons['mild'];
-  }
-
-  // Get THC percentage options based on selected category
-  const thcPercentageOptions = $derived.by(() => {
-    const scale = getTHCScaleForCategory(selectedCategory);
-    return createTHCOptions(scale);
-  });
-
-  // Category step (shared by both flows)
-  const categoryStep = {
-    id: 'category',
-    title: 'What product type are you interested in?',
+  // Step 1: Wine Style
+  const wineStyleStep = {
+    id: 'wine_type',
+    title: 'What type of wine?',
     subtitle: '(Select one)',
     type: 'single-select' as const,
     required: true,
     options: [
-      {
-        id: 'flower',
-        label: 'Flower',
-        value: 'flower',
-        icon: `<img src="${flowerIcon}" alt="Flower" style="width:40px;height:40px;object-fit:contain;" />`
-      },
-      {
-        id: 'prerolls',
-        label: 'Prerolls',
-        value: 'prerolls',
-        icon: `<img src="${prerollIcon}" alt="Prerolls" style="width:40px;height:40px;object-fit:contain;" />`
-      },
-      {
-        id: 'vape-cart',
-        label: 'Vape Cart',
-        value: 'vaporizers',
-        icon: `<img src="${vapeIcon}" alt="Vape Cart" style="width:40px;height:40px;object-fit:contain;" />`
-      },
-      {
-        id: 'edible',
-        label: 'Edible',
-        value: 'edibles',
-        icon: `<img src="${ediblesIcon}" alt="Edible" style="width:40px;height:40px;object-fit:contain;" />`
-      },
-      {
-        id: 'concentrates',
-        label: 'Concentrates',
-        value: 'concentrates',
-        icon: `<img src="${concentrateIcon}" alt="Concentrates" style="width:40px;height:40px;object-fit:contain;" />`
-      }
+      { id: 'red', label: 'Red', value: 'red', icon: wineRedIcon },
+      { id: 'white', label: 'White', value: 'white', icon: wineWhiteIcon },
+      { id: 'rose', label: 'Rosé', value: 'rose', icon: wineRoseIcon },
+      { id: 'sparkling', label: 'Sparkling', value: 'sparkling', icon: wineSparklingIcon },
+      { id: 'dessert', label: 'Dessert', value: 'dessert', icon: wineDessertIcon },
+      { id: 'surprise', label: 'Surprise Me', value: null, icon: wineSurpriseIcon }
     ]
   };
 
-  // Effects step (shared by both flows)
-  const effectsStep = {
-    id: 'effects',
-    title: 'How would you like to feel?',
+  // Step 2: Occasion
+  const occasionStep = {
+    id: 'occasion',
+    title: 'What\'s the occasion?',
+    subtitle: '(Select one)',
+    type: 'single-select' as const,
+    required: true,
+    options: [
+      { id: 'dinner-party', label: 'Dinner Party', value: 'dinner-party' },
+      { id: 'date-night', label: 'Date Night', value: 'date-night' },
+      { id: 'gift', label: 'Gift', value: 'gift' },
+      { id: 'casual', label: 'Casual', value: 'casual' },
+      { id: 'celebration', label: 'Celebration', value: 'celebration' },
+      { id: 'cooking', label: 'Cooking', value: 'cooking' },
+      { id: 'surprise-occasion', label: 'Surprise Me', value: null, icon: wineSurpriseIcon }
+    ]
+  };
+
+  // Step 3: Flavor Profile
+  const flavorStep = {
+    id: 'flavor_profile',
+    title: 'What flavors appeal to you?',
     subtitle: '(Up to 2)',
     type: 'multi-select' as const,
     maxSelections: 2,
@@ -954,199 +855,52 @@
     },
     required: true,
     options: [
-      {
-        id: 'calm',
-        label: 'Calm',
-        value: 'calm',
-        icon: `<img src="${calmIcon}" alt="Calm" style="width:40px;height:40px;object-fit:contain;" />`
-      },
-      {
-        id: 'creative',
-        label: 'Creative',
-        value: 'creative',
-        icon: `<img src="${creativeIcon}" alt="Creative" style="width:40px;height:40px;object-fit:contain;" />`
-      },
-      {
-        id: 'energized',
-        label: 'Energized',
-        value: 'energized',
-        conflictsWith: ['sedated', 'sleepy'],
-        icon: `<img src="${energizedIcon}" alt="Energized" style="width:40px;height:40px;object-fit:contain;" />`
-      },
-      {
-        id: 'focused',
-        label: 'Focused',
-        value: 'focused',
-        icon: `<img src="${focusedIcon}" alt="Focused" style="width:40px;height:40px;object-fit:contain;" />`
-      },
-      {
-        id: 'relaxed',
-        label: 'Relaxed',
-        value: 'relaxed',
-        icon: `<img src="${relaxedIcon}" alt="Relaxed" style="width:40px;height:40px;object-fit:contain;" />`
-      },
-      {
-        id: 'euphoric',
-        label: 'Euphoric',
-        value: 'euphoric',
-        icon: `<img src="${euphoricIcon}" alt="Euphoric" style="width:40px;height:40px;object-fit:contain;" />`
-      },
-      {
-        id: 'sedated',
-        label: 'Sedated',
-        value: 'sedated',
-        conflictsWith: ['energized'],
-        icon: `<img src="${sedatedIcon}" alt="Sedated" style="width:40px;height:40px;object-fit:contain;" />`
-      },
-      {
-        id: 'sleepy',
-        label: 'Sleepy',
-        value: 'sleepy',
-        conflictsWith: ['energized'],
-        icon: `<img src="${sleepyIcon}" alt="Sleepy" style="width:40px;height:40px;object-fit:contain;" />`
-      },
-      {
-        id: 'stimulated',
-        label: 'Stimulated',
-        value: 'stimulated',
-        icon: `<img src="${stimulatedIcon}" alt="Stimulated" style="width:40px;height:40px;object-fit:contain;" />`
-      },
-      {
-        id: 'uplifted',
-        label: 'Uplifted',
-        value: 'uplifted',
-        icon: `<img src="${upliftedIcon}" alt="Uplifted" style="width:40px;height:40px;object-fit:contain;" />`
-      }
+      { id: 'berry-cherry', label: 'Berry & Cherry', value: 'berry', icon: flavorBerryIcon },
+      { id: 'citrus-apple', label: 'Citrus & Apple', value: 'citrus', icon: flavorCitrusIcon },
+      { id: 'tropical', label: 'Tropical', value: 'tropical', icon: flavorTropicalIcon },
+      { id: 'chocolate-coffee', label: 'Chocolate', value: 'chocolate', icon: flavorChocolateIcon },
+      { id: 'vanilla-caramel', label: 'Vanilla & Oak', value: 'vanilla', icon: flavorVanillaIcon },
+      { id: 'pepper-spice', label: 'Pepper & Spice', value: 'pepper', icon: flavorPepperIcon },
+      { id: 'floral-herbal', label: 'Floral & Herbal', value: 'floral', icon: flavorFloralIcon },
+      { id: 'earthy-mineral', label: 'Earthy', value: 'earthy', icon: flavorEarthyIcon }
     ]
   };
 
-  // Price step (shared by both flows) - uses dynamic category
-  const priceStep = $derived({
+  // Step 4: Body (slider)
+  const bodyStep = {
+    id: 'body',
+    title: 'How heavy should the wine feel?',
+    subtitle: '',
+    type: 'slider' as const,
+    required: true,
+    options: [
+      { id: 'light', label: 'Light', value: 'light', description: 'Crisp & delicate' },
+      { id: 'medium', label: 'Medium', value: 'medium', description: 'Balanced & smooth' },
+      { id: 'full', label: 'Full', value: 'full', description: 'Bold & rich' }
+    ]
+  };
+
+  // Step 5: Price
+  const priceStep = {
     id: 'price',
     title: 'Max Price',
     subtitle: '',
     type: 'price-selector' as const,
     required: true,
-    category: selectedCategory,
-    options: [] // Not used for price-selector
-  });
+    options: []
+  };
 
-  // Standard flow steps (for Flower, Prerolls, Vaporizers, Concentrates)
-  const standardFlowSteps = $derived([
-    categoryStep,
-    effectsStep,
-    {
-      id: 'thc-percentage',
-      title: 'How potent would you like it?',
-      subtitle: '(Select one)',
-      type: 'single-select' as const,
-      required: true,
-      options: thcPercentageOptions
-    },
+  // Single wine flow — no branching needed (unlike cannabis with edibles fork)
+  const wineFlowSteps = [
+    wineStyleStep,
+    occasionStep,
+    flavorStep,
+    bodyStep,
     priceStep
-  ]);
+  ];
 
-  // Edibles flow steps
-  const ediblesFlowSteps = $derived([
-    categoryStep,
-    {
-      id: 'subcategory',
-      title: 'Which kinds of edibles would you like?',
-      subtitle: '(Select up to 2)',
-      type: 'multi-select' as const,
-      maxSelections: 2,
-      gridColumns: 3,
-      cardSize: 'small' as const,
-      customStyles: {
-        padding: '30px 10px',
-        minHeight: '70px'
-      },
-      required: true,
-      options: [
-        {
-          id: 'chews',
-          label: 'Chews',
-          value: 'chews',
-          icon: `<img src="${chewsIcon}" alt="Chews" style="width:40px;height:40px;object-fit:contain;" />`
-        },
-        {
-          id: 'chocolates',
-          label: 'Chocolates',
-          value: 'chocolates',
-          icon: `<img src="${chocolatesIcon}" alt="Chocolates" style="width:40px;height:40px;object-fit:contain;" />`
-        },
-        {
-          id: 'cooking-baking',
-          label: 'Cooking/Baking',
-          value: 'cooking-baking',
-          icon: `<img src="${cookingBakingIcon}" alt="Cooking/Baking" style="width:40px;height:40px;object-fit:contain;" />`
-        },
-        {
-          id: 'drinks',
-          label: 'Drinks',
-          value: 'drinks',
-          icon: `<img src="${drinksIcon}" alt="Drinks" style="width:40px;height:40px;object-fit:contain;" />`
-        },
-        {
-          id: 'gummies',
-          label: 'Gummies',
-          value: 'gummies',
-          icon: `<img src="${gummiesIcon}" alt="Gummies" style="width:40px;height:40px;object-fit:contain;" />`
-        },
-        {
-          id: 'live-resin-gummies',
-          label: 'Live Resin Gummies',
-          value: 'live-resin-gummies',
-          icon: `<img src="${liveResinGummiesIcon}" alt="Live Resin Gummies" style="width:40px;height:40px;object-fit:contain;" />`
-        },
-        {
-          id: 'live-rosin-gummies',
-          label: 'Live Rosin Gummies',
-          value: 'live-rosin-gummies',
-          icon: `<img src="${liveRosinGummiesIcon}" alt="Live Rosin Gummies" style="width:40px;height:40px;object-fit:contain;" />`
-        }
-      ]
-    },
-    effectsStep,
-    {
-      id: 'dosage-per-piece',
-      title: 'Dosage per piece',
-      subtitle: '',
-      type: 'slider' as const,
-      required: true,
-      options: [
-        {
-          id: 'low',
-          label: 'Low',
-          value: 'low',
-          description: '<5 mg'
-        },
-        {
-          id: 'medium',
-          label: 'Medium',
-          value: 'medium',
-          description: '5-9 mg'
-        },
-        {
-          id: 'high',
-          label: 'High',
-          value: 'high',
-          description: '10 mg'
-        }
-      ]
-    },
-    priceStep
-  ]);
-
-  // Dynamic step selection based on category
-  const allGuidedFlowSteps = $derived.by(() => {
-    // If category is selected and it's edibles, use edibles flow
-    if (selectedCategory === 'edibles') {
-      return ediblesFlowSteps;
-    }
-    // Otherwise use standard flow
-    return standardFlowSteps;
-  });
+  // Wine flow — single path, no branching
+  const allGuidedFlowSteps = wineFlowSteps;
 
   function handleModeToggle() {
     mode = mode === 'chat' ? 'guided-flow' : 'chat';
@@ -1289,11 +1043,8 @@
     mode = 'chat';
   }
 
-  function handleSelectionChange(selections: Record<string, any>) {
-    // Track category selection for dynamic THC percentage scale
-    if (selections['category']) {
-      selectedCategory = selections['category'];
-    }
+  function handleSelectionChange(_selections: Record<string, any>) {
+    // No dynamic step branching needed for wine flow
   }
 
   const guidedFlowConfig: GuidedFlowConfig = $derived({
@@ -1516,22 +1267,20 @@
           id: product.id || '',
           name: product.name || '',
           price: product.price || 0,
-          image: product.imageLink || product.image || '',
-          imageLink: product.imageLink || product.image || '',
-          shopLink: product.shopLink || '',
+          image: product.image_url || product.image || '',
+          image_url: product.image_url || product.image || '',
+          shop_link: product.shop_link || '',
           description: product.description || '',
-          category: product.category || '',
-          subcategory: product.subcategory || '',
-          type: product.type || '',
+          wine_type: product.wine_type || '',
+          varietal: product.varietal || '',
+          region: product.region || '',
+          vintage: product.vintage,
+          body: product.body || '',
+          sweetness: product.sweetness || '',
           brand: product.brand || '',
-          thc_percentage: product.thc_percentage,
-          thc_per_unit_mg: product.thc_per_unit_mg,
-          thc_total_mg: product.thc_total_mg,
-          cbd_percentage: product.cbd_percentage,
-          cbd_per_unit_mg: product.cbd_per_unit_mg,
-          cbd_total_mg: product.cbd_total_mg,
-          total_weight_ounce: product.total_weight_ounce,
-          pack_count: product.pack_count,
+          tasting_notes: product.tasting_notes || '',
+          flavor_profile: product.flavor_profile,
+          food_pairings: product.food_pairings,
           rankPosition: 1
         };
 
@@ -2036,7 +1785,7 @@
   menuPosition="left"
   menuMode="sidebar"
   onMenuItemClick={handleMenuItemClick}
-  title="Cannavita Budtender"
+  title="Wine Sommelier"
   themeBackgroundColor="#F4C37D"
   iconSrc={chatIcon}
   launcherIconSrc={launcherIcon}
@@ -2062,7 +1811,7 @@
   showInput={activePanel === null}
   showScrollButton={activePanel === null}
   panelOpen={activePanel !== null}
-  ariaMessageLogLabel="Cannavita chat messages"
+  ariaMessageLogLabel="Wine sommelier chat messages"
   announceStreamingMode="final-only"
   announcementText={a11yAnnouncement}
 >
@@ -2093,7 +1842,7 @@
             variant={msg.role}
             messageText={msg.content}
             products={msg.recommendations ? convertToProducts(msg.recommendations) : undefined}
-            recommendationTitle={msg.role === 'assistant' && msg.recommendations && msg.recommendations.length > 0 ? "Cannavita Budtender recommendations" : undefined}
+            recommendationTitle={msg.role === 'assistant' && msg.recommendations && msg.recommendations.length > 0 ? "Sommelier recommendations" : undefined}
             recommendationLayout="compact-list"
             productsInBubble={true}
             showHoverActions={false}
@@ -2107,7 +1856,7 @@
       <div
         class="widget-panel"
         class:widget-panel--feedback={activePanel === 'feedback'}
-        class:widget-panel--scrollable={activePanel === 'terpenes-guide' || activePanel === 'cannabinoids-guide'}
+        class:widget-panel--scrollable={false}
         role="dialog"
         aria-modal="true"
         aria-labelledby={activePanel ? `widget-panel-title-${activePanel}` : undefined}
@@ -2139,12 +1888,11 @@
             <h3 id="widget-panel-title-medical-disclosure">Medical and Recreational Disclosure</h3>
             <button type="button" class="widget-panel__external-link" onclick={() => openExternalPanelPage(activePanel)}>Full Page</button>
           </div>
-          <p>Cannavita is a recreational dispensary. Content in this widget is for retail and educational purposes only.</p>
+          <p>This is a wine recommendation assistant. Content is for retail and educational purposes only.</p>
           <ul>
-            <li>No statements here diagnose, treat, cure, or prevent disease.</li>
-            <li>Consult a licensed healthcare professional for medical questions.</li>
+            <li>Please drink responsibly. You must be of legal drinking age.</li>
+            <li>Wine recommendations are based on product metadata and may not reflect personal taste.</li>
             <li>Do not drive or operate machinery while impaired.</li>
-            <li>Keep all cannabis products away from children and pets.</li>
           </ul>
         {:else if activePanel === 'feedback'}
           <div class="widget-panel__title-row">
@@ -2203,20 +1951,6 @@
               {feedbackNotice}
             </p>
           {/if}
-        {:else if activePanel === 'terpenes-guide'}
-          <div class="widget-panel__title-row">
-            <h3 id="widget-panel-title-terpenes-guide">Terpenes Guide</h3>
-            <button type="button" class="widget-panel__external-link" onclick={() => openExternalPanelPage(activePanel)}>Full Page</button>
-          </div>
-          <p>Terpenes are aromatic compounds that shape flavor and can influence how a product feels. They work alongside cannabinoids to create a broader effect profile.</p>
-          <GuideAccordionTable rows={terpeneItems} />
-        {:else if activePanel === 'cannabinoids-guide'}
-          <div class="widget-panel__title-row">
-            <h3 id="widget-panel-title-cannabinoids-guide">Cannabinoids Guide</h3>
-            <button type="button" class="widget-panel__external-link" onclick={() => openExternalPanelPage(activePanel)}>Full Page</button>
-          </div>
-          <p>Cannabinoids are active compounds in cannabis that influence intensity, mood, and body feel. Product outcomes depend on cannabinoid balance, terpene profile, and dose.</p>
-          <GuideAccordionTable rows={cannabinoidItems} />
         {/if}
       </div>
     {/if}

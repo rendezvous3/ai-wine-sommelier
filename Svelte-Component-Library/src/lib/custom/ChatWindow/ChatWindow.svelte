@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { setContext, getContext } from 'svelte';
+  import { setContext, getContext, untrack } from 'svelte';
   import Button from '../Button/Button.svelte';
   import ChatModeToggle from '../ChatModeToggle/ChatModeToggle.svelte';
   import GuidedFlow from '../GuidedFlow/GuidedFlow.svelte';
@@ -68,11 +68,11 @@
     noAssistantBubbleContext.value = effectiveNoAssistantBubble;
   });
 
-  let isExpanded = $state(expanded);
+  let isExpanded = $state(untrack(() => expanded));
   let messagesEndRef: HTMLDivElement | null = $state(null);
   let showScrollToBottom = $state(false);
   let messagesContainerRef: HTMLDivElement | null = $state(null);
-  let previousMessagesCount = $state(messagesCount);
+  let previousMessagesCount = $state(untrack(() => messagesCount));
   let liveAnnouncement = $state('');
 
   // Sync internal state with prop changes

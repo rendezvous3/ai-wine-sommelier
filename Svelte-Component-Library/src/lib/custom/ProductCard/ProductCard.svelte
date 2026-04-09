@@ -1,6 +1,5 @@
 <script lang="ts">
   import Button from '../Button/Button.svelte';
-  import { formatTHCLabel, formatCBDLabel, formatWeightLabel } from '../ProductRecommendation/thcFormatter.js';
 
   interface ProductCardProps {
     id?: string;
@@ -14,15 +13,15 @@
     actionType?: 'add-to-cart' | 'link';
     brand?: string;
     category?: string;
-    subcategory?: string;
-    thc_percentage?: number;
-    thc_per_unit_mg?: number;
-    thc_total_mg?: number;
-    cbd_percentage?: number;
-    cbd_per_unit_mg?: number;
-    cbd_total_mg?: number;
-    total_weight_ounce?: number;
-    pack_count?: number;
+    varietal?: string;
+    region?: string;
+    vintage?: number;
+    body?: string;
+    sweetness?: string;
+    description?: string;
+    tasting_notes?: string;
+    flavor_profile?: string[];
+    food_pairings?: string[];
     rankPosition?: number;
     onAddToCart?: () => void;
     onProductAction?: () => void;
@@ -40,24 +39,21 @@
     actionType = 'add-to-cart',
     brand,
     category,
-    subcategory,
-    thc_percentage,
-    thc_per_unit_mg,
-    thc_total_mg,
-    cbd_percentage,
-    cbd_per_unit_mg,
-    cbd_total_mg,
-    total_weight_ounce,
-    pack_count,
+    varietal,
+    region,
+    vintage,
+    body,
+    sweetness,
+    description,
+    tasting_notes,
+    flavor_profile,
+    food_pairings,
     rankPosition,
     onAddToCart,
     onProductAction
   }: ProductCardProps = $props();
 
   let hasDiscount = $derived(discount !== undefined && discount > 0);
-  let displayPrice = $derived(
-    hasDiscount && originalPrice ? originalPrice : price
-  );
   let finalPrice = $derived(price);
 
   function formatPrice(value: number | null | undefined): string {
@@ -78,33 +74,36 @@
     }
   }
 
-  function getTHCLabel() {
-    return formatTHCLabel({ category, subcategory, title, thc_percentage, thc_per_unit_mg, thc_total_mg });
-  }
-
-  function getCBDLabel() {
-    return formatCBDLabel({ category, cbd_percentage, cbd_per_unit_mg, cbd_total_mg });
-  }
-
-  function getWeightLabel() {
-    return formatWeightLabel({ category, total_weight_ounce, thc_total_mg, thc_per_unit_mg, pack_count });
+  function capitalizeFirst(s: string): string {
+    return s.charAt(0).toUpperCase() + s.slice(1);
   }
 </script>
 
 <div class="product-card">
-  <div class="product-card__image-wrapper">
-    <img src={image} alt={title} class="product-card__image" />
-    {#if hasDiscount}
-      <span class="product-card__badge">-{discount}%</span>
-    {/if}
-  </div>
-  
+  {#if image}
+    <div class="product-card__image-wrapper">
+      <img src={image} alt={title} class="product-card__image" />
+      {#if hasDiscount}
+        <span class="product-card__badge">-{discount}%</span>
+      {/if}
+    </div>
+  {/if}
+
   <div class="product-card__content">
     {#if brand}
       <div class="product-card__brand">{brand}</div>
     {/if}
     <h3 class="product-card__title">{title}</h3>
-    
+
+    {#if varietal || region || vintage}
+      <div class="product-card__subtitle">
+        {#if varietal}{capitalizeFirst(varietal)}{/if}
+        {#if varietal && region} · {/if}
+        {#if region}{capitalizeFirst(region)}{/if}
+        {#if vintage} · {vintage}{/if}
+      </div>
+    {/if}
+
     {#if rating !== undefined}
       <div class="product-card__rating">
         {#each Array(5) as _, i}
@@ -126,7 +125,7 @@
         <span class="product-card__rating-value">{rating != null ? rating.toFixed(1) : '0.0'}</span>
       </div>
     {/if}
-    
+
     <div class="product-card__pricing">
       <div class="product-card__price-wrapper">
         <span class="product-card__price">{formatPrice(finalPrice)}</span>
@@ -135,45 +134,28 @@
         {/if}
       </div>
       <div class="product-card__badges">
-        {#if getTHCLabel()}
-          {@const thcLabel = getTHCLabel()!}
-          <div class="product-card__thc-badge">
-            <div class="product-card__thc-label">THC</div>
-            <div class="product-card__thc-value">{thcLabel.value}</div>
-            {#if thcLabel.label}
-              <div class="product-card__thc-sublabel">{thcLabel.label}</div>
-            {/if}
+        {#if body}
+          <div class="product-card__wine-badge">
+            <div class="product-card__badge-label">Body</div>
+            <div class="product-card__badge-value">{capitalizeFirst(body)}</div>
           </div>
         {/if}
-        {#if getCBDLabel()}
-          {@const cbdLabel = getCBDLabel()!}
-          <div class="product-card__thc-badge">
-            <div class="product-card__thc-label">{cbdLabel.topLabel}</div>
-            <div class="product-card__thc-value">{cbdLabel.value}</div>
-            {#if cbdLabel.sublabel}
-              <div class="product-card__thc-sublabel">{cbdLabel.sublabel}</div>
-            {/if}
-          </div>
-        {/if}
-        {#if getWeightLabel()}
-          {@const weightLabel = getWeightLabel()!}
-          <div class="product-card__thc-badge">
-            <div class="product-card__thc-label">{weightLabel.topLabel}</div>
-            <div class="product-card__thc-value">{weightLabel.value}</div>
-            {#if weightLabel.sublabel}
-              <div class="product-card__thc-sublabel">{weightLabel.sublabel}</div>
-            {/if}
+        {#if category}
+          <div class="product-card__wine-badge">
+            <div class="product-card__badge-label">Type</div>
+            <div class="product-card__badge-value">{capitalizeFirst(category)}</div>
           </div>
         {/if}
       </div>
-      {#if pack_count && (category === 'prerolls' || category === 'edibles')}
-        <span class="product-card__pack-badge">{category === 'prerolls' ? (pack_count === 1 ? 'Single' : `${pack_count} pack`) : `${pack_count} ${pack_count === 1 ? 'piece' : 'pieces'}`}</span>
-      {/if}
     </div>
-    
+
+    {#if tasting_notes}
+      <div class="product-card__notes">{tasting_notes}</div>
+    {/if}
+
     {#if actionType === 'link' && shopLink}
       <Button
-        label="View Product"
+        label="View Wine"
         variant="primary"
         size="sm"
         onclick={handleProductAction}
@@ -181,7 +163,7 @@
       />
     {:else}
       <Button
-        label="Add to Cart"
+        label="View Wine"
         variant="primary"
         size="sm"
         onclick={handleProductAction}
@@ -209,7 +191,6 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   }
 
-  /* Image wrapper */
   .product-card__image-wrapper {
     position: relative;
     width: 100%;
@@ -226,14 +207,12 @@
     height: 100%;
     object-fit: cover;
     transition: transform 0.3s ease-out;
-    /* mix-blend-mode: multiply; */
   }
 
   .product-card:hover .product-card__image {
     transform: scale(1.05);
   }
 
-  /* Discount badge */
   .product-card__badge {
     position: absolute;
     top: 8px;
@@ -247,7 +226,6 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   }
 
-  /* Content */
   .product-card__content {
     padding: 16px;
     display: flex;
@@ -255,7 +233,6 @@
     gap: 8px;
   }
 
-  /* Brand */
   .product-card__brand {
     font-size: 11px;
     font-weight: 500;
@@ -271,7 +248,6 @@
     color: #858585;
   }
 
-  /* Title */
   .product-card__title {
     font-size: 16px;
     font-weight: 600;
@@ -286,7 +262,35 @@
     overflow: hidden;
   }
 
-  /* Rating */
+  .product-card__subtitle {
+    font-size: 12px;
+    color: #6b7280;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  }
+
+  :global(.dark) .product-card__subtitle,
+  :global([data-theme="dark"]) .product-card__subtitle {
+    color: #858585;
+  }
+
+  .product-card__notes {
+    font-size: 12px;
+    color: #6b7280;
+    font-style: italic;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  }
+
+  :global(.dark) .product-card__notes,
+  :global([data-theme="dark"]) .product-card__notes {
+    color: #858585;
+  }
+
   .product-card__rating {
     display: flex;
     align-items: center;
@@ -306,7 +310,6 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   }
 
-  /* Pricing */
   .product-card__pricing {
     display: flex;
     align-items: center;
@@ -327,19 +330,19 @@
     flex-shrink: 0;
   }
 
-  .product-card__thc-badge {
+  .product-card__wine-badge {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     padding: 6px 7px;
-    background: #f5f5dc;
+    background: #f5f0e8;
     border-radius: 6px;
     min-width: 48px;
     flex-shrink: 0;
   }
 
-  .product-card__thc-label {
+  .product-card__badge-label {
     font-size: 10px;
     font-weight: 500;
     color: #111827;
@@ -349,60 +352,28 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   }
 
-  .product-card__thc-value {
-    font-size: 14px;
+  .product-card__badge-value {
+    font-size: 13px;
     font-weight: 400;
     color: #111827;
     line-height: 1.2;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   }
 
-  .product-card__thc-sublabel {
-    font-size: 9px;
-    font-weight: 400;
-    color: #6b7280;
-    text-transform: lowercase;
-    margin-top: 1px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-  }
-
-  :global(.dark) .product-card__thc-badge,
-  :global([data-theme="dark"]) .product-card__thc-badge {
+  :global(.dark) .product-card__wine-badge,
+  :global([data-theme="dark"]) .product-card__wine-badge {
     background: #2d2d30;
     border: 1px solid rgba(255, 255, 255, 0.1);
   }
 
-  :global(.dark) .product-card__thc-label,
-  :global([data-theme="dark"]) .product-card__thc-label {
+  :global(.dark) .product-card__badge-label,
+  :global([data-theme="dark"]) .product-card__badge-label {
     color: #cccccc;
   }
 
-  :global(.dark) .product-card__thc-value,
-  :global([data-theme="dark"]) .product-card__thc-value {
+  :global(.dark) .product-card__badge-value,
+  :global([data-theme="dark"]) .product-card__badge-value {
     color: #cccccc;
-  }
-
-  :global(.dark) .product-card__thc-sublabel,
-  :global([data-theme="dark"]) .product-card__thc-sublabel {
-    color: #858585;
-  }
-
-  .product-card__pack-badge {
-    font-size: 11px;
-    font-weight: 500;
-    color: #111827;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding: 2px 6px;
-    background: rgba(107, 114, 128, 0.1);
-    border-radius: 4px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
-  }
-
-  :global(.dark) .product-card__pack-badge,
-  :global([data-theme="dark"]) .product-card__pack-badge {
-    color: #cccccc;
-    background: rgba(255, 255, 255, 0.1);
   }
 
   .product-card__price {
@@ -419,12 +390,10 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   }
 
-  /* Button wrapper */
   .product-card :global(.btn) {
     margin-top: 4px;
   }
 
-  /* Dark mode */
   :global(.dark) .product-card,
   :global([data-theme="dark"]) .product-card {
     background: #252526;
@@ -457,7 +426,6 @@
     background: #2d2d30;
   }
 
-  /* Responsive */
   @media (max-width: 640px) {
     .product-card {
       max-width: 100%;

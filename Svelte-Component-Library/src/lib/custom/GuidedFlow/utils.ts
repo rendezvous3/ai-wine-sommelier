@@ -1,22 +1,9 @@
 import type { FlowStep } from './types.js';
-import { potencyToTHCRange } from './thcScales.js';
 
 export interface TransformedMetadata {
   metadata: Record<string, any>;
   guidedFlowQuery: string;
   filters: Record<string, any>;
-}
-
-/**
- * Converts dosage selection to thc_per_unit_mg range
- */
-function dosageToRange(dosage: string): { min: number | null, max: number | null } {
-  switch(dosage) {
-    case 'low': return { min: 1, max: 4.99 };
-    case 'medium': return { min: 5, max: 9.99 };
-    case 'high': return { min: 10, max: null };
-    default: return { min: null, max: null };
-  }
 }
 
 /**
@@ -26,23 +13,23 @@ function deepEqual(a: any, b: any): boolean {
   if (a === b) return true;
   if (a == null || b == null) return a === b;
   if (typeof a !== 'object' || typeof b !== 'object') return false;
-  
+
   const keysA = Object.keys(a);
   const keysB = Object.keys(b);
-  
+
   if (keysA.length !== keysB.length) return false;
-  
+
   for (const key of keysA) {
     if (!keysB.includes(key)) return false;
     if (!deepEqual(a[key], b[key])) return false;
   }
-  
+
   return true;
 }
 
 /**
  * Transforms raw GuidedFlow selections into clean metadata, query string, and filters
- * for vector database queries.
+ * for wine recommendation queries.
  */
 export function transformSelectionsToMetadata(
   selections: Record<string, any>,
@@ -52,18 +39,13 @@ export function transformSelectionsToMetadata(
   const filters: Record<string, any> = {};
   const queryParts: string[] = [];
 
-  // Create a map of step IDs to step configs for quick lookup
   const stepMap = new Map(steps.map(step => [step.id, step]));
 
-  // Process each selection
   for (const [stepId, value] of Object.entries(selections)) {
     const step = stepMap.get(stepId);
     if (!step) continue;
 
-    // Find the selected option(s) in the step config
-    // Ensure we always work with an array for consistent processing
     const selectedValues = Array.isArray(value) ? value : [value];
-    // Use deep equality for objects (like price ranges), regular equality for primitives
     const selectedOptions = step.options.filter(opt => {
       return selectedValues.some(selectedVal => {
         if (typeof selectedVal === 'object' && typeof opt.value === 'object' && selectedVal !== null && opt.value !== null) {
@@ -73,241 +55,134 @@ export function transformSelectionsToMetadata(
       });
     });
 
-    // Skip if no options found, UNLESS it's a price-selector (which has no options array)
+    // Skip if no options found, UNLESS it's a price-selector
     if (selectedOptions.length === 0 && step.type !== 'price-selector') continue;
 
-    // Build metadata with human-readable labels
     if (step.type === 'single-select' || step.type === 'slider' || step.type === 'price-selector') {
       const option = step.type === 'price-selector' ? null : selectedOptions[0];
-      let label = option?.label || '';
 
-      // Add description if available (e.g., potency percentages)
-      if (option?.description) {
-        label = `${label} (${option.description})`;
-      }
-
-      if (step.type !== 'price-selector') {
-        metadata[stepId] = label;
-      }
-
-      // Handle special cases for query building
-      if (stepId === 'category') {
-        filters['category'] = option.value;
-        queryParts.push(`${label} products`);
-      } else if (stepId === 'thc-percentage') {
-        // THC percentage will be converted to thc_percentage_min/max later
-        filters['thc-percentage'] = option.value;
-        // Label already includes description like "Very Strong (>28%)", add "THC percentage"
-        queryParts.push(`${label} THC percentage`);
-      } else if (stepId === 'dosage-per-piece') {
-        // Dosage will be converted to thc_per_unit_mg_min/max later
-        filters['dosage-per-piece'] = option.value;
-        // Label includes description like "Low (<5mg)", add "THC" to description part
-        let dosageLabel = label;
-        if (option.description) {
-          // Replace description with "THC" version: "<5mg" -> "<5mg THC"
-          dosageLabel = label.replace(`(${option.description})`, `(${option.description} THC)`);
+      if (stepId === 'wine_type') {
+        // "Surprise Me" has null value — skip filter but note in query
+        if (option && option.value !== null) {
+          filters['wine_type'] = option.value;
+          metadata[stepId] = option.label;
+          queryParts.push(`${option.label} wine`);
+        } else {
+          metadata[stepId] = 'Surprise Me';
+          queryParts.push('wine (surprise me on style)');
         }
-        queryParts.push(`${dosageLabel} dosage per piece`);
+      } else if (stepId === 'occasion') {
+        if (option && option.value !== null) {
+          filters['occasion'] = option.value;
+          metadata[stepId] = option.label;
+          queryParts.push(`for ${option.label}`);
+        } else {
+          metadata[stepId] = 'Surprise Me';
+        }
+      } else if (stepId === 'body') {
+        if (option) {
+          filters['body'] = option.value;
+          metadata[stepId] = option.label;
+          queryParts.push(`${option.label}-bodied`);
+        }
       } else if (stepId === 'price') {
-        // Handle new price-selector format
         if (step.type === 'price-selector') {
-          // value is { mode: 'no-max' | 'set-max', max?: number }
-          const priceValue = value; // value is the raw selection, not from options
-
+          const priceValue = value;
           if (priceValue && typeof priceValue === 'object') {
             if (priceValue.mode === 'no-max') {
-              // "No Max" case - don't set price filters
               metadata[stepId] = 'with no max budget';
               queryParts.push('with no max budget');
             } else if (priceValue.mode === 'set-max' && priceValue.max !== undefined) {
-              // "Set Max" case - set price_max filter
               filters['price_max'] = priceValue.max;
               metadata[stepId] = `max budget $${priceValue.max}`;
-              queryParts.push(`max budget $${priceValue.max}`);
+              queryParts.push(`under $${priceValue.max}`);
             }
           }
-        } else {
-          // Old format: Price value is already an object with price_min/price_max, or null for "No Preference"
+        } else if (option) {
           if (option.value === null) {
-            // "No Preference" case - don't set price filters, but add to query
             metadata[stepId] = 'with no price range preference';
             queryParts.push('with no price range preference');
           } else if (option.value && typeof option.value === 'object') {
-            if (option.value.price_min !== null && option.value.price_min !== undefined) {
+            if (option.value.price_min != null) {
               filters['price_min'] = option.value.price_min;
             }
-            if (option.value.price_max !== null && option.value.price_max !== undefined) {
+            if (option.value.price_max != null) {
               filters['price_max'] = option.value.price_max;
             }
-            // Build price range string for query
             const priceMin = option.value.price_min ?? 0;
             const priceMax = option.value.price_max;
-            let priceLabel = '';
-            if (priceMax !== null && priceMax !== undefined) {
-              priceLabel = `priced $${priceMin}-$${priceMax}`;
-            } else {
-              priceLabel = `priced $${priceMin}+`;
-            }
-            metadata[stepId] = priceLabel;
-            queryParts.push(priceLabel);
+            const priceLabel = priceMax != null ? `$${priceMin}-$${priceMax}` : `$${priceMin}+`;
+            metadata[stepId] = `priced ${priceLabel}`;
+            queryParts.push(`priced ${priceLabel}`);
           }
         }
       } else if (option) {
         filters[stepId] = option.value;
-        queryParts.push(label);
+        metadata[stepId] = option.label;
+        queryParts.push(option.label);
       }
     } else {
-      // Multi-select
+      // Multi-select (flavor_profile)
       const labels = selectedOptions.map(opt => opt.label);
+      const values = selectedOptions.map(opt => opt.value);
       metadata[stepId] = labels;
-      
-      // Effects step (multi-select)
-      if (stepId === 'effects') {
-        filters['effects'] = selectedOptions.map(opt => opt.value);
+
+      if (stepId === 'flavor_profile') {
+        filters['flavor_profile'] = values;
         if (labels.length === 1) {
-          queryParts.push(`make me feel ${labels[0]}`);
-        } else {
-          // Create a copy to avoid mutating the original array
-          const labelsCopy = [...labels];
-          const lastLabel = labelsCopy.pop();
-          queryParts.push(`make me feel ${labelsCopy.join(', ')} and ${lastLabel}`);
-        }
-      } else if (stepId === 'subcategory') {
-        // Subcategory multi-select
-        filters['subcategory'] = selectedOptions.map(opt => opt.value);
-        if (labels.length === 1) {
-          queryParts.push(`${labels[0]} edibles`);
+          queryParts.push(`with ${labels[0]} flavors`);
         } else {
           const labelsCopy = [...labels];
           const lastLabel = labelsCopy.pop();
-          queryParts.push(`${labelsCopy.join(', ')} and ${lastLabel} edibles`);
+          queryParts.push(`with ${labelsCopy.join(', ')} and ${lastLabel} flavors`);
         }
       } else {
-        filters[stepId] = selectedOptions.map(opt => opt.value);
+        filters[stepId] = values;
         queryParts.push(labels.join(', '));
       }
     }
   }
 
-  // Convert thc-percentage to thc_percentage_min/max if thc-percentage is selected
-  if (filters['thc-percentage']) {
-    const thcPercentageValue = filters['thc-percentage'];
-    // Get category from filters
-    const category = filters['category'] || null;
-    const thcRange = potencyToTHCRange(thcPercentageValue, category);
-    
-    // Add thc_percentage_min and thc_percentage_max to filters
-    if (thcRange.min !== null) {
-      filters['thc_percentage_min'] = thcRange.min;
-    }
-    if (thcRange.max !== null) {
-      filters['thc_percentage_max'] = thcRange.max;
-    }
-    
-    // Remove thc-percentage from filters (we've converted it to thc_percentage_min/max)
-    delete filters['thc-percentage'];
-  }
-
-  // Convert dosage-per-piece to thc_per_unit_mg_min/max if dosage-per-piece is selected
-  // EXCEPTION: Skip dosage for chocolates-only (users can break chocolates easily)
-  if (filters['dosage-per-piece']) {
-    const subcategories = filters['subcategory'];
-    const isChocolatesOnly = Array.isArray(subcategories) &&
-                             subcategories.length === 1 &&
-                             subcategories[0] === 'chocolates';
-
-    if (isChocolatesOnly) {
-      // Chocolates can be split easily, so dosage doesn't matter - skip the filter
-      delete filters['dosage-per-piece'];
-    } else {
-      // For other edibles, apply dosage filter
-      const dosageValue = filters['dosage-per-piece'];
-      const dosageRange = dosageToRange(dosageValue);
-
-      // Add thc_per_unit_mg_min and thc_per_unit_mg_max to filters
-      if (dosageRange.min !== null) {
-        filters['thc_per_unit_mg_min'] = dosageRange.min;
-      }
-      if (dosageRange.max !== null) {
-        filters['thc_per_unit_mg_max'] = dosageRange.max;
-      }
-
-      // Remove dosage-per-piece from filters (we've converted it to thc_per_unit_mg_min/max)
-      delete filters['dosage-per-piece'];
-    }
-  }
-
   // Build natural language query
   let query = 'Looking for ';
-  
-  // Add subcategory first if available (for edibles)
-  if (metadata['subcategory']) {
-    const subcategoryArray = Array.isArray(metadata['subcategory']) 
-      ? metadata['subcategory'] 
-      : [metadata['subcategory']];
-    
-    if (subcategoryArray.length === 1) {
-      query += subcategoryArray[0] + ' edibles';
-    } else {
-      const labelsCopy = [...subcategoryArray];
-      const lastLabel = labelsCopy.pop();
-      query += `${labelsCopy.join(', ')} and ${lastLabel} edibles`;
-    }
-  } else if (metadata['category']) {
-    // Add category if no subcategory
-    query += metadata['category'] + ' products';
-  } else {
-    query += 'products';
-  }
-  
-  // Add effects
-  if (metadata['effects']) {
-    // Ensure we have an array - metadata['effects'] should already be an array from multi-select processing
-    const effectsArray = Array.isArray(metadata['effects']) 
-      ? metadata['effects'] 
-      : [metadata['effects']];
-    
-    // Build effects string: "Focused and Relaxed" or "Focused, Relaxed, and Uplifted"
-    let effectsStr = '';
-    if (effectsArray.length === 1) {
-      effectsStr = effectsArray[0];
-    } else if (effectsArray.length === 2) {
-      effectsStr = `${effectsArray[0]} and ${effectsArray[1]}`;
-    } else {
-      // For 3+ effects: "Focused, Relaxed, and Uplifted"
-      const lastEffect = effectsArray[effectsArray.length - 1];
-      const otherEffects = effectsArray.slice(0, -1);
-      effectsStr = `${otherEffects.join(', ')} and ${lastEffect}`;
-    }
-    
-    query += ` that ${effectsArray.length === 1 ? 'makes' : 'make'} me feel ${effectsStr}`;
-  }
-  
-  // Add THC percentage (for non-edibles only - Flower, Prerolls, Vaporizers, Concentrates)
-  if (metadata['thc-percentage']) {
-    // metadata['thc-percentage'] already includes description like "Very Strong (>28%)"
-    query += `, with ${metadata['thc-percentage']} THC percentage`;
-  }
-  
-  // Add dosage per piece (for edibles only)
-  // EXCEPTION: Skip dosage for chocolates-only (users can break chocolates easily)
-  if (metadata['dosage-per-piece']) {
-    const subcategoryMetadata = metadata['subcategory'];
-    const isChocolatesOnly = Array.isArray(subcategoryMetadata) &&
-                             subcategoryMetadata.length === 1 &&
-                             subcategoryMetadata[0] === 'Chocolates';
 
-    if (!isChocolatesOnly) {
-      // Only add dosage to query if NOT chocolates-only
-      const dosageLabel = metadata['dosage-per-piece'].replace(/(<\d+mg|>\d+mg|\d+-\d+mg|\d+mg)/, '$1 THC');
-      query += `, with ${dosageLabel} dosage per piece`;
+  // Start with body if available
+  if (metadata['body']) {
+    query += `${metadata['body'].toLowerCase()}-bodied `;
+  }
+
+  // Add wine type
+  if (metadata['wine_type'] && metadata['wine_type'] !== 'Surprise Me') {
+    query += `${metadata['wine_type'].toLowerCase()} wine`;
+  } else {
+    query += 'wine';
+    if (metadata['wine_type'] === 'Surprise Me') {
+      query += ' (surprise me on style)';
     }
   }
-  
-  // Add price preference (applies to both standard and edible flows)
+
+  // Add flavor profile
+  if (metadata['flavor_profile']) {
+    const flavors = Array.isArray(metadata['flavor_profile'])
+      ? metadata['flavor_profile']
+      : [metadata['flavor_profile']];
+
+    if (flavors.length === 1) {
+      query += ` with ${flavors[0]} flavors`;
+    } else {
+      const flavorsCopy = [...flavors];
+      const lastFlavor = flavorsCopy.pop();
+      query += ` with ${flavorsCopy.join(', ')} and ${lastFlavor} flavors`;
+    }
+  }
+
+  // Add occasion
+  if (metadata['occasion'] && metadata['occasion'] !== 'Surprise Me') {
+    query += ` for ${metadata['occasion']}`;
+  }
+
+  // Add price
   if (metadata['price']) {
-    // metadata['price'] is already formatted correctly from queryParts
     query += `, ${metadata['price']}`;
   }
 
@@ -317,4 +192,3 @@ export function transformSelectionsToMetadata(
     filters
   };
 }
-

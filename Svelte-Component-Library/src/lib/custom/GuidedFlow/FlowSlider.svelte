@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getContext } from 'svelte';
+  import { getContext, untrack } from 'svelte';
 
   interface FlowSliderProps {
     value: string | null; // 'low', 'medium', 'high', or null
@@ -29,7 +29,7 @@
     return options[Math.max(0, Math.min(pos, options.length - 1))].value;
   }
 
-  let sliderValue = $state(valueToPosition(value));
+  let sliderValue = $state(untrack(() => valueToPosition(value)));
   let currentLabel = $derived(options[sliderValue]?.label || 'Medium');
   let currentDescription = $derived(options[sliderValue]?.description || '');
 

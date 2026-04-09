@@ -147,10 +147,7 @@ function getApiKey(provider: LLM_PROVIDER, env: EnvBindings): string | undefined
   return PROVIDER_CONFIG[provider].getApiKey(env);
 }
 
-const STORE_NAME = "Cannavita"
-
-// Feature flags
-const USE_FIRE_AT_2_PROMPT = false // Set to true to use streamFireAt2 (Version B), false for stream (Version A)
+// STORE_NAME removed — now driven by deployment profile (see profiles/)
 
 // ============================================
 // MULTI-PROVIDER CONFIGURATION
@@ -352,8 +349,6 @@ export {
     MODEL_PROVIDER,
     LLM_PROVIDER,
     AGENT_ROLE,
-    STORE_NAME,
-    USE_FIRE_AT_2_PROMPT,
     // Multi-provider configuration
     ACTIVE_PROVIDER,
     MULTI_ENDPOINT_PROVIDERS,

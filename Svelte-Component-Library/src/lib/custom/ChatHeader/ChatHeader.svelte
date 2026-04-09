@@ -1117,7 +1117,7 @@
     color: inherit;
   }
 
-  .chat-header__menu-sidebar .chat-header__menu-item:hover .chat-header__menu-item-icon--svg svg {
+  .chat-header__menu-sidebar .chat-header__menu-item:hover .chat-header__menu-item-icon--svg :global(svg) {
     color: inherit;
   }
 

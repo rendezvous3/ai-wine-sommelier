@@ -1,47 +1,31 @@
 import { Hono } from "hono";
 import { cors } from 'hono/cors';
-import type { Env } from 'hono/types';
-import {
-  CloudflareVectorizeStore,
-  CloudflareWorkersAIEmbeddings
-} from "@langchain/cloudflare";
-import type {
-  VectorizeIndex,
-  Fetcher,
-  Request,
-  Ai,
-  AiModels,
-  D1Database,
-  ExecutionContext,
-} from "@cloudflare/workers-types";
-// import { groq } from '@ai-sdk/groq';
-// import { streamText } from 'ai';
 import { generatePrompt } from "./prompt";
 import {
-  generateStreamPrompt,
-  generateStreamFireAt2Prompt,
   generateIntentWithCuePrompt,
   generateReRankPrompt
 } from "./prompts";
-import { MODEL_PROVIDER, LLM_PROVIDER, STORE_NAME, AGENT_ROLE, AGENT_ROLE_MODEL, USE_FIRE_AT_2_PROMPT, STREAM_PROVIDER, INTENT_PROVIDER, RERANK_PROVIDER, getModelForRole, getBaseUrl, getApiKey, getTokenLimitsForModel, type Tier } from "./types-and-constants";
+import {
+  LLM_PROVIDER,
+  STREAM_PROVIDER,
+  INTENT_PROVIDER,
+  RERANK_PROVIDER,
+  getModelForRole,
+  getBaseUrl,
+  getApiKey,
+  getTokenLimitsForModel,
+  type Tier
+} from "./types-and-constants";
 import {
   formatConversationHistory,
-  validateAndExpandFilters,
-  buildVectorizeFilters,
+  validateWineFilters,
   parseRobustJSON,
   buildCompactRerankCandidates,
-  sanitizeRecommendationResults,
 } from "./utils";
-import {
-  isValidCategory,
-  isValidSubcategory,
-  normalizeCategory,
-  normalizeSubcategory,
-  getValidSubcategories,
-  shouldUseTHCPercentage,
-  shouldUseTHCPerUnitMg,
-  getSchemaForPrompt
-} from "./schema";
+import { getWineSchemaForPrompt } from './wine-schema';
+import { searchWines, lookupWineByName, surpriseMe } from './wine-search';
+import type { WineFilters } from './wine-search';
+import { getProfile } from './profiles';
 import {
   isAnalyticsEnabled,
   recordAnalyticsEvent,
@@ -50,31 +34,33 @@ import {
   recordRecommendationResults,
   recordStreamCompletion,
 } from "./chat-analytics";
+import type {
+  D1Database,
+  ExecutionContext,
+} from "@cloudflare/workers-types";
 
 interface Bindings {
   CEREBRAS_API_KEY_PROD: string;
   GROQ_API_KEY?: string;
   GEMINI_API_KEY?: string;
+  OPENAI_API_KEY?: string;
+  GROK_API_KEY?: string;
   RESEND_API_KEY: string;
-  VECTORIZE_INDEX: VectorizeIndex;
-  AI: Ai<AiModels>;
+  WINE_DB: D1Database;
   ANALYTICS_DB?: D1Database;
+  PROFILE_TYPE?: string;
   ENVIRONMENT?: string;
 }
 
-// Default tier - can be made configurable via environment variable later
 const TIER: Tier = "FREE";
-const RECOMMENDATION_VECTOR_TOP_K = 8;
 const RERANK_SKIP_CANDIDATE_MAX = 3;
 
-// Dev-only logging helper (for debug statements only)
 function devLog(env: Bindings | undefined, ...args: any[]) {
   if (env?.ENVIRONMENT === 'development') {
     console.log(...args);
   }
 }
 
-// Helper function to build token usage response object
 function buildTokenUsageResponse(
   modelName: string,
   usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | undefined,
@@ -88,22 +74,15 @@ function buildTokenUsageResponse(
   model: string;
   modelContextLimit: number;
 } | null {
-  if (!usage) {
-    return null;
-  }
+  if (!usage) return null;
 
   const promptTokens = usage.prompt_tokens || 0;
   const completionTokens = usage.completion_tokens || 0;
   const totalTokens = usage.total_tokens || (promptTokens + completionTokens);
-
   const tokenLimits = getTokenLimitsForModel(modelName, tier);
 
   return {
-    tokenUsage: {
-      promptTokens,
-      completionTokens,
-      totalTokens,
-    },
+    tokenUsage: { promptTokens, completionTokens, totalTokens },
     model: modelName,
     modelContextLimit: tokenLimits.contextWindow,
   };
@@ -132,7 +111,7 @@ function trackAnalytics(
   if (!isAnalyticsEnabled(c.env.ANALYTICS_DB)) return;
 
   c.executionCtx.waitUntil(
-    fn(c.env.ANALYTICS_DB).catch((error) => {
+    fn(c.env.ANALYTICS_DB!).catch((error) => {
       console.error("[Chat Analytics] Background write failed:", error);
     })
   );
@@ -140,11 +119,15 @@ function trackAnalytics(
 
 const app = new Hono<{ Bindings: Bindings }>();
 
-const FEEDBACK_FROM = "Cannavita Feedback <noreply@xtscale.com>";
+// ============================================
+// FEEDBACK ROUTE
+// ============================================
+
+const FEEDBACK_FROM = "Wine Shop Feedback <noreply@xtscale.com>";
 const FEEDBACK_TO = "info@xtscale.com";
 const FEEDBACK_MAX_MESSAGE_LEN = 4000;
-const FEEDBACK_MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const FEEDBACK_RATE_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+const FEEDBACK_MAX_FILE_SIZE = 5 * 1024 * 1024;
+const FEEDBACK_RATE_WINDOW_MS = 10 * 60 * 1000;
 const FEEDBACK_RATE_MAX = 5;
 const ALLOWED_SCREENSHOT_MIME = new Set(["image/png", "image/jpeg", "image/webp"]);
 
@@ -206,13 +189,16 @@ function toBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+// ============================================
+// MIDDLEWARE
+// ============================================
+
 app.use('*', cors({
   origin: '*',
   allowMethods: ['GET', 'POST', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// Global error handler
 app.onError((err, c) => {
   if (err instanceof SyntaxError) {
     return c.json({ error: "Invalid JSON format", message: err.message }, 400);
@@ -220,8 +206,6 @@ app.onError((err, c) => {
   console.error(`Status: ${err.name}`, err.message);
   return c.json({ error: "Internal Server Error" }, 500);
 });
-
-// app.options('/chat', c => c.text('', 204)) // Explicit OPTIONS is optional with cors()
 
 app.options('/chat', () => {
   return new Response(null, {
@@ -235,10 +219,17 @@ app.options('/chat', () => {
 });
 
 app.get('/', (c) => {
-    return c.text('hello world')
+  const profile = getProfile(c.env.PROFILE_TYPE);
+  return c.text(`${profile.storeName} Wine Chat API`);
 });
 
+// ============================================
+// FEEDBACK
+// ============================================
+
 app.post("/feedback", async (c) => {
+  const profile = getProfile(c.env.PROFILE_TYPE);
+
   try {
     const formData = await c.req.formData();
 
@@ -290,7 +281,7 @@ app.post("/feedback", async (c) => {
     }
 
     const submittedAt = new Date(now).toISOString();
-    const subject = `[Cannavita Feedback][store:${store}][type:${type}]`;
+    const subject = `[${profile.storeName} Feedback][store:${store}][type:${type}]`;
     const textBody = [
       `Store (normalized): ${store}`,
       `Store (raw): ${rawStore || "N/A"}`,
@@ -309,7 +300,7 @@ app.post("/feedback", async (c) => {
     ].join("\n");
 
     const htmlBody = `
-      <h2>Cannavita Feedback Submission</h2>
+      <h2>${escapeHtml(profile.storeName)} Feedback Submission</h2>
       <p><strong>Store (normalized):</strong> ${escapeHtml(store)}</p>
       <p><strong>Store (raw):</strong> ${escapeHtml(rawStore || "N/A")}</p>
       <p><strong>Source:</strong> ${escapeHtml(source || "N/A")}</p>
@@ -359,6 +350,10 @@ app.post("/feedback", async (c) => {
   }
 });
 
+// ============================================
+// INTENT
+// ============================================
+
 app.post("/chat/intent", async (c) => {
   const body = await c.req.json();
   const messages = body.messages || [];
@@ -373,11 +368,12 @@ app.post("/chat/intent", async (c) => {
 
   const assistantQuery = lastAssistantContent;
 
+  // CODEX cue detection — preserved from original
   const RECOMMEND_CUES = [
     'I completely understand what you\'re looking for',
     'Let me check what we have that matches your preferences',
-    'I\'m pulling up products that fit your criteria',
-    'Checking our inventory based on what you described'
+    'I\'m pulling up wines that fit your criteria',
+    'Checking our selection based on what you described'
   ];
 
   const PRODUCT_CUES = [
@@ -388,7 +384,7 @@ app.post("/chat/intent", async (c) => {
   const hasRecommendCue = RECOMMEND_CUES.some(cue => lastAssistantContent.includes(cue));
   const hasProductCue = PRODUCT_CUES.some(cue => lastAssistantContent.includes(cue));
 
-  // If no CODEX cue, return general immediately (no LLM call needed)
+  // No CODEX cue → return general immediately
   if (!hasRecommendCue && !hasProductCue) {
     trackAnalytics(c, (db) =>
       recordIntentAnalysis(db, {
@@ -403,15 +399,13 @@ app.post("/chat/intent", async (c) => {
     return c.json({
       intent: 'general',
       filters: {},
-      semantic_search: '',
       product_query: null,
       assistantQuery: assistantQuery
     });
   }
 
-  // If PRODUCT_LOOKUP cue detected, extract product name and return product-question intent
+  // PRODUCT_LOOKUP cue — extract product name
   if (hasProductCue) {
-    // Extract product name from cue phrase
     const lookupMatch = lastAssistantContent.match(/Let me look up (.+?) for you/i)
                      || lastAssistantContent.match(/I'll pull up the details on (.+)/i);
     const productName = lookupMatch ? lookupMatch[1].trim() : lastMessage;
@@ -431,24 +425,22 @@ app.post("/chat/intent", async (c) => {
     return c.json({
       intent: 'product-question',
       filters: {},
-      semantic_search: '',
       product_query: productName,
       assistantQuery: assistantQuery
     });
   }
 
-  // CODEX:RECOMMEND detected - call LLM for filter extraction
+  // CODEX:RECOMMEND — call LLM for wine filter extraction
   const API_KEY = getApiKey(INTENT_PROVIDER, c.env);
   const MODEL = getModelForRole(INTENT_PROVIDER, "INTENT");
   const BASE_URL = getBaseUrl(INTENT_PROVIDER);
 
-  const schemaInfo = getSchemaForPrompt();
-
+  const schemaInfo = getWineSchemaForPrompt();
   let tokenUsage: ReturnType<typeof buildTokenUsageResponse> = null;
 
   const prompt = generateIntentWithCuePrompt(lastAssistantContent, lastMessage, schemaInfo);
 
-  let text;
+  let text: string;
   try {
     const resp = await fetch(`${BASE_URL}/chat/completions`, {
       method: "POST",
@@ -460,36 +452,35 @@ app.post("/chat/intent", async (c) => {
         model: MODEL,
         messages: [{ role: "system", content: prompt }],
         temperature: 0,
-        max_tokens: 1000,  // Intent: JSON output (sufficient)
+        max_tokens: 1000,
         stream: false
       })
     });
 
     if (!resp.ok) {
       const errorText = await resp.text();
-      console.error(`Groq API error (${resp.status}):`, errorText);
-      throw new Error(`Groq API returned ${resp.status}: ${errorText}`);
+      console.error(`Intent API error (${resp.status}):`, errorText);
+      throw new Error(`Intent API returned ${resp.status}: ${errorText}`);
     }
 
     const data = await resp.json();
     text = data.choices?.[0]?.message?.content || "";
     tokenUsage = buildTokenUsageResponse(MODEL, data.usage, TIER);
-    
+
     if (!text || text.trim().length === 0) {
-      console.error("Groq API returned empty response:", JSON.stringify(data, null, 2));
-      throw new Error("Groq API returned empty content");
+      console.error("Intent API returned empty response:", JSON.stringify(data, null, 2));
+      throw new Error("Intent API returned empty content");
     }
 
   } catch (err) {
-    const formatError = `/intent api error: ${err}`;
-    console.error(formatError);
+    console.error(`/intent api error: ${err}`);
 
     trackAnalytics(c, (db) =>
       recordIntentAnalysis(db, {
         analytics,
         userTextRaw,
-        predictedCue: hasRecommendCue ? "RECOMMEND" : hasProductCue ? "PRODUCT_LOOKUP" : null,
-        predictedIntent: hasRecommendCue ? "recommendation" : hasProductCue ? "product-question" : "general",
+        predictedCue: "RECOMMEND",
+        predictedIntent: "recommendation",
         status: "error",
         errorCode: "intent_api_error",
         latencyMs: Date.now() - intentStartedAt,
@@ -497,21 +488,19 @@ app.post("/chat/intent", async (c) => {
     );
 
     return c.json({
-      error: "Our AI understanding service is experiencing technical difficulties at the moment. Please try again.",
+      error: "Our AI understanding service is experiencing technical difficulties. Please try again.",
       service: "intent",
       intent: "general",
       filters: {},
-      semantic_search: "",
       assistantQuery: assistantQuery,
       details: {
         message: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack : undefined,
         provider: INTENT_PROVIDER
       }
     }, 503);
   }
 
-  // Parse and validate response using robust JSON parser
+  // Parse response
   const parseResult = parseRobustJSON(text);
 
   if (!parseResult.success) {
@@ -534,15 +523,8 @@ app.post("/chat/intent", async (c) => {
 
     return c.json({
       error: "Filter extraction failed - JSON parsing error",
-      errorType: "JSON_PARSE_ERROR",
-      errorMessage: parseResult.error || "Unknown parsing error",
-      details: {
-        parseError: "The AI response could not be parsed as valid JSON",
-        suggestion: "This is likely due to incomplete or malformed JSON from the LLM. The response has been logged."
-      },
       intent: "recommendation",
       filters: {},
-      semantic_search: "",
       product_query: null,
       assistantQuery: assistantQuery
     }, 400);
@@ -550,321 +532,46 @@ app.post("/chat/intent", async (c) => {
 
   const parsed = parseResult.data;
 
-  try {
+  // Check for "surprise" intent
+  const isSurprise = parsed.intent === "surprise";
 
-    // Response structure (intent is already determined by CODEX detection)
-    const response = {
-      filters: parsed.filters || {},
-      semantic_search: parsed.semantic_search || ""
-    };
+  // Validate and normalize wine filters
+  const normalizedFilters = validateWineFilters(parsed.filters || {});
 
-    // Validate and normalize filters
-    const normalizedFilters: Record<string, any> = {};
-
-    try {
-      // Normalize and validate category (handle both single value and array)
-      if (response.filters.category) {
-      const categoryValue = response.filters.category;
-      if (Array.isArray(categoryValue)) {
-        // Validate each category in the array
-        const normalizedCategories = categoryValue
-          .map((cat: any) => normalizeCategory(cat))
-          .filter((cat: string | null): cat is string => cat !== null);
-        if (normalizedCategories.length > 0) {
-          normalizedFilters.category = normalizedCategories;
-        }
-        // If all invalid, omit it (better to omit than be wrong)
-      } else {
-        // Single value
-        const normalizedCategory = normalizeCategory(categoryValue);
-        if (normalizedCategory) {
-          normalizedFilters.category = normalizedCategory;
-        }
-      }
-    }
-    
-    // Normalize type to lowercase (handle both single value and array)
-    if (response.filters.type) {
-      const typeValue = response.filters.type;
-      const validTypes = ["indica", "sativa", "hybrid", "indica-hybrid", "sativa-hybrid"];
-
-      if (Array.isArray(typeValue)) {
-        // Validate each type in the array
-        const normalizedTypes = typeValue
-          .map((t: any) => String(t).toLowerCase())
-          .filter((t: string) => validTypes.includes(t));
-        if (normalizedTypes.length > 0) {
-          normalizedFilters.type = normalizedTypes;
-        }
-        // If all invalid, omit it (better to omit than be wrong)
-      } else {
-        // Single value
-        const normalizedType = String(typeValue).toLowerCase();
-        if (validTypes.includes(normalizedType)) {
-          normalizedFilters.type = normalizedType;
-        }
-      }
-    }
-    
-    // Normalize and validate subcategory (only if category is valid)
-    // Handle both single value and array
-    // Note: If category is an array, we can't validate subcategory against multiple categories
-    // So we only validate subcategory if category is a single value
-    if (response.filters.subcategory && normalizedFilters.category) {
-      if (Array.isArray(normalizedFilters.category)) {
-        // If category is an array, we can't validate subcategory (it could belong to any category)
-        // So we normalize subcategory values but don't validate against schema
-        const subcategoryValue = response.filters.subcategory;
-        if (Array.isArray(subcategoryValue)) {
-          // Normalize each subcategory to lowercase
-          const normalizedSubcategories = subcategoryValue
-            .map((subcat: any) => String(subcat).toLowerCase())
-            .filter((subcat: string) => subcat.length > 0);
-          if (normalizedSubcategories.length > 0) {
-            normalizedFilters.subcategory = normalizedSubcategories;
-          }
-        } else {
-          // Single value - normalize to lowercase
-          const normalizedSubcategory = String(subcategoryValue).toLowerCase();
-          if (normalizedSubcategory.length > 0) {
-            normalizedFilters.subcategory = normalizedSubcategory;
-          }
-        }
-      } else {
-        // Category is single value - validate subcategory against it
-        const subcategoryValue = response.filters.subcategory;
-        if (Array.isArray(subcategoryValue)) {
-          // Validate each subcategory in the array
-          const normalizedSubcategories = subcategoryValue
-            .map((subcat: any) => normalizeSubcategory(normalizedFilters.category, subcat))
-            .filter((subcat: string | null): subcat is string => subcat !== null);
-          if (normalizedSubcategories.length > 0) {
-            normalizedFilters.subcategory = normalizedSubcategories;
-          }
-          // If all invalid, omit it (better to omit than be wrong)
-        } else {
-          // Single value
-          const normalizedSubcategory = normalizeSubcategory(
-            normalizedFilters.category,
-            subcategoryValue
-          );
-          if (normalizedSubcategory) {
-            normalizedFilters.subcategory = normalizedSubcategory;
-          }
-          // If invalid, omit it (better to omit than be wrong)
-        }
-      }
-    }
-    
-    // Normalize effects array to lowercase
-    if (response.filters.effects && Array.isArray(response.filters.effects)) {
-      normalizedFilters.effects = response.filters.effects
-        .map((e: any) => String(e).toLowerCase())
-        .filter((e: string) => e.length > 0);
-    }
-    
-    // Normalize flavor array to lowercase
-    if (response.filters.flavor && Array.isArray(response.filters.flavor)) {
-      normalizedFilters.flavor = response.filters.flavor
-        .map((f: any) => String(f).toLowerCase())
-        .filter((f: string) => f.length > 0);
-    }
-    
-    // Brand - keep original case (brand names are case-sensitive)
-    if (response.filters.brand) {
-      normalizedFilters.brand = String(response.filters.brand);
-    }
-    
-    // Price fields
-    if (response.filters.price_min !== null && response.filters.price_min !== undefined) {
-      normalizedFilters.price_min = Number(response.filters.price_min);
-    }
-    if (response.filters.price_max !== null && response.filters.price_max !== undefined) {
-      normalizedFilters.price_max = Number(response.filters.price_max);
-    }
-
-    // Validate THC fields based on category
-    const category = normalizedFilters.category;
-    if (category) {
-      // Handle array of categories - if any category uses percentage, allow percentage fields
-      // If any category uses per-unit-mg, allow per-unit-mg fields
-      if (Array.isArray(category)) {
-        const usesPercentage = category.some((cat: string) => shouldUseTHCPercentage(cat));
-        const usesPerUnitMg = category.some((cat: string) => shouldUseTHCPerUnitMg(cat));
-        
-        if (usesPercentage) {
-          if (response.filters.thc_percentage_min !== null && response.filters.thc_percentage_min !== undefined) {
-            normalizedFilters.thc_percentage_min = Number(response.filters.thc_percentage_min);
-          }
-          if (response.filters.thc_percentage_max !== null && response.filters.thc_percentage_max !== undefined) {
-            normalizedFilters.thc_percentage_max = Number(response.filters.thc_percentage_max);
-          }
-        }
-        if (usesPerUnitMg) {
-          if (response.filters.thc_per_unit_mg_min !== null && response.filters.thc_per_unit_mg_min !== undefined) {
-            normalizedFilters.thc_per_unit_mg_min = Number(response.filters.thc_per_unit_mg_min);
-          }
-          if (response.filters.thc_per_unit_mg_max !== null && response.filters.thc_per_unit_mg_max !== undefined) {
-            normalizedFilters.thc_per_unit_mg_max = Number(response.filters.thc_per_unit_mg_max);
-          }
-        }
-      } else {
-        // Single category
-        if (shouldUseTHCPercentage(category)) {
-          // For flower/prerolls/vaporizers/concentrates: use thc_percentage_min/max
-          if (response.filters.thc_percentage_min !== null && response.filters.thc_percentage_min !== undefined) {
-            normalizedFilters.thc_percentage_min = Number(response.filters.thc_percentage_min);
-          }
-          if (response.filters.thc_percentage_max !== null && response.filters.thc_percentage_max !== undefined) {
-            normalizedFilters.thc_percentage_max = Number(response.filters.thc_percentage_max);
-          }
-          // Remove thc_per_unit_mg fields if present (wrong field for this category)
-        } else if (shouldUseTHCPerUnitMg(category)) {
-          // For edibles: use thc_per_unit_mg_min/max
-          if (response.filters.thc_per_unit_mg_min !== null && response.filters.thc_per_unit_mg_min !== undefined) {
-            normalizedFilters.thc_per_unit_mg_min = Number(response.filters.thc_per_unit_mg_min);
-          }
-          if (response.filters.thc_per_unit_mg_max !== null && response.filters.thc_per_unit_mg_max !== undefined) {
-            normalizedFilters.thc_per_unit_mg_max = Number(response.filters.thc_per_unit_mg_max);
-          }
-          // Remove thc_percentage fields if present (wrong field for this category)
-        }
-      }
-
-      // Safety: remap THC if LLM used wrong category's potency scale (e.g. vape 85 for prerolls)
-      // Skip if min==max (explicit number like "85% THC flower") — only remap natural language extractions
-      // const _remapCat: string = Array.isArray(category) ? category[0] : category;
-      // const _wrongScaleMap: Record<string, Record<number, number>> = {
-      //   'flower': { 66: 13, 75: 18, 85: 22, 90: 28 },
-      //   'prerolls': { 66: 13, 75: 18, 85: 22, 90: 28 },
-      //   'vaporizers': { 13: 66, 18: 75, 22: 85, 28: 90 },
-      //   'concentrates': { 13: 66, 18: 75, 22: 85, 28: 90 },
-      // };
-      // const _remap = _wrongScaleMap[_remapCat];
-      // if (_remap && !(normalizedFilters.thc_percentage_min !== undefined && normalizedFilters.thc_percentage_min === normalizedFilters.thc_percentage_max)) {
-      //   if (normalizedFilters.thc_percentage_min !== undefined && _remap[normalizedFilters.thc_percentage_min] !== undefined)
-      //     normalizedFilters.thc_percentage_min = _remap[normalizedFilters.thc_percentage_min];
-      //   if (normalizedFilters.thc_percentage_max !== undefined && _remap[normalizedFilters.thc_percentage_max] !== undefined)
-      //     normalizedFilters.thc_percentage_max = _remap[normalizedFilters.thc_percentage_max];
-      // }
-    } else {
-      // If category is missing but THC fields are present, remove THC fields (can't validate without category)
-      // Default to thc_percentage if no category (for backward compatibility)
-      if (response.filters.thc_percentage_min !== null && response.filters.thc_percentage_min !== undefined) {
-        normalizedFilters.thc_percentage_min = Number(response.filters.thc_percentage_min);
-      }
-      if (response.filters.thc_percentage_max !== null && response.filters.thc_percentage_max !== undefined) {
-        normalizedFilters.thc_percentage_max = Number(response.filters.thc_percentage_max);
-      }
-    }
-    } catch (normalizationErr) {
-      // Normalization error - provide detailed field-level error
-      const errorMessage = normalizationErr instanceof Error ? normalizationErr.message : String(normalizationErr);
-
-      console.error("Filter normalization error:", {
-        error: errorMessage,
-        filters: response.filters,
-        rawResponse: text
-      });
-
-      trackAnalytics(c, (db) =>
-        recordIntentAnalysis(db, {
-          analytics,
-          userTextRaw,
-          predictedCue: "RECOMMEND",
-          predictedIntent: "recommendation",
-          status: "error",
-          errorCode: "intent_normalization_error",
-          latencyMs: Date.now() - intentStartedAt,
-        })
-      );
-
-      return c.json({
-        error: "Filter normalization failed",
-        errorType: "NORMALIZATION_ERROR",
-        errorMessage: errorMessage,
-        details: {
-          parseError: "Failed to normalize filter fields (category, type, subcategory, etc.)",
-          receivedFilters: response.filters,
-          suggestion: "One of the filter fields (category, type, etc.) may be in an unexpected format. Check if arrays are handled correctly."
-        },
-        // Return recommendation intent with empty filters
-        intent: "recommendation",
-        filters: {},
-        semantic_search: response.semantic_search || "",
-        product_query: null
-      }, 400);
-    }
-
-    trackAnalytics(c, (db) =>
-      recordIntentAnalysis(db, {
-        analytics,
-        userTextRaw,
-        predictedCue: "RECOMMEND",
-        predictedIntent: "recommendation",
-        predictedFilters: normalizedFilters,
-        semanticSearch: response.semantic_search,
-        status: "completed",
-        latencyMs: Date.now() - intentStartedAt,
-      })
-    );
-
-    return c.json({
-      intent: "recommendation", // Intent is always "recommendation" when LLM is called (CODEX:RECOMMEND detected)
-      filters: normalizedFilters,
-      semantic_search: response.semantic_search,
-      product_query: null, // Product queries are handled separately by CODEX:PRODUCT_LOOKUP
-      assistantQuery: assistantQuery,
-      ...(tokenUsage ? { tokenUsage } : {})
-    });
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    const errorStack = err instanceof Error ? err.stack : undefined;
-
-    console.error("Failed to parse intent response:", {
-      error: errorMessage,
-      stack: errorStack,
-      rawResponse: text
-    });
-
-    trackAnalytics(c, (db) =>
-      recordIntentAnalysis(db, {
-        analytics,
-        userTextRaw,
-        predictedCue: "RECOMMEND",
-        predictedIntent: "recommendation",
-        status: "error",
-        errorCode: "intent_filter_parse_error",
-        latencyMs: Date.now() - intentStartedAt,
-      })
-    );
-
-    // Return detailed error response (400 Bad Request)
-    return c.json({
-      error: "Filter extraction failed",
-      errorType: "FILTER_PARSE_ERROR",
-      errorMessage: errorMessage,
-      details: {
-        parseError: "Failed to parse or normalize the filter extraction response from LLM",
-        rawResponse: text ? text.substring(0, 500) : "(empty)", // Truncate for safety
-        suggestion: "This is likely a normalization bug in the backend. Check server logs for full details."
-      },
-      // Fallback values - intent is "recommendation" since we only call LLM when CODEX:RECOMMEND detected
-      intent: "recommendation",
-      filters: {},
-      semantic_search: "",
-      product_query: null,
-      assistantQuery: assistantQuery
-    }, 400);
+  // Apply brand constraint for Brand Concierge profile
+  const profile = getProfile(c.env.PROFILE_TYPE);
+  if (!profile.allowCrossBrand && profile.brandName) {
+    normalizedFilters.brand = profile.brandName;
   }
+
+  trackAnalytics(c, (db) =>
+    recordIntentAnalysis(db, {
+      analytics,
+      userTextRaw,
+      predictedCue: "RECOMMEND",
+      predictedIntent: isSurprise ? "surprise" : "recommendation",
+      predictedFilters: normalizedFilters,
+      status: "completed",
+      latencyMs: Date.now() - intentStartedAt,
+    })
+  );
+
+  return c.json({
+    intent: isSurprise ? "surprise" : "recommendation",
+    filters: normalizedFilters,
+    product_query: null,
+    assistantQuery: assistantQuery,
+    ...(tokenUsage ? { tokenUsage } : {})
+  });
 });
 
-// Product lookup endpoint - searches for a product by semantic similarity
-// Used when user asks about a product NOT in conversation history
+// ============================================
+// PRODUCT LOOKUP (D1 name search)
+// ============================================
+
 app.post("/chat/product-lookup", async (c) => {
   const body = await c.req.json();
   const productQuery = body.product_query || "";
-  const retryAttempt = body.retry_attempt || 0;
   const messages = body.messages || [];
   const analytics = getAnalyticsContext(body);
   const userTextRaw = getLastUserMessage(messages) || productQuery;
@@ -892,21 +599,10 @@ app.post("/chat/product-lookup", async (c) => {
   }
 
   try {
-    // 1. Generate embedding for the query using Cloudflare Workers AI
-    const embeddingResponse = await c.env.AI.run("@cf/baai/bge-large-en-v1.5", {
-      text: [productQuery],
-    });
-    const queryVector = embeddingResponse.data[0];
+    // D1 name search — replaces Vectorize semantic search
+    const results = await lookupWineByName(c.env.WINE_DB, productQuery, 3);
 
-    // 2. Query Vectorize directly (native API with confidence scores)
-    // Increase topK on retries to expand search scope
-    const topK = Math.min(3 + retryAttempt, 5); // Start at 3, increase to max 5
-    const matches = await c.env.VECTORIZE_INDEX.query(queryVector, {
-      topK,
-      returnMetadata: true,
-    });
-
-    if (matches.matches.length === 0) {
+    if (results.length === 0) {
       trackAnalytics(c, (db) =>
         recordProductLookupResult(db, {
           analytics,
@@ -924,23 +620,15 @@ app.post("/chat/product-lookup", async (c) => {
         product: null,
         confidence: 0,
         needsClarification: false,
-        message: "I couldn't find that product in our inventory. Would you like me to search for recommendations?"
+        message: "I couldn't find that wine in our catalog. Would you like me to search for recommendations?"
       });
     }
 
-    // 3. Access confidence score (Cloudflare uses Cosine Similarity)
-    // Score interpretation:
-    // - 0.95+: Almost exact name match
-    // - 0.70-0.90: Good semantic match, specific enough (includes post-clarification queries)
-    // - 0.60-0.70: Partial match (e.g., "Kiva" = brand only, needs clarification)
-    // - Below 0.60: Low confidence, needs clarification
-    const topMatch = matches.matches[0];
-    const confidence = topMatch.score || 0;
+    // Confidence based on result count (replaces cosine similarity)
+    // 1 result = high confidence, 2-3 = needs clarification
+    if (results.length === 1) {
+      const wine = results[0];
 
-    // High confidence (>0.70): Return single product
-    // Lowered to 0.70 to catch post-clarification queries like "Ayrloom Alaskan Thunder Fuck AIO" (0.72)
-    // Brand-only queries (e.g., "Kiva" = 0.61) still trigger clarification
-    if (confidence > 0.70) {
       trackAnalytics(c, (db) =>
         recordProductLookupResult(db, {
           analytics,
@@ -949,11 +637,10 @@ app.post("/chat/product-lookup", async (c) => {
           predictedCue: "PRODUCT_LOOKUP",
           predictedIntent: "product-question",
           product: {
-            id: topMatch.id,
-            name: typeof topMatch.metadata?.name === "string" ? topMatch.metadata.name : null,
-            brand: typeof topMatch.metadata?.brand === "string" ? topMatch.metadata.brand : null,
-            category: typeof topMatch.metadata?.category === "string" ? topMatch.metadata.category : null,
-            subcategory: typeof topMatch.metadata?.subcategory === "string" ? topMatch.metadata.subcategory : null,
+            id: wine.id,
+            name: wine.name,
+            brand: wine.brand,
+            category: wine.wine_type,
             rankPosition: 1,
             sourceKind: "product_lookup",
           },
@@ -963,18 +650,14 @@ app.post("/chat/product-lookup", async (c) => {
       );
 
       return c.json({
-        product: { id: topMatch.id, ...topMatch.metadata },
-        confidence,
+        product: wine,
+        confidence: 1.0,
         needsClarification: false
       });
     }
 
-    // Medium/Low confidence (<0.7): Return top 3 matches for follow-up question
-    // Frontend will use these names in a clarifying question
-    const topNames = matches.matches
-      .slice(0, 3)  // Return top 3 options instead of 2
-      .map(m => m.metadata?.name)
-      .filter(Boolean);
+    // Multiple matches — needs clarification
+    const topNames = results.map(r => r.name).filter(Boolean);
 
     trackAnalytics(c, (db) =>
       recordProductLookupResult(db, {
@@ -992,14 +675,12 @@ app.post("/chat/product-lookup", async (c) => {
 
     return c.json({
       product: null,
-      confidence,
+      confidence: 0.5,
       needsClarification: true,
       suggestedNames: topNames,
       message: topNames.length > 1
         ? `Did you mean ${topNames.slice(0, -1).join(', ')} or ${topNames[topNames.length - 1]}?`
-        : topNames.length === 1
-        ? `Did you mean ${topNames[0]}?`
-        : "I couldn't find that exact product. Could you tell me more, like the brand or type?"
+        : `Did you mean ${topNames[0]}?`
     });
 
   } catch (err) {
@@ -1021,10 +702,14 @@ app.post("/chat/product-lookup", async (c) => {
       confidence: 0,
       needsClarification: false,
       error: "Product lookup service temporarily unavailable",
-      message: "I'm having trouble searching for that product. Would you like me to search for recommendations instead?"
+      message: "I'm having trouble searching for that wine. Would you like me to search for recommendations instead?"
     });
   }
 });
+
+// ============================================
+// STREAM (SSE passthrough — preserved from original)
+// ============================================
 
 app.post("/chat/stream", async (c) => {
   const body = await c.req.json();
@@ -1035,25 +720,11 @@ app.post("/chat/stream", async (c) => {
   const userTextRaw = getLastUserMessage(messages);
   const streamStartedAt = Date.now();
 
-  // DEBUGGING: Log what context we're receiving
-  console.log('[STREAM] Request received');
-  console.log('[STREAM] Messages count:', messages.length);
-  console.log('[STREAM] Has productContext:', !!productContext);
-  console.log('[STREAM] Has clarificationContext:', !!clarificationContext);
+  // Clarification bypass — return text directly as SSE
   if (clarificationContext) {
-    console.log('[STREAM] Clarification text:', clarificationContext);
-  }
-  if (productContext) {
-    console.log('[STREAM] Product context first 100 chars:', productContext.substring(0, 100));
-  }
-
-  // BYPASS LLM FOR CLARIFICATIONS - Return text directly as SSE stream
-  if (clarificationContext) {
-    console.log('[STREAM] Bypassing LLM, returning clarification directly');
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       start(controller) {
-        // Send the clarification text as a single SSE event
         const sseEvent = `data: ${JSON.stringify({
           choices: [{
             delta: { content: clarificationContext },
@@ -1061,8 +732,6 @@ app.post("/chat/stream", async (c) => {
           }]
         })}\n\n`;
         controller.enqueue(encoder.encode(sseEvent));
-
-        // Send done marker
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
         controller.close();
       }
@@ -1092,17 +761,10 @@ app.post("/chat/stream", async (c) => {
   const MODEL = getModelForRole(STREAM_PROVIDER, "STREAM");
   const BASE_URL = getBaseUrl(STREAM_PROVIDER);
 
-  // Debug: Check API key
-  devLog(c.env, "STREAM_PROVIDER:", STREAM_PROVIDER);
-  devLog(c.env, "API_KEY exists:", !!API_KEY);
-  devLog(c.env, "API_KEY length:", API_KEY?.length);
-  devLog(c.env, "MODEL:", MODEL);
-  devLog(c.env, "BASE_URL:", BASE_URL);
-
-  const lastMessages = messages.slice(-10);  // Keep sufficient context for natural conversation
-  const enrichedHistory = lastMessages.map(msg => {
+  const lastMessages = messages.slice(-10);
+  const enrichedHistory = lastMessages.map((msg: any) => {
     if (msg.recommendations?.length > 0) {
-      const names = msg.recommendations.map(p => p.name).join(", ");
+      const names = msg.recommendations.map((p: any) => p.name).join(", ");
       return {
         role: "assistant",
         content: `${msg.content}\n\nI recommended: ${names}.`
@@ -1115,21 +777,21 @@ app.post("/chat/stream", async (c) => {
   const user_message = enrichedHistory[enrichedHistory.length - 1]?.content || "";
 
   const prompt = generatePrompt(
-    MODEL_PROVIDER.LLAMA,
+    "llama",
     user_message,
     conversation_history,
-    productContext || "",  // Pass product context if available
-    clarificationContext || undefined,  // Pass clarification context if available
-    USE_FIRE_AT_2_PROMPT  // Pass feature flag
+    productContext || "",
+    clarificationContext || undefined,
+    false,
+    c.env.PROFILE_TYPE
   );
 
-  // @ts-ignore
-  const cleanMessages = lastMessages.map(msg => {
+  const cleanMessages = lastMessages.map((msg: any) => {
     const { recommendations, ...rest } = msg;
     return rest;
   });
 
-    const messagesForLLM = [
+  const messagesForLLM = [
     { role: "system", content: "Hello." },
     { role: "system", content: prompt },
     ...cleanMessages
@@ -1147,7 +809,7 @@ app.post("/chat/stream", async (c) => {
         model: MODEL,
         messages: messagesForLLM,
         temperature: 0.1,
-        max_tokens: 900,  // Stream: Conversational responses (was 1200, reduced to 900)
+        max_tokens: 900,
         stream: true
       })
     });
@@ -1165,20 +827,18 @@ app.post("/chat/stream", async (c) => {
         })
       );
       return c.json({
-        error: "Our streaming service is experiencing technical difficulties at the moment. Please try again.",
+        error: "Our streaming service is experiencing technical difficulties. Please try again.",
         service: "stream",
         details: {
           status: response?.status || null,
           statusText: response?.statusText || "Network error",
-          errorText: errorText,
           provider: STREAM_PROVIDER
         }
       }, 503);
     }
 
   } catch (err) {
-    const formatError = `Stream Error: ${err}`;
-    console.error(formatError);
+    console.error(`Stream Error: ${err}`);
     trackAnalytics(c, (db) =>
       recordStreamCompletion(db, {
         analytics,
@@ -1189,11 +849,10 @@ app.post("/chat/stream", async (c) => {
       })
     );
     return c.json({
-      error: "Our streaming service is experiencing technical difficulties at the moment. Please try again.",
+      error: "Our streaming service is experiencing technical difficulties. Please try again.",
       service: "stream",
       details: {
         message: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack : undefined,
         provider: STREAM_PROVIDER
       }
     }, 503);
@@ -1211,7 +870,7 @@ app.post("/chat/stream", async (c) => {
     );
 
     return c.json({
-      error: "Our streaming service is experiencing technical difficulties at the moment. Please try again.",
+      error: "Our streaming service is experiencing technical difficulties. Please try again.",
       service: "stream",
       details: {
         status: response?.status || null,
@@ -1221,6 +880,7 @@ app.post("/chat/stream", async (c) => {
     }, 503);
   }
 
+  // SSE passthrough with analytics mirroring — preserved from original
   const { readable, writable } = new TransformStream();
   const upstreamReader = response.body.getReader();
   const downstreamWriter = writable.getWriter();
@@ -1283,7 +943,7 @@ app.post("/chat/stream", async (c) => {
         }
       }
 
-      await recordStreamCompletion(c.env.ANALYTICS_DB, {
+      await recordStreamCompletion(c.env.ANALYTICS_DB!, {
         analytics,
         userTextRaw,
         assistantResponseText,
@@ -1323,49 +983,32 @@ app.post("/chat/stream", async (c) => {
   });
 });
 
+// ============================================
+// RECOMMENDATIONS (D1 SQL + optional LLM re-ranking)
+// ============================================
+
 app.post("/chat/recommendations", async (c) => {
   const body = await c.req.json();
   const messages = body.messages || [];
-  let filters = body.filters || {};
-  const semantic_search = body.semantic_search || "";
+  let filters: WineFilters = body.filters || {};
   const analytics = getAnalyticsContext(body);
   const userTextRaw = getLastUserMessage(messages);
   const recommendationsStartedAt = Date.now();
+  const isSurprise = body.intent === "surprise";
 
-  // Validate, normalize, and expand filters
-  filters = validateAndExpandFilters(filters);
+  // Validate filters
+  filters = validateWineFilters(filters);
 
-  // Apply default THC caps for variety (prevent always getting ultra-high THC)
-  // Only apply if user didn't specify potency (no min/max set)
-  const category = filters.category;
-  const hasNoTHCPreference = !filters.thc_percentage_min && !filters.thc_percentage_max;
-
-  if (hasNoTHCPreference) {
-    // Normalize category to array for uniform handling
-    const categories = Array.isArray(category) ? category : (category ? [category] : []);
-
-    // Define THC scale groups (same scale = can apply cap together)
-    const lowScaleCategories = ['flower', 'prerolls'];  // 0-28% scale
-    const highScaleCategories = ['vaporizers', 'concentrates'];  // 66-100% scale
-
-    // Check if ALL categories belong to the same scale group
-    const allLowScale = categories.length > 0 && categories.every(cat => lowScaleCategories.includes(cat));
-    const allHighScale = categories.length > 0 && categories.every(cat => highScaleCategories.includes(cat));
-
-    // Apply cap only if all categories use the same scale
-    // Mixed scales (e.g., ["vaporizers", "prerolls"]) get no cap due to incompatible ranges
-    if (allLowScale) {
-      filters.thc_percentage_max = 28;  // Cap at 28% for variety (flower, prerolls)
-    } else if (allHighScale) {
-      filters.thc_percentage_max = 89;  // Cap at 89% for variety (vaporizers, concentrates)
-    }
-    // Mixed scales or edibles/cbd/topicals/accessories: no cap
+  // Apply brand constraint for Brand Concierge profile
+  const profile = getProfile(c.env.PROFILE_TYPE);
+  if (!profile.allowCrossBrand && profile.brandName) {
+    filters.brand = profile.brandName;
   }
 
   const lastMessages = messages.slice(-5);
-  const enrichedHistory = lastMessages.map(msg => {
+  const enrichedHistory = lastMessages.map((msg: any) => {
     if (msg.recommendations?.length > 0) {
-      const names = msg.recommendations.map(p => p.name).join(", ");
+      const names = msg.recommendations.map((p: any) => p.name).join(", ");
       return {
         role: "assistant",
         content: `${msg.content}\n\nI recommended: ${names}.`
@@ -1374,81 +1017,36 @@ app.post("/chat/recommendations", async (c) => {
     return { role: msg.role, content: msg.content };
   });
 
-  const conversation_history = formatConversationHistory(enrichedHistory);
   const user_message = enrichedHistory[enrichedHistory.length - 1]?.content || "";
-  // Get last assistant message (contains CODEX cue with structured recap)
-  const lastAssistantMessage = enrichedHistory.slice(-2).find(m => m.role === 'assistant')?.content || "";
+  const lastAssistantMessage = enrichedHistory.slice(-2).find((m: any) => m.role === 'assistant')?.content || "";
 
-  let searchResults;
-  let filtersToUse;
+  // D1 SQL search — replaces Vectorize
+  let results;
   try {
-    const embeddings = new CloudflareWorkersAIEmbeddings({
-      binding: c.env.AI,
-      model: "@cf/baai/bge-large-en-v1.5"
-    });
-
-    const store = new CloudflareVectorizeStore(embeddings, {
-      index: c.env.VECTORIZE_INDEX
-    });
-
-    // Use semantic_search if provided, otherwise fallback to user_message
-    const queryString = semantic_search || user_message;
-    
-    // Convert filters to Vectorize format
-    filtersToUse = buildVectorizeFilters(filters);
-        // return c.json({ queryString: queryString, filtersToUse: vectorizeFilters }, 200);
-    
-    searchResults = await store.similaritySearchWithScore(queryString, RECOMMENDATION_VECTOR_TOP_K, filtersToUse);
-    // searchResults = await store.similaritySearch(queryString, 10, { "effects": { "$in": ["energetic", "happy"] } });
+    if (isSurprise) {
+      results = await surpriseMe(c.env.WINE_DB, filters, 8);
+    } else {
+      results = await searchWines(c.env.WINE_DB, filters, 8);
+    }
   } catch (err) {
-    console.error("Vector search error:", err);
+    console.error("Wine search error:", err);
     trackAnalytics(c, (db) =>
       recordRecommendationResults(db, {
         analytics,
         userTextRaw,
         predictedCue: "RECOMMEND",
-        predictedIntent: "recommendation",
+        predictedIntent: isSurprise ? "surprise" : "recommendation",
         predictedFilters: filters,
-        semanticSearch: semantic_search,
         recommendations: [],
         preRankedCount: 0,
         finalRankCount: 0,
         status: "error",
-        errorCode: "vector_search_error",
-        fallbackReason: "vector_search_error",
+        errorCode: "wine_search_error",
+        fallbackReason: "wine_search_error",
         latencyMs: Date.now() - recommendationsStartedAt,
       })
     );
-    return c.json({ recommendations: [], filtersToUse: filtersToUse, error: "Vector search error" }, 200);
-  }
-
-// Transform searchResults to metadata format with similarity scores
-  const rawResults = searchResults.map(([doc, score]) => {
-    const productId = doc.metadata?.id;
-    return {
-      id: productId || "", // Use metadata.id (should always be present after fix)
-      ...doc.metadata,
-      similarity_score: score,  // Add similarity score (0.0-1.0, higher is better)
-    };
-  });
-
-  const {
-    results,
-    removedDemoCount,
-    dedupedCount,
-  } = sanitizeRecommendationResults(rawResults);
-
-  if (removedDemoCount > 0 || dedupedCount > 0) {
-    devLog(
-      c.env,
-      "Recommendation sanitization:",
-      JSON.stringify({
-        removedDemoCount,
-        dedupedCount,
-        rawCount: rawResults.length,
-        finalCount: results.length,
-      })
-    );
+    return c.json({ recommendations: [], error: "Wine search error" }, 200);
   }
 
   if (results.length === 0) {
@@ -1457,9 +1055,8 @@ app.post("/chat/recommendations", async (c) => {
         analytics,
         userTextRaw,
         predictedCue: "RECOMMEND",
-        predictedIntent: "recommendation",
+        predictedIntent: isSurprise ? "surprise" : "recommendation",
         predictedFilters: filters,
-        semanticSearch: semantic_search,
         recommendations: [],
         preRankedCount: 0,
         finalRankCount: 0,
@@ -1471,31 +1068,28 @@ app.post("/chat/recommendations", async (c) => {
 
     return c.json({
       recommendations: [],
-      preRankedProducts: [],
-      filtersToUse: filtersToUse,
-      error: "No valid catalog results found",
+      error: "No wines found matching your criteria",
       service: "recommendations",
     }, 200);
   }
 
-  // Create product map for ID-based lookup
+  // Create product map for re-ranking lookup
   const productMap = new Map(results.map((r) => [r.id, r]));
 
+  // Skip re-ranking for small result sets
   if (results.length <= RERANK_SKIP_CANDIDATE_MAX) {
     trackAnalytics(c, (db) =>
       recordRecommendationResults(db, {
         analytics,
         userTextRaw,
         predictedCue: "RECOMMEND",
-        predictedIntent: "recommendation",
+        predictedIntent: isSurprise ? "surprise" : "recommendation",
         predictedFilters: filters,
-        semanticSearch: semantic_search,
         recommendations: results.map((result, index) => ({
           id: typeof result.id === "string" ? result.id : null,
           name: typeof result.name === "string" ? result.name : null,
           brand: typeof result.brand === "string" ? result.brand : null,
-          category: typeof result.category === "string" ? result.category : null,
-          subcategory: typeof result.subcategory === "string" ? result.subcategory : null,
+          category: result.wine_type || null,
           rankPosition: index + 1,
           sourceKind: "recommendation",
         })),
@@ -1511,20 +1105,17 @@ app.post("/chat/recommendations", async (c) => {
       recommendations: results,
       preRankedProducts: results,
       reasoning: "Skipped rerank because the candidate set was already narrow.",
-      filtersToUse: filtersToUse,
     }, 200);
   }
 
-  // return c.json({ recommendations: results }, 200);
-
+  // LLM re-ranking
   const API_KEY = getApiKey(RERANK_PROVIDER, c.env);
   const MODEL = getModelForRole(RERANK_PROVIDER, "RECOMMEND");
   const BASE_URL = getBaseUrl(RERANK_PROVIDER);
 
   let tokenUsage: ReturnType<typeof buildTokenUsageResponse> = null;
 
-  // Priority: semantic_search (HYDE) > assistant CODEX message > raw user message
-  const queryForReranking = semantic_search || lastAssistantMessage || user_message;
+  const queryForReranking = lastAssistantMessage || user_message;
   const rerankCandidates = buildCompactRerankCandidates(results);
   const reRankPrompt = generateReRankPrompt(queryForReranking, filters, rerankCandidates);
 
@@ -1538,31 +1129,29 @@ app.post("/chat/recommendations", async (c) => {
       },
       body: JSON.stringify({
         model: MODEL,
-        // model: "qwen/qwen3-32b",
         messages: [{ role: "system", content: reRankPrompt }],
         temperature: 0.1,
-        max_tokens: 2500,  // Re-rank: Sufficient for ranked_ids array + single-sentence reasoning
+        max_tokens: 2500,
         stream: false
       })
     });
 
     if (!resp.ok) {
       const errorText = await resp.text();
-      console.error(`Groq Re-ranking API error (${resp.status}):`, errorText);
+      console.error(`Re-ranking API error (${resp.status}):`, errorText);
+
       trackAnalytics(c, (db) =>
         recordRecommendationResults(db, {
           analytics,
           userTextRaw,
           predictedCue: "RECOMMEND",
-          predictedIntent: "recommendation",
+          predictedIntent: isSurprise ? "surprise" : "recommendation",
           predictedFilters: filters,
-          semanticSearch: semantic_search,
           recommendations: results.map((result, index) => ({
             id: typeof result.id === "string" ? result.id : null,
             name: typeof result.name === "string" ? result.name : null,
             brand: typeof result.brand === "string" ? result.brand : null,
-            category: typeof result.category === "string" ? result.category : null,
-            subcategory: typeof result.subcategory === "string" ? result.subcategory : null,
+            category: result.wine_type || null,
             rankPosition: index + 1,
             sourceKind: "recommendation",
           })),
@@ -1575,40 +1164,32 @@ app.post("/chat/recommendations", async (c) => {
         })
       );
 
-      // Fallback to original search results without re-ranking
       return c.json({
         recommendations: results,
-        error: "Our recommendation service is experiencing technical difficulties. Showing results without AI ranking.",
+        error: "Showing results without AI ranking.",
         service: "recommendations",
-        details: {
-          status: resp.status,
-          statusText: resp.statusText,
-          errorText: errorText,
-          provider: RERANK_PROVIDER
-        }
       }, 200);
     }
 
     const data = await resp.json();
     text = data.choices?.[0]?.message?.content || "";
     tokenUsage = buildTokenUsageResponse(MODEL, data.usage, TIER);
-    
+
     if (!text || text.trim().length === 0) {
-      console.error("Groq Re-ranking API returned empty response:", JSON.stringify(data, null, 2));
+      console.error("Re-ranking API returned empty response");
+
       trackAnalytics(c, (db) =>
         recordRecommendationResults(db, {
           analytics,
           userTextRaw,
           predictedCue: "RECOMMEND",
-          predictedIntent: "recommendation",
+          predictedIntent: isSurprise ? "surprise" : "recommendation",
           predictedFilters: filters,
-          semanticSearch: semantic_search,
           recommendations: results.map((result, index) => ({
             id: typeof result.id === "string" ? result.id : null,
             name: typeof result.name === "string" ? result.name : null,
             brand: typeof result.brand === "string" ? result.brand : null,
-            category: typeof result.category === "string" ? result.category : null,
-            subcategory: typeof result.subcategory === "string" ? result.subcategory : null,
+            category: result.wine_type || null,
             rankPosition: index + 1,
             sourceKind: "recommendation",
           })),
@@ -1621,21 +1202,15 @@ app.post("/chat/recommendations", async (c) => {
         })
       );
 
-      // Fallback to original search results
       return c.json({
         recommendations: results,
-        error: "Our recommendation service is experiencing technical difficulties. Showing results without AI ranking.",
+        error: "Showing results without AI ranking.",
         service: "recommendations",
-        details: {
-          message: "Empty response from re-ranking API",
-          responseData: data,
-          provider: RERANK_PROVIDER
-        },
         ...(tokenUsage ? { tokenUsage } : {})
       }, 200);
     }
 
-    // Parse response using robust JSON parser
+    // Parse re-ranking response
     const parseResult = parseRobustJSON(text);
 
     if (!parseResult.success) {
@@ -1649,15 +1224,13 @@ app.post("/chat/recommendations", async (c) => {
           analytics,
           userTextRaw,
           predictedCue: "RECOMMEND",
-          predictedIntent: "recommendation",
+          predictedIntent: isSurprise ? "surprise" : "recommendation",
           predictedFilters: filters,
-          semanticSearch: semantic_search,
           recommendations: results.map((result, index) => ({
             id: typeof result.id === "string" ? result.id : null,
             name: typeof result.name === "string" ? result.name : null,
             brand: typeof result.brand === "string" ? result.brand : null,
-            category: typeof result.category === "string" ? result.category : null,
-            subcategory: typeof result.subcategory === "string" ? result.subcategory : null,
+            category: result.wine_type || null,
             rankPosition: index + 1,
             sourceKind: "recommendation",
           })),
@@ -1670,43 +1243,37 @@ app.post("/chat/recommendations", async (c) => {
         })
       );
 
-      // Fallback to original search results without re-ranking
       return c.json({
         recommendations: results,
-        filtersToUse: filtersToUse,
-        error: "Re-ranking JSON parse error - showing unranked results",
+        error: "Re-ranking parse error - showing unranked results",
         ...(tokenUsage ? { tokenUsage } : {})
       }, 200);
     }
 
-    const parsed = parseResult.data;
-    const rankedIds = parsed.ranked_ids || [];
-    const reasoning = parsed.reasoning || "No reasoning provided";
+    const parsedRerank = parseResult.data;
+    const rankedIds = parsedRerank.ranked_ids || [];
+    const reasoning = parsedRerank.reasoning || "No reasoning provided";
 
-    // Log reasoning for debugging
     devLog(c.env, "Re-ranking reasoning:", reasoning);
 
-    // Map ranked IDs back to full product objects
+    // Map ranked IDs back to full wine objects
     const rankedProducts = rankedIds
       .map((id: string) => productMap.get(id))
       .filter((product: any) => product !== undefined);
 
-    // If re-ranking failed or returned empty, fallback to original search results
     if (rankedProducts.length === 0) {
       trackAnalytics(c, (db) =>
         recordRecommendationResults(db, {
           analytics,
           userTextRaw,
           predictedCue: "RECOMMEND",
-          predictedIntent: "recommendation",
+          predictedIntent: isSurprise ? "surprise" : "recommendation",
           predictedFilters: filters,
-          semanticSearch: semantic_search,
           recommendations: results.map((result, index) => ({
             id: typeof result.id === "string" ? result.id : null,
             name: typeof result.name === "string" ? result.name : null,
             brand: typeof result.brand === "string" ? result.brand : null,
-            category: typeof result.category === "string" ? result.category : null,
-            subcategory: typeof result.subcategory === "string" ? result.subcategory : null,
+            category: result.wine_type || null,
             rankPosition: index + 1,
             sourceKind: "recommendation",
           })),
@@ -1720,7 +1287,6 @@ app.post("/chat/recommendations", async (c) => {
 
       return c.json({
         recommendations: results,
-        filtersToUse: filtersToUse,
         error: "No ranked IDs found - showing unranked results",
         ...(tokenUsage ? { tokenUsage } : {})
       }, 200);
@@ -1731,15 +1297,13 @@ app.post("/chat/recommendations", async (c) => {
         analytics,
         userTextRaw,
         predictedCue: "RECOMMEND",
-        predictedIntent: "recommendation",
+        predictedIntent: isSurprise ? "surprise" : "recommendation",
         predictedFilters: filters,
-        semanticSearch: semantic_search,
-        recommendations: rankedProducts.map((product, index) => ({
+        recommendations: rankedProducts.map((product: any, index: number) => ({
           id: typeof product.id === "string" ? product.id : null,
           name: typeof product.name === "string" ? product.name : null,
           brand: typeof product.brand === "string" ? product.brand : null,
-          category: typeof product.category === "string" ? product.category : null,
-          subcategory: typeof product.subcategory === "string" ? product.subcategory : null,
+          category: product.wine_type || null,
           rankPosition: index + 1,
           sourceKind: "recommendation",
         })),
@@ -1754,7 +1318,6 @@ app.post("/chat/recommendations", async (c) => {
       recommendations: rankedProducts,
       preRankedProducts: results,
       reasoning: reasoning,
-      filtersToUse: filtersToUse,
       ...(tokenUsage ? { tokenUsage } : {})
     }, 200);
 
@@ -1765,15 +1328,13 @@ app.post("/chat/recommendations", async (c) => {
         analytics,
         userTextRaw,
         predictedCue: "RECOMMEND",
-        predictedIntent: "recommendation",
+        predictedIntent: isSurprise ? "surprise" : "recommendation",
         predictedFilters: filters,
-        semanticSearch: semantic_search,
         recommendations: results.map((result, index) => ({
           id: typeof result.id === "string" ? result.id : null,
           name: typeof result.name === "string" ? result.name : null,
           brand: typeof result.brand === "string" ? result.brand : null,
-          category: typeof result.category === "string" ? result.category : null,
-          subcategory: typeof result.subcategory === "string" ? result.subcategory : null,
+          category: result.wine_type || null,
           rankPosition: index + 1,
           sourceKind: "recommendation",
         })),
@@ -1786,19 +1347,17 @@ app.post("/chat/recommendations", async (c) => {
       })
     );
 
-    // Fallback to original search results
     return c.json({
       recommendations: results,
-      error: "Our recommendation service is experiencing technical difficulties. Showing results without AI ranking.",
+      error: "Showing results without AI ranking.",
       service: "recommendations",
-      details: {
-        message: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack : undefined,
-        provider: RERANK_PROVIDER
-      }
     }, 200);
   }
 });
+
+// ============================================
+// ANALYTICS EVENT
+// ============================================
 
 app.post("/chat/analytics/event", async (c) => {
   const body = await c.req.json();
@@ -1808,7 +1367,7 @@ app.post("/chat/analytics/event", async (c) => {
   }
 
   try {
-    await recordAnalyticsEvent(c.env.ANALYTICS_DB, {
+    await recordAnalyticsEvent(c.env.ANALYTICS_DB!, {
       eventId: typeof body?.event_id === "string" ? body.event_id : null,
       sessionId: typeof body?.session_id === "string" ? body.session_id : null,
       messageId: typeof body?.message_id === "string" ? body.message_id : null,

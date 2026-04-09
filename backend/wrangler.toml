@@ -1,16 +1,14 @@
-name = "ecom-chat-backend"
+name = "wine-chat-backend"
 main = "src/index.ts"
 compatibility_date = "2025-11-24"
 
-[[vectorize]]
-binding = "VECTORIZE_INDEX"
-index_name = "products-prod"
+[dev]
+port = 9174
 
-[ai]
-binding = "AI"
+[vars]
+PROFILE_TYPE = "merchant_advisor"
 
 [[d1_databases]]
-binding = "ANALYTICS_DB"
-database_name = "d1-database"
-database_id = "2224acee-2faa-48db-97cd-5cdab44cfeca"
-preview_database_id = "2224acee-2faa-48db-97cd-5cdab44cfeca"
+binding = "WINE_DB"
+database_name = "wine-catalog"
+database_id = "c1d9a63c-d943-46d8-857a-907e0c95a66f"
