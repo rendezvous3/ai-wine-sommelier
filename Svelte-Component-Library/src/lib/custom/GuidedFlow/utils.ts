@@ -6,6 +6,46 @@ export interface TransformedMetadata {
   filters: Record<string, any>;
 }
 
+interface GuidedPreset {
+  wine_type?: string;
+  wine_type_label?: string;
+  varietal?: string;
+  region?: string;
+  body?: string;
+  body_label?: string;
+  sweetness?: string;
+  sweetness_label?: string;
+  flavor_profile?: string[];
+  flavor_labels?: string[];
+}
+
+const FOOD_PAIRING_DEFAULTS: Record<string, GuidedPreset> = {
+  steak: {
+    wine_type: 'red',
+    wine_type_label: 'Red',
+    sweetness: 'dry',
+    sweetness_label: 'Dry',
+    flavor_profile: ['berry', 'pepper'],
+    flavor_labels: ['Dark Fruit', 'Pepper & Spice']
+  },
+  salad: {
+    wine_type: 'white',
+    wine_type_label: 'White',
+    sweetness: 'dry',
+    sweetness_label: 'Dry',
+    flavor_profile: ['citrus', 'floral'],
+    flavor_labels: ['Citrus', 'Floral']
+  },
+  chocolate: {
+    wine_type: 'dessert',
+    wine_type_label: 'Dessert',
+    sweetness: 'sweet',
+    sweetness_label: 'Sweet',
+    flavor_profile: ['vanilla', 'caramel'],
+    flavor_labels: ['Vanilla & Caramel']
+  }
+};
+
 /**
  * Deep equality check for objects (used for price range comparisons)
  */
@@ -27,6 +67,82 @@ function deepEqual(a: any, b: any): boolean {
   return true;
 }
 
+function applyPreset(
+  preset: GuidedPreset,
+  filters: Record<string, any>,
+  metadata: Record<string, any>
+) {
+  if (preset.wine_type) {
+    filters['wine_type'] = preset.wine_type;
+    metadata['wine_type'] = preset.wine_type_label ?? preset.wine_type;
+  }
+
+  if (preset.varietal) {
+    filters['varietal'] = preset.varietal;
+  }
+
+  if (preset.region) {
+    filters['region'] = preset.region;
+  }
+
+  if (preset.body) {
+    filters['body'] = preset.body;
+    metadata['body'] = preset.body_label ?? preset.body;
+  }
+
+  if (preset.sweetness) {
+    filters['sweetness'] = preset.sweetness;
+    metadata['sweetness'] = preset.sweetness_label ?? preset.sweetness;
+  }
+
+  if (preset.flavor_profile && preset.flavor_profile.length > 0) {
+    filters['flavor_profile'] = preset.flavor_profile;
+    metadata['flavor_profile'] = preset.flavor_labels ?? preset.flavor_profile;
+  }
+}
+
+function mergePresetList(
+  presets: GuidedPreset[],
+  filters: Record<string, any>,
+  metadata: Record<string, any>
+) {
+  if (presets.length === 0) return;
+
+  const sharedWineTypes = [...new Set(presets.map(preset => preset.wine_type).filter(Boolean))];
+  if (sharedWineTypes.length === 1) {
+    filters['wine_type'] = sharedWineTypes[0];
+    const wineTypeLabel = presets.find(preset => preset.wine_type_label)?.wine_type_label ?? sharedWineTypes[0];
+    metadata['wine_type'] = wineTypeLabel;
+  }
+
+  const sharedSweetness = [...new Set(presets.map(preset => preset.sweetness).filter(Boolean))];
+  if (sharedSweetness.length === 1) {
+    filters['sweetness'] = sharedSweetness[0];
+    const sweetnessLabel = presets.find(preset => preset.sweetness_label)?.sweetness_label ?? sharedSweetness[0];
+    metadata['sweetness'] = sweetnessLabel;
+  }
+
+  const sharedVarietals = [...new Set(presets.map(preset => preset.varietal).filter(Boolean))];
+  if (sharedVarietals.length === 1) {
+    filters['varietal'] = sharedVarietals[0];
+  }
+
+  const sharedRegions = [...new Set(presets.map(preset => preset.region).filter(Boolean))];
+  if (sharedRegions.length === 1) {
+    filters['region'] = sharedRegions[0];
+  }
+
+  const mergedFlavorProfile = [...new Set(presets.flatMap(preset => preset.flavor_profile ?? []))];
+  if (mergedFlavorProfile.length > 0) {
+    filters['flavor_profile'] = mergedFlavorProfile;
+  }
+
+  const mergedFlavorLabels = [...new Set(presets.flatMap(preset => preset.flavor_labels ?? preset.flavor_profile ?? []))];
+  if (mergedFlavorLabels.length > 0) {
+    metadata['flavor_profile'] = mergedFlavorLabels;
+  }
+}
+
 /**
  * Transforms raw GuidedFlow selections into clean metadata, query string, and filters
  * for wine recommendation queries.
@@ -38,6 +154,7 @@ export function transformSelectionsToMetadata(
   const metadata: Record<string, any> = {};
   const filters: Record<string, any> = {};
   const queryParts: string[] = [];
+  const hasFoodPairingStyleSelection = Object.keys(selections).some(key => key.endsWith('_pairing_style'));
 
   const stepMap = new Map(steps.map(step => [step.id, step]));
 
@@ -62,28 +179,38 @@ export function transformSelectionsToMetadata(
       const option = step.type === 'price-selector' ? null : selectedOptions[0];
 
       if (stepId === 'wine_type') {
-        // "Surprise Me" has null value — skip filter but note in query
-        if (option && option.value !== null) {
+        if (option && option.value !== null && option.value !== 'food-pairing') {
           filters['wine_type'] = option.value;
-          metadata[stepId] = option.label;
+          metadata['wine_type'] = option.label;
           queryParts.push(`${option.label} wine`);
+        } else if (option?.value === 'food-pairing') {
+          metadata['wine_type'] = 'Food Pairing';
         } else {
-          metadata[stepId] = 'Surprise Me';
+          metadata['wine_type'] = 'Surprise Me';
           queryParts.push('wine (surprise me on style)');
         }
-      } else if (stepId === 'occasion') {
+      } else if (stepId === 'food_pairing') {
         if (option && option.value !== null) {
-          filters['occasion'] = option.value;
+          filters['food_pairing'] = option.value;
           metadata[stepId] = option.label;
-          queryParts.push(`for ${option.label}`);
-        } else {
-          metadata[stepId] = 'Surprise Me';
+          queryParts.push(`paired with ${option.label}`);
+        }
+      } else if (stepId === 'sparkling_style' || stepId.endsWith('_pairing_style')) {
+        if (option && option.value && typeof option.value === 'object') {
+          metadata[stepId] = option.label;
+          applyPreset(option.value as GuidedPreset, filters, metadata);
         }
       } else if (stepId === 'body') {
         if (option) {
           filters['body'] = option.value;
           metadata[stepId] = option.label;
           queryParts.push(`${option.label}-bodied`);
+        }
+      } else if (stepId === 'sweetness') {
+        if (option) {
+          filters['sweetness'] = option.value;
+          metadata[stepId] = option.label;
+          queryParts.push(option.value === 'dry' ? 'dry' : option.label.toLowerCase());
         }
       } else if (stepId === 'price') {
         if (step.type === 'price-selector') {
@@ -122,12 +249,27 @@ export function transformSelectionsToMetadata(
         queryParts.push(option.label);
       }
     } else {
-      // Multi-select (flavor_profile)
+      // Multi-select (varietal / flavor steps)
       const labels = selectedOptions.map(opt => opt.label);
-      const values = selectedOptions.map(opt => opt.value);
-      metadata[stepId] = labels;
+      const values = selectedOptions.map(opt => opt.value).filter(v => v !== null);
 
-      if (stepId === 'flavor_profile') {
+      if (stepId === 'red_varietal' || stepId === 'white_varietal') {
+        metadata[stepId] = labels;
+        if (values.length > 0) {
+          filters['varietal'] = values;
+        }
+        const hasSurprise = selectedOptions.some(opt => opt.value === null);
+        if (hasSurprise && values.length === 0) {
+          queryParts.push('(surprise me on grape)');
+        } else if (labels.length === 1) {
+          queryParts.push(labels[0]);
+        } else {
+          const labelsCopy = [...labels];
+          const lastLabel = labelsCopy.pop();
+          queryParts.push(`${labelsCopy.join(', ')} or ${lastLabel}`);
+        }
+      } else if (stepId === 'flavor_profile' || stepId.endsWith('_flavor_profile')) {
+        metadata['flavor_profile'] = labels;
         filters['flavor_profile'] = values;
         if (labels.length === 1) {
           queryParts.push(`with ${labels[0]} flavors`);
@@ -136,10 +278,24 @@ export function transformSelectionsToMetadata(
           const lastLabel = labelsCopy.pop();
           queryParts.push(`with ${labelsCopy.join(', ')} and ${lastLabel} flavors`);
         }
+      } else if (stepId.endsWith('_pairing_style')) {
+        metadata[stepId] = labels;
+        const presets = selectedOptions
+          .map(opt => opt.value)
+          .filter((preset): preset is GuidedPreset => typeof preset === 'object' && preset !== null);
+        mergePresetList(presets, filters, metadata);
       } else {
+        metadata[stepId] = labels;
         filters[stepId] = values;
         queryParts.push(labels.join(', '));
       }
+    }
+  }
+
+  if (filters['food_pairing'] && !hasFoodPairingStyleSelection) {
+    const defaultPreset = FOOD_PAIRING_DEFAULTS[filters['food_pairing']];
+    if (defaultPreset) {
+      applyPreset(defaultPreset, filters, metadata);
     }
   }
 
@@ -151,13 +307,32 @@ export function transformSelectionsToMetadata(
     query += `${metadata['body'].toLowerCase()}-bodied `;
   }
 
+  // Add sweetness
+  if (metadata['sweetness'] && metadata['sweetness'] !== 'Dry') {
+    query += `${metadata['sweetness'].toLowerCase()} `;
+  }
+
   // Add wine type
-  if (metadata['wine_type'] && metadata['wine_type'] !== 'Surprise Me') {
+  if (metadata['wine_type'] && metadata['wine_type'] !== 'Surprise Me' && metadata['wine_type'] !== 'Food Pairing') {
     query += `${metadata['wine_type'].toLowerCase()} wine`;
+  } else if (metadata['wine_type'] === 'Food Pairing') {
+    query += 'wine';
   } else {
     query += 'wine';
     if (metadata['wine_type'] === 'Surprise Me') {
       query += ' (surprise me on style)';
+    }
+  }
+
+  // Add varietal
+  if (metadata['red_varietal'] || metadata['white_varietal']) {
+    const varietalLabels = metadata['red_varietal'] || metadata['white_varietal'];
+    const labels = Array.isArray(varietalLabels) ? varietalLabels : [varietalLabels];
+    const nonSurprise = labels.filter((l: string) => l !== 'Surprise Me');
+    if (nonSurprise.length > 0) {
+      query += `, ${nonSurprise.join(' or ')}`;
+    } else {
+      query += ' (surprise me on grape)';
     }
   }
 
@@ -176,9 +351,9 @@ export function transformSelectionsToMetadata(
     }
   }
 
-  // Add occasion
-  if (metadata['occasion'] && metadata['occasion'] !== 'Surprise Me') {
-    query += ` for ${metadata['occasion']}`;
+  // Add food pairing
+  if (metadata['food_pairing']) {
+    query += ` paired with ${metadata['food_pairing'].toLowerCase()}`;
   }
 
   // Add price

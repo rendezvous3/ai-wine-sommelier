@@ -4,6 +4,10 @@
   import ChatMessage from "../../Svelte-Component-Library/src/lib/custom/ChatMessage/ChatMessage.svelte";
   import ShimmerText from "../../Svelte-Component-Library/src/lib/custom/ShimmerText/ShimmerText.svelte";
   import WelcomeQuickStart from "../../Svelte-Component-Library/src/lib/custom/WelcomeQuickStart/WelcomeQuickStart.svelte";
+  import LeadCaptureCard from "../../Svelte-Component-Library/src/lib/custom/LeadCaptureCard/LeadCaptureCard.svelte";
+  import WineClubCard from "../../Svelte-Component-Library/src/lib/custom/WineClubCard/WineClubCard.svelte";
+  import WineComparisonCard from "../../Svelte-Component-Library/src/lib/custom/WineComparisonCard/WineComparisonCard.svelte";
+  import CorporateGiftingCard from "../../Svelte-Component-Library/src/lib/custom/CorporateGiftingCard/CorporateGiftingCard.svelte";
   import type { QuickStartRequest } from "../../Svelte-Component-Library/src/lib/custom/QuickStartPanel/QuickStartPanel.svelte";
   import type { GuidedFlowConfig } from "../../Svelte-Component-Library/src/lib/custom/GuidedFlow/types.js";
   import type { WidgetPosition } from "./embed-config";
@@ -84,10 +88,29 @@
   let ANALYTICS_SESSION_KEY = $derived(`widget_chat_session_${store}`);
   let ANALYTICS_SESSION_LAST_ACTIVITY_KEY = $derived(`widget_chat_session_last_activity_${store}`);
   const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+  interface ComparisonWine {
+    id: string;
+    name: string;
+    brand?: string;
+    wine_type?: string;
+    varietal?: string;
+    region?: string;
+    vintage?: number;
+    body?: string;
+    sweetness?: string;
+    price: number;
+    tasting_notes?: string;
+    flavor_profile?: string[];
+    food_pairings?: string[];
+    image_url?: string;
+    shop_link?: string;
+  }
+
   interface Message {
     role: "user" | "assistant";
     content: string;
     recommendations?: Recommendation[];
+    comparison?: { wine1: ComparisonWine; wine2: ComparisonWine };
     shimmer?: boolean;  // Add shimmer flag for loading messages
     id?: string;  // Unique identifier for Svelte keying
     analyticsMessageId?: string;
@@ -126,10 +149,103 @@
     store_id: string;
   }
 
+  // Profile config from backend
+  interface ProfileConfig {
+    profileType: 'brand_concierge' | 'merchant_advisor';
+    storeName: string;
+    storeDescription: string;
+    brandName: string | null;
+    guidedFlowType: 'brand' | 'merchant';
+    welcomeMessage: string;
+    quickStartSuggestions: Array<{ label: string; prompt: string }>;
+    features: {
+      wineClub: boolean;
+      corporateGifting: boolean;
+      dealerLocator: boolean;
+      leadCapture: boolean;
+      crossBrandComparison: boolean;
+    };
+    wineClubConfig: {
+      name: string;
+      tiers: Array<{ name: string; bottles: number; frequency: string; priceRange: string }>;
+      benefits: string[];
+      joinUrl: string;
+      contactEmail: string;
+    } | null;
+    giftingConfig: {
+      contactEmail: string;
+      contactPhone: string;
+      minCorporateQuantity: number;
+      giftSets: Array<{ name: string; description: string; price: number }>;
+    } | null;
+    brandContent: {
+      shippingPolicy: string;
+      returnPolicy: string;
+      storeHours: string;
+      dealerLocatorUrl: string;
+      heritage: string;
+    } | null;
+  }
+
   let messages = $state<Message[]>([]);
   let input = $state("");
   let loading = $state(false);
   let analyticsSessionId = $state<string | null>(null);
+  let profileConfig = $state<ProfileConfig | null>(null);
+  let leadCaptured = $state(false);
+  let recommendationCount = $state(0);
+  let showLeadCapture = $derived(
+    profileConfig?.features.leadCapture &&
+    !leadCaptured &&
+    recommendationCount > 0
+  );
+  let showWineClubCard = $state(false);
+  let comparisonData = $state<{ wine1: ComparisonWine; wine2: ComparisonWine } | null>(null);
+  let showGiftingCard = $state(false);
+
+  const CLUB_KEYWORDS = /wine club|membership|subscribe|join.*club|club.*member|sign.*up.*club/i;
+  const COMPARE_PATTERN = /compare\s+(?:the\s+)?(.+?)\s+(?:and|with|vs\.?|versus)\s+(?:the\s+)?(.+?)(?:\s*[.?!]?\s*$)/i;
+  const GIFTING_KEYWORDS = /corporate gift|client gift|bulk.*order|gift.*(?:for|to)\s+(?:clients?|team|employees?|staff)|send.*wine.*to\s+\d+|gift\s+set/i;
+
+  function checkForClubInterest(text: string) {
+    if (profileConfig?.features.wineClub && profileConfig.wineClubConfig && CLUB_KEYWORDS.test(text)) {
+      showWineClubCard = true;
+      void sendAnalyticsEvent('club_interest_shown', { payload: { trigger: text.slice(0, 100) } });
+    }
+  }
+
+  function checkForGiftingIntent(text: string) {
+    if (profileConfig?.features.corporateGifting && profileConfig.giftingConfig && GIFTING_KEYWORDS.test(text)) {
+      showGiftingCard = true;
+      void sendAnalyticsEvent('gifting_intent_detected', { payload: { trigger: text.slice(0, 100) } });
+    }
+  }
+
+  async function checkForComparison(text: string) {
+    const match = text.match(COMPARE_PATTERN);
+    if (!match) return;
+
+    const wine1Name = match[1].trim();
+    const wine2Name = match[2].trim();
+
+    try {
+      const res = await fetch(`${CHAT_BASE_URL}/compare`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wine1: wine1Name, wine2: wine2Name }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.comparison) {
+        comparisonData = data.comparison;
+        void sendAnalyticsEvent('comparison_requested', {
+          payload: { wine1: wine1Name, wine2: wine2Name }
+        });
+      }
+    } catch {
+      // Comparison failed silently — the AI will still respond conversationally
+    }
+  }
 
   // Helper function to create messages with unique IDs
   function createMessage(role: "user" | "assistant", content: string, extras?: Partial<Message>): Message {
@@ -303,7 +419,6 @@
   const menuItems = [
     { id: 'ai-disclosure', label: 'AI Disclosure', icon: 'about', iconType: 'svg' as const },
     { id: 'medical-disclosure', label: 'Medical Disclosure', icon: medicalDisclosureIcon, iconType: 'svg' as const },
-    { id: 'feedback', label: 'Send Feedback', icon: 'feedback', iconType: 'svg' as const },
     { id: 'feedback', label: 'Send Feedback', icon: 'feedback', iconType: 'svg' as const }
   ];
 
@@ -325,7 +440,7 @@
   let panelBackButtonRef = $state<HTMLButtonElement | null>(null);
   let lastFocusedElement = $state<HTMLElement | null>(null);
   let a11yAnnouncement = $state('');
-  const popularRequests: QuickStartRequest[] = [
+  const defaultQuickStarts: QuickStartRequest[] = [
     { label: 'Bold Red', prompt: 'full-bodied red wine' },
     { label: 'Crisp White', prompt: 'crisp white wine' },
     { label: 'Date Night', prompt: 'wine for date night' },
@@ -333,6 +448,9 @@
     { label: 'Sparkling', prompt: 'sparkling wine for celebration' },
     { label: 'Surprise Me', prompt: 'surprise me' }
   ];
+  let popularRequests = $derived<QuickStartRequest[]>(
+    profileConfig?.quickStartSuggestions ?? defaultQuickStarts
+  );
 
   const menuRoutes: Record<string, string> = {
     'ai-disclosure': '/disclosures/ai-disclosure.html',
@@ -554,6 +672,12 @@
 
     // Apply theme
     theme.apply();
+
+    // Fetch profile config from backend
+    fetch(`${BASE_URL}/chat/config`)
+      .then(res => res.json())
+      .then((config: ProfileConfig) => { profileConfig = config; })
+      .catch(err => console.warn('[Widget] Failed to fetch profile config:', err));
 
     isInitialized = true;
 
@@ -818,59 +942,267 @@
       { id: 'white', label: 'White', value: 'white', icon: wineWhiteIcon },
       { id: 'rose', label: 'Rosé', value: 'rose', icon: wineRoseIcon },
       { id: 'sparkling', label: 'Sparkling', value: 'sparkling', icon: wineSparklingIcon },
-      { id: 'dessert', label: 'Dessert', value: 'dessert', icon: wineDessertIcon },
-      { id: 'surprise', label: 'Surprise Me', value: null, icon: wineSurpriseIcon }
+      { id: 'food-pairing', label: 'Food Pairing', value: 'food-pairing' }
     ]
   };
 
-  // Step 2: Occasion
-  const occasionStep = {
-    id: 'occasion',
-    title: 'What\'s the occasion?',
+  // Step 2a: Red Grape (multi-select)
+  const redGrapeStep = {
+    id: 'red_varietal',
+    title: 'What grape do you prefer?',
+    subtitle: '(Select up to 2)',
+    type: 'multi-select' as const,
+    maxSelections: 2,
+    required: true,
+    options: [
+      { id: 'cabernet-sauvignon', label: 'Cabernet Sauvignon', value: 'cabernet-sauvignon' },
+      { id: 'merlot', label: 'Merlot', value: 'merlot' },
+      { id: 'pinot-noir', label: 'Pinot Noir', value: 'pinot-noir' },
+      { id: 'syrah', label: 'Syrah / Shiraz', value: 'syrah' },
+      { id: 'malbec', label: 'Malbec', value: 'malbec' },
+      { id: 'zinfandel', label: 'Zinfandel', value: 'zinfandel' },
+      { id: 'red-blend', label: 'Red Blend', value: 'red-blend' },
+      { id: 'surprise-grape', label: 'Surprise Me', value: null, icon: wineSurpriseIcon }
+    ]
+  };
+
+  // Step 2b: White Grape (multi-select)
+  const whiteGrapeStep = {
+    id: 'white_varietal',
+    title: 'What grape do you prefer?',
+    subtitle: '(Select up to 2)',
+    type: 'multi-select' as const,
+    maxSelections: 2,
+    required: true,
+    options: [
+      { id: 'chardonnay', label: 'Chardonnay', value: 'chardonnay' },
+      { id: 'sauvignon-blanc', label: 'Sauvignon Blanc', value: 'sauvignon-blanc' },
+      { id: 'riesling', label: 'Riesling', value: 'riesling' },
+      { id: 'pinot-grigio', label: 'Pinot Grigio', value: 'pinot-grigio' },
+      { id: 'moscato', label: 'Moscato', value: 'moscato' },
+      { id: 'white-blend', label: 'White Blend', value: 'white-blend' },
+      { id: 'surprise-white-grape', label: 'Surprise Me', value: null, icon: wineSurpriseIcon }
+    ]
+  };
+
+  // Step 2c: Food Pairing (single-select)
+  const foodPairingStep = {
+    id: 'food_pairing',
+    title: 'What are you pairing with?',
     subtitle: '(Select one)',
     type: 'single-select' as const,
     required: true,
     options: [
-      { id: 'dinner-party', label: 'Dinner Party', value: 'dinner-party' },
-      { id: 'date-night', label: 'Date Night', value: 'date-night' },
-      { id: 'gift', label: 'Gift', value: 'gift' },
-      { id: 'casual', label: 'Casual', value: 'casual' },
-      { id: 'celebration', label: 'Celebration', value: 'celebration' },
-      { id: 'cooking', label: 'Cooking', value: 'cooking' },
-      { id: 'surprise-occasion', label: 'Surprise Me', value: null, icon: wineSurpriseIcon }
+      { id: 'steak', label: 'Steak & Red Meat', value: 'steak' },
+      { id: 'poultry', label: 'Poultry & Pork', value: 'poultry' },
+      { id: 'seafood', label: 'Seafood & Fish', value: 'seafood' },
+      { id: 'pasta', label: 'Pasta & Italian', value: 'pasta' },
+      { id: 'cheese', label: 'Cheese & Charcuterie', value: 'cheese' },
+      { id: 'salad', label: 'Salad & Vegetables', value: 'salad' },
+      { id: 'dessert-food', label: 'Chocolate & Desserts', value: 'chocolate' }
     ]
   };
 
-  // Step 3: Flavor Profile
-  const flavorStep = {
-    id: 'flavor_profile',
-    title: 'What flavors appeal to you?',
-    subtitle: '(Up to 2)',
+  interface FoodPairingPresetValue {
+    wine_type?: 'red' | 'white' | 'rose' | 'sparkling' | 'dessert';
+    wine_type_label?: string;
+    varietal?: string;
+    region?: string;
+    body?: 'light' | 'medium' | 'full';
+    body_label?: string;
+    sweetness?: 'dry' | 'off-dry' | 'sweet';
+    sweetness_label?: string;
+    flavor_profile?: string[];
+    flavor_labels?: string[];
+  }
+
+  function createFoodPairingPresetOption(
+    id: string,
+    label: string,
+    preset: FoodPairingPresetValue
+  ) {
+    return {
+      id,
+      label,
+      value: preset
+    };
+  }
+
+  function createFoodPairingStyleStep(
+    id: string,
+    title: string,
+    options: Array<{ id: string; label: string; value: FoodPairingPresetValue }>
+  ) {
+    return {
+      id,
+      title,
+      subtitle: '(Select one)',
+      type: 'single-select' as const,
+      required: true,
+      options
+    };
+  }
+
+  const seafoodPairingStyleStep = createFoodPairingStyleStep('seafood_pairing_style', 'What kind of seafood?', [
+    createFoodPairingPresetOption('seafood-shellfish', 'Shellfish / Oysters', {
+      wine_type: 'sparkling',
+      wine_type_label: 'Sparkling',
+      sweetness: 'dry',
+      sweetness_label: 'Dry',
+      flavor_profile: ['citrus', 'mineral'],
+      flavor_labels: ['Citrus & Mineral']
+    }),
+    createFoodPairingPresetOption('seafood-white-fish', 'Delicate White Fish', {
+      wine_type: 'white',
+      wine_type_label: 'White',
+      sweetness: 'dry',
+      sweetness_label: 'Dry',
+      flavor_profile: ['citrus', 'green-apple'],
+      flavor_labels: ['Citrus & Apple']
+    }),
+    createFoodPairingPresetOption('seafood-lobster', 'Lobster / Cream Sauce', {
+      wine_type: 'white',
+      wine_type_label: 'White',
+      sweetness: 'dry',
+      sweetness_label: 'Dry',
+      flavor_profile: ['vanilla', 'peach'],
+      flavor_labels: ['Butter & Oak', 'Stone Fruit']
+    }),
+    createFoodPairingPresetOption('seafood-salmon', 'Salmon / Tuna', {
+      wine_type: 'red',
+      wine_type_label: 'Red',
+      sweetness: 'dry',
+      sweetness_label: 'Dry',
+      flavor_profile: ['cherry', 'herbal'],
+      flavor_labels: ['Cherry', 'Herbal']
+    })
+  ]);
+
+  const poultryPairingStyleStep = createFoodPairingStyleStep('poultry_pairing_style', 'How is it prepared?', [
+    createFoodPairingPresetOption('poultry-light', 'Light / Herby', {
+      wine_type: 'white',
+      wine_type_label: 'White',
+      sweetness: 'dry',
+      sweetness_label: 'Dry',
+      flavor_profile: ['citrus', 'floral'],
+      flavor_labels: ['Citrus', 'Floral']
+    }),
+    createFoodPairingPresetOption('poultry-roasted', 'Roasted / Savory', {
+      wine_type: 'red',
+      wine_type_label: 'Red',
+      sweetness: 'dry',
+      sweetness_label: 'Dry',
+      flavor_profile: ['cherry', 'herbal'],
+      flavor_labels: ['Cherry', 'Herbal']
+    }),
+    createFoodPairingPresetOption('poultry-creamy', 'Creamy / Rich', {
+      wine_type: 'white',
+      wine_type_label: 'White',
+      sweetness: 'dry',
+      sweetness_label: 'Dry',
+      flavor_profile: ['vanilla', 'peach'],
+      flavor_labels: ['Butter & Oak', 'Stone Fruit']
+    }),
+    createFoodPairingPresetOption('poultry-spicy', 'Sweet / Spicy Glaze', {
+      wine_type: 'white',
+      wine_type_label: 'White',
+      sweetness: 'off-dry',
+      sweetness_label: 'Off-Dry',
+      flavor_profile: ['tropical', 'floral'],
+      flavor_labels: ['Tropical', 'Floral']
+    })
+  ]);
+
+  const pastaPairingStyleStep = createFoodPairingStyleStep('pasta_pairing_style', 'What kind of sauce?', [
+    createFoodPairingPresetOption('pasta-tomato', 'Tomato-Based', {
+      wine_type: 'red',
+      wine_type_label: 'Red',
+      sweetness: 'dry',
+      sweetness_label: 'Dry',
+      flavor_profile: ['cherry', 'herbal'],
+      flavor_labels: ['Cherry', 'Herbal']
+    }),
+    createFoodPairingPresetOption('pasta-cream', 'Cream-Based', {
+      wine_type: 'white',
+      wine_type_label: 'White',
+      sweetness: 'dry',
+      sweetness_label: 'Dry',
+      flavor_profile: ['vanilla', 'citrus'],
+      flavor_labels: ['Butter & Oak', 'Citrus']
+    }),
+    createFoodPairingPresetOption('pasta-pesto', 'Pesto / Herbal', {
+      wine_type: 'white',
+      wine_type_label: 'White',
+      sweetness: 'dry',
+      sweetness_label: 'Dry',
+      flavor_profile: ['citrus', 'herbal'],
+      flavor_labels: ['Citrus', 'Herbal']
+    }),
+    createFoodPairingPresetOption('pasta-meaty', 'Meaty / Rich', {
+      wine_type: 'red',
+      wine_type_label: 'Red',
+      sweetness: 'dry',
+      sweetness_label: 'Dry',
+      flavor_profile: ['berry', 'pepper'],
+      flavor_labels: ['Dark Fruit', 'Pepper & Spice']
+    })
+  ]);
+
+  const cheesePairingStyleStep = {
+    id: 'cheese_pairing_style',
+    title: 'What is on the board?',
+    subtitle: '(Select all that apply)',
     type: 'multi-select' as const,
-    maxSelections: 2,
-    gridColumns: 4,
-    customStyles: {
-      padding: '24px 10px',
-      fontSize: '13px'
-    },
     required: true,
     options: [
-      { id: 'berry-cherry', label: 'Berry & Cherry', value: 'berry', icon: flavorBerryIcon },
-      { id: 'citrus-apple', label: 'Citrus & Apple', value: 'citrus', icon: flavorCitrusIcon },
-      { id: 'tropical', label: 'Tropical', value: 'tropical', icon: flavorTropicalIcon },
-      { id: 'chocolate-coffee', label: 'Chocolate', value: 'chocolate', icon: flavorChocolateIcon },
-      { id: 'vanilla-caramel', label: 'Vanilla & Oak', value: 'vanilla', icon: flavorVanillaIcon },
-      { id: 'pepper-spice', label: 'Pepper & Spice', value: 'pepper', icon: flavorPepperIcon },
-      { id: 'floral-herbal', label: 'Floral & Herbal', value: 'floral', icon: flavorFloralIcon },
-      { id: 'earthy-mineral', label: 'Earthy', value: 'earthy', icon: flavorEarthyIcon }
+    createFoodPairingPresetOption('cheese-mixed', 'Mixed Board', {
+      wine_type: 'sparkling',
+      wine_type_label: 'Sparkling',
+      sweetness: 'dry',
+      sweetness_label: 'Dry',
+      flavor_profile: ['citrus', 'green-apple'],
+      flavor_labels: ['Crisp & Versatile']
+    }),
+    createFoodPairingPresetOption('cheese-soft', 'Fresh / Soft Cheese', {
+      wine_type: 'white',
+      wine_type_label: 'White',
+      sweetness: 'dry',
+      sweetness_label: 'Dry',
+      flavor_profile: ['citrus', 'floral'],
+      flavor_labels: ['Citrus', 'Floral']
+    }),
+    createFoodPairingPresetOption('cheese-aged', 'Aged / Salty Cheese', {
+      wine_type: 'sparkling',
+      wine_type_label: 'Sparkling',
+      sweetness: 'dry',
+      sweetness_label: 'Dry',
+      flavor_profile: ['citrus', 'green-apple'],
+      flavor_labels: ['Citrus & Green Apple']
+    }),
+    createFoodPairingPresetOption('cheese-charcuterie', 'Charcuterie / Cured Meats', {
+      wine_type: 'red',
+      wine_type_label: 'Red',
+      sweetness: 'dry',
+      sweetness_label: 'Dry',
+      flavor_profile: ['berry', 'pepper'],
+      flavor_labels: ['Dark Fruit', 'Pepper & Spice']
+    }),
+    createFoodPairingPresetOption('cheese-fruit', 'Fruit / Jam / Honey', {
+      wine_type: 'rose',
+      wine_type_label: 'Rosé',
+      sweetness: 'dry',
+      sweetness_label: 'Dry',
+      flavor_profile: ['berry', 'citrus'],
+      flavor_labels: ['Berry', 'Citrus']
+    })
     ]
   };
 
-  // Step 4: Body (slider)
+  // Body (slider)
   const bodyStep = {
     id: 'body',
-    title: 'How heavy should the wine feel?',
-    subtitle: '',
+    title: 'Body',
+    subtitle: 'How heavy should the wine feel?',
     type: 'slider' as const,
     required: true,
     options: [
@@ -880,7 +1212,155 @@
     ]
   };
 
-  // Step 5: Price
+  // Dryness (slider — defaults to Dry, position 0)
+  const drynessStep = {
+    id: 'sweetness',
+    title: 'Dry / Sweet',
+    subtitle: 'How dry or sweet do you prefer?',
+    type: 'slider' as const,
+    required: true,
+    defaultPosition: 0,
+    options: [
+      { id: 'dry', label: 'Dry', value: 'dry', description: 'No residual sugar' },
+      { id: 'off-dry', label: 'Off-Dry', value: 'off-dry', description: 'Slightly sweet' },
+      { id: 'sweet', label: 'Sweet', value: 'sweet', description: 'Noticeable sweetness' }
+    ]
+  };
+
+  const flavorStepBase = {
+    subtitle: '(Up to 2)',
+    type: 'multi-select' as const,
+    maxSelections: 2,
+    gridColumns: 3,
+    customStyles: {
+      padding: '24px 10px',
+      fontSize: '13px'
+    },
+    required: true
+  };
+
+  function createFlavorStep(
+    id: string,
+    title: string,
+    options: Array<{ id: string; label: string; value: string; icon?: string }>
+  ) {
+    return {
+      id,
+      title,
+      ...flavorStepBase,
+      options
+    };
+  }
+
+  const redFlavorStep = createFlavorStep('red_flavor_profile', 'Red Wine Flavors', [
+    { id: 'red-berry-cherry', label: 'Berry & Cherry', value: 'berry', icon: flavorBerryIcon },
+    { id: 'red-plum-blackberry', label: 'Plum & Blackberry', value: 'blackberry', icon: flavorBerryIcon },
+    { id: 'red-pepper-spice', label: 'Pepper & Spice', value: 'pepper', icon: flavorPepperIcon },
+    { id: 'red-chocolate-coffee', label: 'Chocolate & Coffee', value: 'chocolate', icon: flavorChocolateIcon },
+    { id: 'red-oak-vanilla', label: 'Oak & Vanilla', value: 'vanilla', icon: flavorVanillaIcon },
+    { id: 'red-earth-herb', label: 'Earth & Herbs', value: 'earthy', icon: flavorEarthyIcon }
+  ]);
+
+  const whiteFlavorStep = createFlavorStep('white_flavor_profile', 'White Wine Flavors', [
+    { id: 'white-citrus-apple', label: 'Citrus & Green Apple', value: 'citrus', icon: flavorCitrusIcon },
+    { id: 'white-stone-fruit', label: 'Stone Fruit', value: 'peach', icon: flavorTropicalIcon },
+    { id: 'white-tropical', label: 'Tropical Fruit', value: 'tropical', icon: flavorTropicalIcon },
+    { id: 'white-floral', label: 'Floral', value: 'floral', icon: flavorFloralIcon },
+    { id: 'white-mineral', label: 'Mineral & Crisp', value: 'mineral', icon: flavorEarthyIcon },
+    { id: 'white-butter-oak', label: 'Butter & Oak', value: 'vanilla', icon: flavorVanillaIcon }
+  ]);
+
+  const roseFlavorStep = createFlavorStep('rose_flavor_profile', 'Rosé Flavors', [
+    { id: 'rose-berry', label: 'Strawberry & Berry', value: 'berry', icon: flavorBerryIcon },
+    { id: 'rose-citrus-peach', label: 'Citrus & Peach', value: 'citrus', icon: flavorCitrusIcon },
+    { id: 'rose-floral', label: 'Floral', value: 'floral', icon: flavorFloralIcon },
+    { id: 'rose-herbal', label: 'Herbal & Savory', value: 'herbal', icon: flavorFloralIcon },
+    { id: 'rose-mineral', label: 'Mineral & Crisp', value: 'mineral', icon: flavorEarthyIcon },
+    { id: 'rose-spice', label: 'Pepper & Spice', value: 'pepper', icon: flavorPepperIcon }
+  ]);
+
+  const sparklingStyleStep = createFoodPairingStyleStep('sparkling_style', 'Sparkling Style', [
+    createFoodPairingPresetOption('sparkling-champagne', 'Champagne', {
+      wine_type: 'sparkling',
+      wine_type_label: 'Sparkling',
+      varietal: 'champagne-blend',
+      region: 'champagne',
+      flavor_profile: ['citrus', 'green-apple'],
+      flavor_labels: ['Citrus / Mineral']
+    }),
+    createFoodPairingPresetOption('sparkling-prosecco', 'Prosecco', {
+      wine_type: 'sparkling',
+      wine_type_label: 'Sparkling',
+      varietal: 'prosecco-blend',
+      flavor_profile: ['green-apple', 'tropical'],
+      flavor_labels: ['Apple / Pear', 'Soft Fruit & Floral']
+    }),
+    createFoodPairingPresetOption('sparkling-cava', 'Cava', {
+      wine_type: 'sparkling',
+      wine_type_label: 'Sparkling',
+      flavor_profile: ['citrus', 'mineral'],
+      flavor_labels: ['Citrus / Mineral']
+    }),
+    createFoodPairingPresetOption('sparkling-cremant', 'Cremant', {
+      wine_type: 'sparkling',
+      wine_type_label: 'Sparkling',
+      region: 'cremant',
+      flavor_profile: ['green-apple', 'mineral'],
+      flavor_labels: ['Apple / Pear', 'Citrus / Mineral']
+    }),
+    createFoodPairingPresetOption('sparkling-blanc-de-blancs', 'Blanc de Blancs', {
+      wine_type: 'sparkling',
+      wine_type_label: 'Sparkling',
+      varietal: 'chardonnay',
+      flavor_profile: ['citrus', 'green-apple'],
+      flavor_labels: ['Citrus / Mineral']
+    }),
+    createFoodPairingPresetOption('sparkling-rose', 'Rosé', {
+      wine_type: 'sparkling',
+      wine_type_label: 'Sparkling',
+      flavor_profile: ['berry', 'floral'],
+      flavor_labels: ['Berry / Rosé']
+    }),
+    createFoodPairingPresetOption('sparkling-moscato', 'Moscato', {
+      wine_type: 'sparkling',
+      wine_type_label: 'Sparkling',
+      varietal: 'moscato',
+      flavor_profile: ['tropical', 'floral'],
+      flavor_labels: ['Soft Fruit & Floral']
+    }),
+    createFoodPairingPresetOption('sparkling-surprise', 'Surprise Me', {
+      wine_type: 'sparkling',
+      wine_type_label: 'Sparkling',
+      flavor_profile: [],
+      flavor_labels: []
+    })
+  ]);
+
+  const sparklingFlavorStep = createFlavorStep('sparkling_flavor_profile', 'Sparkling Flavors', [
+    { id: 'sparkling-citrus-mineral', label: 'Citrus / Mineral', value: 'citrus', icon: flavorCitrusIcon },
+    { id: 'sparkling-apple-pear', label: 'Apple / Pear', value: 'green-apple', icon: flavorCitrusIcon },
+    { id: 'sparkling-soft-fruity', label: 'Soft Fruit & Floral', value: 'peach', icon: flavorTropicalIcon },
+    { id: 'sparkling-brioche-toast', label: 'Brioche / Toast', value: 'vanilla', icon: flavorVanillaIcon },
+    { id: 'sparkling-berry-rose', label: 'Berry / Rosé', value: 'berry', icon: flavorBerryIcon },
+    { id: 'sparkling-sweet-fruity', label: 'Sweet / Fruity', value: 'tropical', icon: flavorTropicalIcon }
+  ]);
+
+  function getFoodPairingStyleStep(foodPairing: string | null) {
+    switch (foodPairing) {
+      case 'seafood':
+        return seafoodPairingStyleStep;
+      case 'poultry':
+        return poultryPairingStyleStep;
+      case 'pasta':
+        return pastaPairingStyleStep;
+      case 'cheese':
+        return cheesePairingStyleStep;
+      default:
+        return null;
+    }
+  }
+
+  // Max Price
   const priceStep = {
     id: 'price',
     title: 'Max Price',
@@ -890,20 +1370,85 @@
     options: []
   };
 
-  // Single wine flow — no branching needed (unlike cannabis with edibles fork)
-  const wineFlowSteps = [
-    wineStyleStep,
-    occasionStep,
-    flavorStep,
-    bodyStep,
-    priceStep
-  ];
+  // Track guided flow selections for dynamic step branching
+  let guidedFlowWineType = $state<string | null>(null);
+  let guidedFlowFoodPairing = $state<string | null>(null);
 
-  // Wine flow — single path, no branching
-  const allGuidedFlowSteps = wineFlowSteps;
+  // Dynamic steps based on wine_type selection
+  let allGuidedFlowSteps = $derived.by(() => {
+    const steps = [wineStyleStep];
+
+    if (!guidedFlowWineType) {
+      return steps;
+    }
+
+    if (guidedFlowWineType === 'red') {
+      steps.push(redGrapeStep, bodyStep, drynessStep, redFlavorStep, priceStep);
+      return steps;
+    }
+
+    if (guidedFlowWineType === 'white') {
+      steps.push(whiteGrapeStep, bodyStep, drynessStep, whiteFlavorStep, priceStep);
+      return steps;
+    }
+
+    if (guidedFlowWineType === 'rose') {
+      steps.push(drynessStep, roseFlavorStep, priceStep);
+      return steps;
+    }
+
+    if (guidedFlowWineType === 'sparkling') {
+      steps.push(sparklingStyleStep, drynessStep, sparklingFlavorStep, priceStep);
+      return steps;
+    }
+
+    if (guidedFlowWineType === 'food-pairing') {
+      steps.push(foodPairingStep);
+
+      const foodPairingStyleStep = getFoodPairingStyleStep(guidedFlowFoodPairing);
+      if (foodPairingStyleStep) {
+        steps.push(foodPairingStyleStep);
+      }
+
+      steps.push(priceStep);
+      return steps;
+    }
+
+    return steps;
+  });
 
   function handleModeToggle() {
-    mode = mode === 'chat' ? 'guided-flow' : 'chat';
+    if (mode === 'chat') {
+      guidedFlowWineType = null; // Reset for fresh flow
+      guidedFlowFoodPairing = null;
+      mode = 'guided-flow';
+    } else {
+      mode = 'chat';
+    }
+  }
+
+  async function handleLeadSubmit(data: { email: string; name?: string }): Promise<boolean> {
+    try {
+      const res = await fetch(`${CHAT_BASE_URL}/lead`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: data.email,
+          name: data.name,
+          intentSignal: 'guided_flow_complete',
+          sessionId: analyticsSessionId,
+          sourcePage: window.location.pathname,
+        }),
+      });
+      if (res.ok) {
+        leadCaptured = true;
+        void sendAnalyticsEvent('lead_captured', { payload: { intentSignal: 'guided_flow_complete' } });
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
   }
 
   async function handleFlowComplete(selections: Record<string, any>, metadata?: import('../../Svelte-Component-Library/src/lib/custom/GuidedFlow/utils.js').TransformedMetadata) {
@@ -1004,6 +1549,7 @@
       // Replace shimmer with recommendations or friendly error message
       if (productRecommendations.length > 0) {
         // Removed productRegistry - stream has conversation history
+        recommendationCount++;
 
         const botMessage: Message = {
           role: "assistant",
@@ -1043,8 +1589,18 @@
     mode = 'chat';
   }
 
-  function handleSelectionChange(_selections: Record<string, any>) {
-    // No dynamic step branching needed for wine flow
+  function handleSelectionChange(selections: Record<string, any>) {
+    // Track wine_type for dynamic step branching
+    if ('wine_type' in selections) {
+      guidedFlowWineType = selections['wine_type'];
+      if (selections['wine_type'] !== 'food-pairing') {
+        guidedFlowFoodPairing = null;
+      }
+    }
+
+    if ('food_pairing' in selections) {
+      guidedFlowFoodPairing = selections['food_pairing'];
+    }
   }
 
   const guidedFlowConfig: GuidedFlowConfig = $derived({
@@ -1455,6 +2011,11 @@
     const userMsg = message || input.trim();
     if (!userMsg || loading) return;
 
+    // Check for club interest, gifting intent, and comparison requests
+    checkForClubInterest(userMsg);
+    checkForGiftingIntent(userMsg);
+    checkForComparison(userMsg);
+
     const analyticsContext = createAnalyticsContext();
     messages = [...messages, createMessage("user", userMsg, { analyticsMessageId: analyticsContext.message_id })];
     if (!message) {
@@ -1711,6 +2272,7 @@
         // Replace shimmer with recommendations or friendly error message
         if (productRecommendations.length > 0) {
           // Removed productRegistry - stream has conversation history
+          recommendationCount++;
 
           const botMessage: Message = {
             role: "assistant",
@@ -1821,6 +2383,7 @@
         <WelcomeQuickStart
           requests={popularRequests}
           {loading}
+          welcomeMessage={profileConfig?.welcomeMessage}
           onRequestSelect={handlePopularRequest}
         />
       {/if}
@@ -1852,6 +2415,46 @@
           />
         {/if}
       {/each}
+
+      {#if comparisonData}
+        <div style="padding: 0 12px;">
+          <WineComparisonCard
+            wine1={comparisonData.wine1}
+            wine2={comparisonData.wine2}
+          />
+        </div>
+      {/if}
+
+      {#if showGiftingCard && profileConfig?.giftingConfig}
+        <div style="padding: 0 12px;">
+          <CorporateGiftingCard
+            giftSets={profileConfig.giftingConfig.giftSets}
+            contactEmail={profileConfig.giftingConfig.contactEmail}
+            contactPhone={profileConfig.giftingConfig.contactPhone}
+          />
+        </div>
+      {/if}
+
+      {#if showWineClubCard && profileConfig?.wineClubConfig}
+        <div style="padding: 0 12px;">
+          <WineClubCard
+            clubName={profileConfig.wineClubConfig.name}
+            tiers={profileConfig.wineClubConfig.tiers}
+            benefits={profileConfig.wineClubConfig.benefits}
+            joinUrl={profileConfig.wineClubConfig.joinUrl}
+            contactEmail={profileConfig.wineClubConfig.contactEmail}
+          />
+        </div>
+      {/if}
+
+      {#if showLeadCapture}
+        <div style="padding: 0 12px;">
+          <LeadCaptureCard
+            profileType={profileConfig?.profileType}
+            onSubmit={handleLeadSubmit}
+          />
+        </div>
+      {/if}
     {:else}
       <div
         class="widget-panel"

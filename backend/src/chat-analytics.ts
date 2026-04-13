@@ -126,6 +126,24 @@ CREATE INDEX IF NOT EXISTS idx_chat_events_type
 
 CREATE INDEX IF NOT EXISTS idx_chat_events_occurred_at
   ON chat_events(occurred_at);
+
+CREATE TABLE IF NOT EXISTS chat_leads (
+  lead_id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  email TEXT NOT NULL,
+  name TEXT,
+  intent_signal TEXT,
+  profile_type TEXT,
+  taste_preferences_json TEXT,
+  source_page TEXT,
+  created_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_leads_email
+  ON chat_leads(email);
+
+CREATE INDEX IF NOT EXISTS idx_chat_leads_session_id
+  ON chat_leads(session_id);
 `;
 
 const schemaByDb = new WeakMap<D1Database, Promise<void>>();
@@ -1311,6 +1329,43 @@ export async function recordAnalyticsEvent(
 
     await markSequenceResolved(db, searchSequenceId, occurredAt, productId);
   }
+}
+
+export interface LeadCaptureInput {
+  sessionId: string;
+  email: string;
+  name?: string | null;
+  intentSignal: string;
+  profileType: string;
+  tastePreferences?: Record<string, any> | null;
+  sourcePage?: string | null;
+}
+
+export async function recordLeadCapture(
+  db: D1Database,
+  input: LeadCaptureInput
+): Promise<string> {
+  await ensureSchema(db);
+  const leadId = crypto.randomUUID();
+  const now = new Date().toISOString();
+  await db
+    .prepare(
+      `INSERT INTO chat_leads (lead_id, session_id, email, name, intent_signal, profile_type, taste_preferences_json, source_page, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(
+      leadId,
+      input.sessionId,
+      input.email,
+      input.name ?? null,
+      input.intentSignal,
+      input.profileType,
+      input.tastePreferences ? JSON.stringify(input.tastePreferences) : null,
+      input.sourcePage ?? null,
+      now
+    )
+    .run();
+  return leadId;
 }
 
 export function isAnalyticsEnabled(db?: D1Database | null): db is D1Database {

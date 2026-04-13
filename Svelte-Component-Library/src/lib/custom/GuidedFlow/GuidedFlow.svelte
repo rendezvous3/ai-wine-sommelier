@@ -58,9 +58,20 @@
     return true;
   }
 
+  // Clean up orphaned selections when steps change (e.g., switching wine type changes available steps)
+  $effect(() => {
+    const currentStepIds = new Set(config.steps.map(s => s.id));
+    const selectionKeys = Object.keys(state.selections);
+    for (const key of selectionKeys) {
+      if (!currentStepIds.has(key)) {
+        delete state.selections[key];
+      }
+    }
+  });
+
   function handleSelect(value: any) {
-    // For single-select, slider, and price-selector, store as single value; for multi-select, store as array
-    if (currentStep.type === 'single-select' || currentStep.type === 'slider' || currentStep.type === 'price-selector') {
+    // For single-select, slider, dual-slider, and price-selector, store as single value; for multi-select, store as array
+    if (currentStep.type === 'single-select' || currentStep.type === 'slider' || currentStep.type === 'dual-slider' || currentStep.type === 'price-selector') {
       state.selections[currentStep.id] = value;
     } else {
       // Multi-select: value is already an array from FlowStep

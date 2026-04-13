@@ -140,6 +140,13 @@
     onSelect(value);
   }
 
+  function handleDualSliderChange(sliderId: string, value: string) {
+    const current = (selectedValues.length > 0 && typeof selectedValues[0] === 'object' && selectedValues[0] !== null)
+      ? selectedValues[0] as Record<string, string>
+      : {};
+    onSelect({ ...current, [sliderId]: value });
+  }
+
   function handlePriceSelectorChange(value: { mode: 'no-max' | 'set-max'; max?: number }) {
     onSelect(value);
   }
@@ -154,11 +161,27 @@
   </div>
 
   {#if step.type === 'slider'}
-    <FlowSlider
-      value={selectedValues.length > 0 ? selectedValues[0] : null}
-      onValueChange={handleSliderChange}
-      options={step.options}
-    />
+    {#key step.id}
+      <FlowSlider
+        value={selectedValues.length > 0 ? selectedValues[0] : null}
+        onValueChange={handleSliderChange}
+        options={step.options}
+        defaultPosition={step.defaultPosition}
+      />
+    {/key}
+  {:else if step.type === 'dual-slider' && step.sliders}
+    <div class="flow-step__dual-slider">
+      {#each step.sliders as slider}
+        <div class="flow-step__dual-slider-section">
+          <div class="flow-step__dual-slider-label">{slider.label}</div>
+          <FlowSlider
+            value={selectedValues.length > 0 && typeof selectedValues[0] === 'object' && selectedValues[0] !== null ? (selectedValues[0] as Record<string, string>)[slider.id] ?? null : null}
+            onValueChange={(v) => handleDualSliderChange(slider.id, v)}
+            options={slider.options}
+          />
+        </div>
+      {/each}
+    </div>
   {:else if step.type === 'price-selector'}
     <PriceSelector
       value={selectedValues.length > 0 ? selectedValues[0] : null}
@@ -249,7 +272,31 @@
     gap: 6px;
   }
 
+  .flow-step__dual-slider {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .flow-step__dual-slider-section {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .flow-step__dual-slider-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    text-align: center;
+    margin-bottom: -8px;
+  }
+
   /* Dark mode */
+  :global(.dark) .flow-step__dual-slider-label,
+  :global([data-theme="dark"]) .flow-step__dual-slider-label {
+    color: #d1d5db;
+  }
+
   :global(.dark) .flow-step__title,
   :global([data-theme="dark"]) .flow-step__title {
     color: #cccccc;
@@ -275,4 +322,3 @@
     background: rgba(255, 255, 255, 0.4);
   }
 </style>
-

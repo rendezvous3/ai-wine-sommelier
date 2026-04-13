@@ -5,12 +5,14 @@
     value: string | null; // 'low', 'medium', 'high', or null
     onValueChange: (value: string) => void;
     options: Array<{ value: string; label: string; description?: string }>;
+    defaultPosition?: number; // Which position to auto-select (default: 1 = middle)
   }
 
   let {
     value,
     onValueChange,
-    options
+    options,
+    defaultPosition
   }: FlowSliderProps = $props();
 
   // Get themeBackgroundColor from context
@@ -19,9 +21,9 @@
 
   // Map value to slider position (0, 1, 2)
   function valueToPosition(val: string | null): number {
-    if (!val) return 1; // Default to medium
+    if (!val) return defaultPosition ?? 1;
     const index = options.findIndex(opt => opt.value === val);
-    return index >= 0 ? index : 1;
+    return index >= 0 ? index : (defaultPosition ?? 1);
   }
 
   // Map position to value
@@ -48,13 +50,13 @@
     }
   });
 
-  // Auto-select Medium (default) when value is null on mount
+  // Auto-select default position when value is null on mount
   let hasAutoSelected = $state(false);
   $effect(() => {
     if (!hasAutoSelected && value === null && options.length > 0) {
-      const defaultPosition = 1; // Medium (middle position)
-      const defaultValue = positionToValue(defaultPosition);
-      onValueChange(defaultValue);
+      const pos = defaultPosition ?? 1; // Default to middle if not specified
+      const defaultVal = positionToValue(pos);
+      onValueChange(defaultVal);
       hasAutoSelected = true;
     }
   });
@@ -237,4 +239,3 @@
     color: var(--slider-theme-color, #3b82f6);
   }
 </style>
-

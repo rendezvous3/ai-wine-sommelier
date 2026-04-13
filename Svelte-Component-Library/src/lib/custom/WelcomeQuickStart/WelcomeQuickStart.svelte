@@ -7,19 +7,24 @@
   interface WelcomeQuickStartProps {
     requests: QuickStartRequest[];
     loading?: boolean;
+    welcomeMessage?: string;
     onRequestSelect?: (request: QuickStartRequest) => void;
   }
 
   let {
     requests,
     loading = false,
+    welcomeMessage,
     onRequestSelect
   }: WelcomeQuickStartProps = $props();
+
+  const defaultWelcome = "Welcome, ask me anything about our wines! Unsure? Explore our Guided experience, button at the bottom left.";
+  let displayMessage = $derived(welcomeMessage || defaultWelcome);
 </script>
 
 <section class="welcome-quick-start">
   <div class="welcome-quick-start__welcome">
-    <ChatMessage variant="assistant" messageText="Welcome, ask me anything about our products! Unsure? Explore our Guided experience, button at the bottom left." />
+    <ChatMessage variant="assistant" messageText={displayMessage} />
   </div>
 
   <QuickStartPanel

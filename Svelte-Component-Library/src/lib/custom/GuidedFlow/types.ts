@@ -11,7 +11,13 @@ export interface FlowStep {
   id: string;
   title: string;
   subtitle?: string; // e.g., "(Select one)" or "(Up to 2)"
-  type: 'single-select' | 'multi-select' | 'slider' | 'price-selector';
+  type: 'single-select' | 'multi-select' | 'slider' | 'dual-slider' | 'price-selector';
+  defaultPosition?: number; // For slider: which position to auto-select (default: 1 = middle)
+  sliders?: Array<{
+    id: string;
+    label: string;
+    options: Array<{ value: string; label: string; description?: string }>;
+  }>;
   maxSelections?: number; // for multi-select
   options: FlowOption[];
   required?: boolean;

@@ -30,6 +30,7 @@ import {
   isAnalyticsEnabled,
   recordAnalyticsEvent,
   recordIntentAnalysis,
+  recordLeadCapture,
   recordProductLookupResult,
   recordRecommendationResults,
   recordStreamCompletion,
@@ -224,6 +225,78 @@ app.get('/', (c) => {
 });
 
 // ============================================
+// PROFILE CONFIG (public-safe subset for frontend)
+// ============================================
+
+app.get('/chat/config', (c) => {
+  const profile = getProfile(c.env.PROFILE_TYPE);
+  return c.json({
+    profileType: profile.profileType,
+    storeName: profile.storeName,
+    storeDescription: profile.storeDescription,
+    brandName: profile.brandName ?? null,
+    guidedFlowType: profile.guidedFlowType,
+    welcomeMessage: profile.welcomeMessage,
+    quickStartSuggestions: profile.quickStartSuggestions,
+    features: profile.features,
+    wineClubConfig: profile.wineClubConfig ?? null,
+    giftingConfig: profile.giftingConfig ?? null,
+    brandContent: profile.brandContent ? {
+      shippingPolicy: profile.brandContent.shippingPolicy,
+      returnPolicy: profile.brandContent.returnPolicy,
+      storeHours: profile.brandContent.storeHours,
+      dealerLocatorUrl: profile.brandContent.dealerLocatorUrl,
+      heritage: profile.brandContent.heritage,
+    } : null,
+  });
+});
+
+// ============================================
+// LEAD CAPTURE
+// ============================================
+
+app.post("/chat/lead", async (c) => {
+  const profile = getProfile(c.env.PROFILE_TYPE);
+
+  try {
+    const body = await c.req.json();
+    const { email, name, intentSignal, sessionId, sourcePage, tastePreferences } = body;
+
+    if (!email || typeof email !== 'string') {
+      return c.json({ error: 'Email is required' }, 400);
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return c.json({ error: 'Invalid email format' }, 400);
+    }
+
+    if (!isAnalyticsEnabled(c.env.ANALYTICS_DB)) {
+      devLog(c.env, '[Lead Capture] ANALYTICS_DB not configured, skipping DB write');
+      return c.json({ ok: true, leadId: null, message: 'Lead capture not configured' });
+    }
+
+    const leadId = await recordLeadCapture(c.env.ANALYTICS_DB, {
+      sessionId: sessionId || 'unknown',
+      email,
+      name: name || null,
+      intentSignal: intentSignal || 'general',
+      profileType: profile.profileType,
+      tastePreferences: tastePreferences || null,
+      sourcePage: sourcePage || null,
+    });
+
+    devLog(c.env, `[Lead Capture] Lead captured: ${leadId} (${email})`);
+
+    return c.json({ ok: true, leadId });
+  } catch (error: any) {
+    console.error('[Lead Capture] Error:', error.message);
+    return c.json({ error: 'Failed to capture lead' }, 500);
+  }
+});
+
+// ============================================
 // FEEDBACK
 // ============================================
 
@@ -347,6 +420,47 @@ app.post("/feedback", async (c) => {
   } catch (err) {
     console.error("[Feedback] Unexpected error:", err);
     return c.json({ ok: false, error: "internal_error", message: "Unexpected error while sending feedback." }, 500);
+  }
+});
+
+// ============================================
+// WINE COMPARISON
+// ============================================
+
+app.post("/chat/compare", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { wine1, wine2 } = body;
+
+    if (!wine1 || !wine2) {
+      return c.json({ error: 'Two wine names are required' }, 400);
+    }
+
+    const [results1, results2] = await Promise.all([
+      lookupWineByName(c.env.WINE_DB, wine1, 1),
+      lookupWineByName(c.env.WINE_DB, wine2, 1),
+    ]);
+
+    if (results1.length === 0 || results2.length === 0) {
+      return c.json({
+        error: 'comparison_incomplete',
+        found: {
+          wine1: results1.length > 0 ? results1[0] : null,
+          wine2: results2.length > 0 ? results2[0] : null,
+        },
+        message: `Could not find ${results1.length === 0 ? wine1 : wine2} in our catalog.`,
+      });
+    }
+
+    return c.json({
+      comparison: {
+        wine1: results1[0],
+        wine2: results2[0],
+      },
+    });
+  } catch (error: any) {
+    console.error('[Compare] Error:', error.message);
+    return c.json({ error: 'Failed to compare wines' }, 500);
   }
 });
 
