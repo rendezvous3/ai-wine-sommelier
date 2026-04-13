@@ -164,7 +164,7 @@
     </div>
   {/if}
 
-  {#if mode === 'guided-flow' && guidedFlowConfig}
+  {#if mode === 'guided-flow' && guidedFlowConfig && !panelOpen}
     <div class="chat-window__guided-flow">
       <GuidedFlow config={guidedFlowConfig} />
     </div>

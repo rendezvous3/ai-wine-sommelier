@@ -8,6 +8,7 @@
   import WineClubCard from "../../Svelte-Component-Library/src/lib/custom/WineClubCard/WineClubCard.svelte";
   import WineComparisonCard from "../../Svelte-Component-Library/src/lib/custom/WineComparisonCard/WineComparisonCard.svelte";
   import CorporateGiftingCard from "../../Svelte-Component-Library/src/lib/custom/CorporateGiftingCard/CorporateGiftingCard.svelte";
+  import EducationPanel from "./components/EducationPanel.svelte";
   import type { QuickStartRequest } from "../../Svelte-Component-Library/src/lib/custom/QuickStartPanel/QuickStartPanel.svelte";
   import type { GuidedFlowConfig } from "../../Svelte-Component-Library/src/lib/custom/GuidedFlow/types.js";
   import type { WidgetPosition } from "./embed-config";
@@ -19,6 +20,7 @@
     subscribeToWidgetCommands
   } from "./embed-bridge";
   import { theme } from "./theme.svelte.js";
+  import { WINE_EDUCATION_PANELS } from "./wine-education";
 
   import chatIcon from "./icons/assistant/chat.png";
 
@@ -39,6 +41,11 @@
   const flavorPepperIcon = '<svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="14" fill="#B22222"/></svg>';
   const flavorFloralIcon = '<svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="14" fill="#DDA0DD"/></svg>';
   const flavorEarthyIcon = '<svg width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="14" fill="#8B7355"/></svg>';
+  const wineBasicsMenuIcon = '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5 4.75H15M5 8.5H15M5 12.25H11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="3.25" y="2.75" width="13.5" height="14.5" rx="2.25" stroke="currentColor" stroke-width="1.5"/></svg>';
+  const sparklingGuideMenuIcon = '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 3.5V7.5M8 7.5H12M9 7.5V15.25M6.5 15.25H11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="13.75" cy="5.25" r="1" fill="currentColor"/><circle cx="15.5" cy="8" r="1" fill="currentColor" opacity="0.75"/><circle cx="13" cy="9.5" r="0.85" fill="currentColor" opacity="0.65"/></svg>';
+  const foodPairingMenuIcon = '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.5 3.5V10.5M7.5 3.5V10.5M5.5 7.25H7.5M6.5 10.5V16.5M12.5 3.5V8.25C12.5 9.49264 13.5074 10.5 14.75 10.5V16.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  const servingTipsMenuIcon = '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10 4.25V11.25M10 11.25C8.48122 11.25 7.25 12.4812 7.25 14C7.25 15.5188 8.48122 16.75 10 16.75C11.5188 16.75 12.75 15.5188 12.75 14C12.75 12.4812 11.5188 11.25 10 11.25Z" stroke="currentColor" stroke-width="1.5"/><path d="M10 4.25C11.3807 4.25 12.5 3.13071 12.5 1.75V1.25H7.5V1.75C7.5 3.13071 8.61929 4.25 10 4.25Z" stroke="currentColor" stroke-width="1.5"/></svg>';
+  const glossaryMenuIcon = '<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="3.25" y="3.25" width="13.5" height="13.5" rx="2.25" stroke="currentColor" stroke-width="1.5"/><path d="M6.5 7H13.5M6.5 10H13.5M6.5 13H10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
 
   interface WidgetProps {
     store?: string;
@@ -409,23 +416,33 @@
 
   // Removed fuzzyFindProduct - stream has conversation history and handles all product matching
 
-  // Sidebar links for disclosures and feedback pages
-  const medicalDisclosureIcon = `<svg width="18" height="18" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/>
-    <path d="M10 6V14M6 10H14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-  </svg>`;
+  // Sidebar menu items for education, disclosure, and feedback
+  const guideMenuPanels = {
+    'guide-wine-basics': WINE_EDUCATION_PANELS['wine-basics'],
+    'guide-sparkling-guide': WINE_EDUCATION_PANELS['sparkling-guide'],
+    'guide-food-pairing': WINE_EDUCATION_PANELS['food-pairing'],
+    'guide-serving-tips': WINE_EDUCATION_PANELS['serving-tips'],
+    'guide-glossary': WINE_EDUCATION_PANELS['glossary']
+  } as const;
 
+  type GuideMenuPanelId = keyof typeof guideMenuPanels;
 
   const menuItems = [
     { id: 'ai-disclosure', label: 'AI Disclosure', icon: 'about', iconType: 'svg' as const },
-    { id: 'medical-disclosure', label: 'Medical Disclosure', icon: medicalDisclosureIcon, iconType: 'svg' as const },
-    { id: 'feedback', label: 'Send Feedback', icon: 'feedback', iconType: 'svg' as const }
+    { id: 'feedback', label: 'Send Feedback', icon: 'feedback', iconType: 'svg' as const },
+    { id: 'menu-section-guides', label: 'Guides', type: 'section' as const },
+    { id: 'guide-wine-basics', label: 'Wine Basics', icon: wineBasicsMenuIcon, iconType: 'svg' as const },
+    { id: 'guide-sparkling-guide', label: 'Sparkling Guide', icon: sparklingGuideMenuIcon, iconType: 'svg' as const },
+    { id: 'guide-food-pairing', label: 'Food Pairing', icon: foodPairingMenuIcon, iconType: 'svg' as const },
+    { id: 'guide-serving-tips', label: 'Serving Tips', icon: servingTipsMenuIcon, iconType: 'svg' as const },
+    { id: 'guide-glossary', label: 'Glossary', icon: glossaryMenuIcon, iconType: 'svg' as const }
   ];
 
   type PanelId =
+    | GuideMenuPanelId
     | 'ai-disclosure'
-    | 'medical-disclosure'
     | 'feedback';
+  type ExternalPanelId = 'ai-disclosure' | 'feedback';
   let activePanel = $state<PanelId | null>(null);
   let feedbackName = $state('');
   let feedbackEmail = $state('');
@@ -452,13 +469,23 @@
     profileConfig?.quickStartSuggestions ?? defaultQuickStarts
   );
 
-  const menuRoutes: Record<string, string> = {
+  const menuRoutes: Record<ExternalPanelId, string> = {
     'ai-disclosure': '/disclosures/ai-disclosure.html',
-    'medical-disclosure': '/disclosures/medical-disclosure.html',
     feedback: '/support/feedback.html',
   };
 
-  // Guide data removed — cannabis terpene/cannabinoid guides not applicable to wine POC
+  function isGuidePanelId(panelId: string | null | undefined): panelId is GuideMenuPanelId {
+    return !!panelId && panelId in guideMenuPanels;
+  }
+
+  function isPanelId(panelId: string): panelId is PanelId {
+    return panelId === 'ai-disclosure' || panelId === 'feedback' || isGuidePanelId(panelId);
+  }
+
+  let activeGuidePanel = $derived.by(() => {
+    if (!activePanel || !isGuidePanelId(activePanel)) return null;
+    return guideMenuPanels[activePanel];
+  });
 
   function getWidgetShadowRoot(): ShadowRoot | null {
     return document.getElementById(WIDGET_ROOT_ID)?.shadowRoot ?? null;
@@ -525,26 +552,22 @@
 
   function handleMenuItemClick(itemId: string) {
     if (itemId === 'menu-section-guides') return;
-    if (
-      itemId === 'ai-disclosure' ||
-      itemId === 'medical-disclosure' ||
-      itemId === 'feedback'
-    ) {
-      if (document.activeElement instanceof HTMLElement) {
-        lastFocusedElement = document.activeElement;
-      }
-      activePanel = itemId;
-      a11yAnnouncement = `${menuItems.find((item) => item.id === itemId)?.label ?? 'Panel'} opened.`;
-      requestAnimationFrame(() => {
-        const shadowRoot = getWidgetShadowRoot();
-        const container = shadowRoot?.querySelector('.chat-window__messages') as HTMLElement | null;
-        if (container) container.scrollTop = 0;
-        panelBackButtonRef?.focus();
-      });
+    if (!isPanelId(itemId)) return;
+
+    if (document.activeElement instanceof HTMLElement) {
+      lastFocusedElement = document.activeElement;
     }
+    activePanel = itemId;
+    a11yAnnouncement = `${menuItems.find((item) => item.id === itemId)?.label ?? 'Panel'} opened.`;
+    requestAnimationFrame(() => {
+      const shadowRoot = getWidgetShadowRoot();
+      const container = shadowRoot?.querySelector('.chat-window__messages') as HTMLElement | null;
+      if (container) container.scrollTop = 0;
+      panelBackButtonRef?.focus();
+    });
   }
 
-  function openExternalPanelPage(panelId: PanelId) {
+  function openExternalPanelPage(panelId: ExternalPanelId) {
     const path = menuRoutes[panelId];
     if (!path) return;
     const url = new URL(path, window.location.origin);
@@ -1052,7 +1075,7 @@
       flavor_profile: ['citrus', 'mineral'],
       flavor_labels: ['Citrus & Mineral']
     }),
-    createFoodPairingPresetOption('seafood-white-fish', 'Delicate White Fish', {
+    createFoodPairingPresetOption('seafood-white-fish', 'Mild White Fish', {
       wine_type: 'white',
       wine_type_label: 'White',
       sweetness: 'dry',
@@ -1227,6 +1250,13 @@
     ]
   };
 
+  const sparklingMoscatoDrynessStep = {
+    ...drynessStep,
+    id: 'sparkling_moscato_sweetness',
+    options: drynessStep.options.filter((option) => option.value !== 'dry'),
+    defaultPosition: 0
+  };
+
   const flavorStepBase = {
     subtitle: '(Up to 2)',
     type: 'multi-select' as const,
@@ -1373,6 +1403,7 @@
   // Track guided flow selections for dynamic step branching
   let guidedFlowWineType = $state<string | null>(null);
   let guidedFlowFoodPairing = $state<string | null>(null);
+  let guidedFlowSparklingVarietal = $state<string | null>(null);
 
   // Dynamic steps based on wine_type selection
   let allGuidedFlowSteps = $derived.by(() => {
@@ -1398,7 +1429,10 @@
     }
 
     if (guidedFlowWineType === 'sparkling') {
-      steps.push(sparklingStyleStep, drynessStep, sparklingFlavorStep, priceStep);
+      const sparklingSweetnessStep =
+        guidedFlowSparklingVarietal === 'moscato' ? sparklingMoscatoDrynessStep : drynessStep;
+
+      steps.push(sparklingStyleStep, sparklingSweetnessStep, sparklingFlavorStep, priceStep);
       return steps;
     }
 
@@ -1596,10 +1630,21 @@
       if (selections['wine_type'] !== 'food-pairing') {
         guidedFlowFoodPairing = null;
       }
+      if (selections['wine_type'] !== 'sparkling') {
+        guidedFlowSparklingVarietal = null;
+      }
     }
 
     if ('food_pairing' in selections) {
       guidedFlowFoodPairing = selections['food_pairing'];
+    }
+
+    if ('sparkling_style' in selections) {
+      const sparklingStyle = selections['sparkling_style'];
+      guidedFlowSparklingVarietal =
+        sparklingStyle && typeof sparklingStyle === 'object' && 'varietal' in sparklingStyle
+          ? sparklingStyle.varietal ?? null
+          : null;
     }
   }
 
@@ -2459,7 +2504,7 @@
       <div
         class="widget-panel"
         class:widget-panel--feedback={activePanel === 'feedback'}
-        class:widget-panel--scrollable={false}
+        class:widget-panel--scrollable={activePanel !== 'feedback'}
         role="dialog"
         aria-modal="true"
         aria-labelledby={activePanel ? `widget-panel-title-${activePanel}` : undefined}
@@ -2474,33 +2519,27 @@
           </button>
         </div>
 
-        {#if activePanel === 'ai-disclosure'}
+        {#if activeGuidePanel}
           <div class="widget-panel__title-row">
-            <h3 id="widget-panel-title-ai-disclosure">AI Assistant Disclosure</h3>
-            <button type="button" class="widget-panel__external-link" onclick={() => openExternalPanelPage(activePanel)}>Full Page</button>
+            <h3 id={`widget-panel-title-${activeGuidePanel.id}`}>{activeGuidePanel.title}</h3>
           </div>
-          <p>This assistant is experimental. Responses are generated automatically and may be incomplete, inaccurate, or outdated.</p>
-          <ul>
-            <li>Use guidance as informational, not guaranteed advice.</li>
-            <li>Verify key product details with in-store staff before purchase.</li>
-            <li>This assistant does not provide medical diagnosis or treatment advice.</li>
-          </ul>
-          <p class="widget-panel__note">For urgent health concerns, contact a licensed medical professional or call 911.</p>
-        {:else if activePanel === 'medical-disclosure'}
+          <EducationPanel panel={activeGuidePanel} />
+        {:else if activePanel === 'ai-disclosure'}
           <div class="widget-panel__title-row">
-            <h3 id="widget-panel-title-medical-disclosure">Medical and Recreational Disclosure</h3>
-            <button type="button" class="widget-panel__external-link" onclick={() => openExternalPanelPage(activePanel)}>Full Page</button>
+            <h3 id="widget-panel-title-ai-disclosure">AI Disclosure</h3>
+            <button type="button" class="widget-panel__external-link" onclick={() => openExternalPanelPage('ai-disclosure')}>Full Page</button>
           </div>
-          <p>This is a wine recommendation assistant. Content is for retail and educational purposes only.</p>
+          <p>This assistant helps guide wine discovery and education using the catalog data and business context available in this experience.</p>
           <ul>
-            <li>Please drink responsibly. You must be of legal drinking age.</li>
-            <li>Wine recommendations are based on product metadata and may not reflect personal taste.</li>
-            <li>Do not drive or operate machinery while impaired.</li>
+            <li>Recommendations are based on available catalog data and configured business context.</li>
+            <li>Responses are informational and should not be treated as professional medical or legal advice.</li>
+            <li>Inventory, vintages, pricing, and availability may change.</li>
           </ul>
+          <p class="widget-panel__note">Please verify time-sensitive details before purchase.</p>
         {:else if activePanel === 'feedback'}
           <div class="widget-panel__title-row">
             <h3 id="widget-panel-title-feedback">Send Feedback</h3>
-            <button type="button" class="widget-panel__external-link" onclick={() => openExternalPanelPage(activePanel)}>Full Page</button>
+            <button type="button" class="widget-panel__external-link" onclick={() => openExternalPanelPage('feedback')}>Full Page</button>
           </div>
           <p>Share bugs, safety concerns, or recommendation quality issues.</p>
 

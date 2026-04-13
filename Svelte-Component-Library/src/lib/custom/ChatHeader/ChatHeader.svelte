@@ -52,6 +52,7 @@
       'chat-header',
       `chat-header--${style}`,
       `chat-header--${height}`,
+      menuOpen && 'chat-header--menu-open',
       darkMode && 'chat-header--dark'
     ]
       .filter(Boolean)
@@ -454,6 +455,10 @@
     line-height: 0;
     overflow: visible;
     z-index: 10;
+  }
+
+  .chat-header--menu-open {
+    z-index: 200;
   }
 
   /* Height variants */

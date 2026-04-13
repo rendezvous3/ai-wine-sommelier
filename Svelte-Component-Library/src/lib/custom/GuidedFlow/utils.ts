@@ -206,10 +206,10 @@ export function transformSelectionsToMetadata(
           metadata[stepId] = option.label;
           queryParts.push(`${option.label}-bodied`);
         }
-      } else if (stepId === 'sweetness') {
+      } else if (stepId === 'sweetness' || stepId === 'sparkling_moscato_sweetness') {
         if (option) {
           filters['sweetness'] = option.value;
-          metadata[stepId] = option.label;
+          metadata['sweetness'] = option.label;
           queryParts.push(option.value === 'dry' ? 'dry' : option.label.toLowerCase());
         }
       } else if (stepId === 'price') {
