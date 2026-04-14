@@ -18,11 +18,11 @@ export const merchantAdvisorProfile: DeploymentProfile = {
   guidedFlowType: 'merchant',
   welcomeMessage: "Welcome to The Wine Shop. I'm your sommelier — tell me what you're looking for and I'll find the perfect bottle from our selection.",
   quickStartSuggestions: [
-    { label: 'Bold Red', prompt: 'full-bodied red wine' },
-    { label: 'Crisp White', prompt: 'crisp white wine' },
-    { label: 'Date Night', prompt: 'wine for date night' },
-    { label: 'Under $25', prompt: 'good wine under $25' },
-    { label: 'Compare Wines', prompt: 'compare two cabernets' },
+    { label: 'Big Red for Steak', prompt: 'big red with steak' },
+    { label: 'Crisp White for Seafood', prompt: 'crisp white for seafood' },
+    { label: 'Rosé for Charcuterie', prompt: 'rosé for charcuterie' },
+    { label: 'Celebration Bubbles', prompt: 'celebration bubbles' },
+    { label: 'Sweet Wine for Dessert', prompt: 'sweet wine for dessert' },
     { label: 'Surprise Me', prompt: 'surprise me' },
   ],
   features: {

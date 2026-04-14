@@ -11,6 +11,7 @@ interface GuidedPreset {
   wine_type_label?: string;
   varietal?: string;
   region?: string;
+  style_tags?: string[];
   body?: string;
   body_label?: string;
   sweetness?: string;
@@ -85,6 +86,10 @@ function applyPreset(
     filters['region'] = preset.region;
   }
 
+  if (preset.style_tags && preset.style_tags.length > 0) {
+    filters['style_tags'] = preset.style_tags;
+  }
+
   if (preset.body) {
     filters['body'] = preset.body;
     metadata['body'] = preset.body_label ?? preset.body;
@@ -130,6 +135,11 @@ function mergePresetList(
   const sharedRegions = [...new Set(presets.map(preset => preset.region).filter(Boolean))];
   if (sharedRegions.length === 1) {
     filters['region'] = sharedRegions[0];
+  }
+
+  const mergedStyleTags = [...new Set(presets.flatMap(preset => preset.style_tags ?? []))];
+  if (mergedStyleTags.length > 0) {
+    filters['style_tags'] = mergedStyleTags;
   }
 
   const mergedFlavorProfile = [...new Set(presets.flatMap(preset => preset.flavor_profile ?? []))];
@@ -199,6 +209,9 @@ export function transformSelectionsToMetadata(
         if (option && option.value && typeof option.value === 'object') {
           metadata[stepId] = option.label;
           applyPreset(option.value as GuidedPreset, filters, metadata);
+          if (stepId === 'sparkling_style' && option.label !== 'Surprise Me') {
+            queryParts.push(option.label);
+          }
         }
       } else if (stepId === 'body') {
         if (option) {
@@ -349,6 +362,10 @@ export function transformSelectionsToMetadata(
       const lastFlavor = flavorsCopy.pop();
       query += ` with ${flavorsCopy.join(', ')} and ${lastFlavor} flavors`;
     }
+  }
+
+  if (metadata['sparkling_style'] && metadata['sparkling_style'] !== 'Surprise Me') {
+    query += `, ${String(metadata['sparkling_style']).toLowerCase()}`;
   }
 
   // Add food pairing

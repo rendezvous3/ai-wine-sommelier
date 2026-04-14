@@ -4,10 +4,10 @@
   import ChatMessage from "../../Svelte-Component-Library/src/lib/custom/ChatMessage/ChatMessage.svelte";
   import ShimmerText from "../../Svelte-Component-Library/src/lib/custom/ShimmerText/ShimmerText.svelte";
   import WelcomeQuickStart from "../../Svelte-Component-Library/src/lib/custom/WelcomeQuickStart/WelcomeQuickStart.svelte";
-  import LeadCaptureCard from "../../Svelte-Component-Library/src/lib/custom/LeadCaptureCard/LeadCaptureCard.svelte";
   import WineClubCard from "../../Svelte-Component-Library/src/lib/custom/WineClubCard/WineClubCard.svelte";
   import WineComparisonCard from "../../Svelte-Component-Library/src/lib/custom/WineComparisonCard/WineComparisonCard.svelte";
   import CorporateGiftingCard from "../../Svelte-Component-Library/src/lib/custom/CorporateGiftingCard/CorporateGiftingCard.svelte";
+  import TranscriptShareCard from "../../Svelte-Component-Library/src/lib/custom/TranscriptShareCard/TranscriptShareCard.svelte";
   import EducationPanel from "./components/EducationPanel.svelte";
   import type { QuickStartRequest } from "../../Svelte-Component-Library/src/lib/custom/QuickStartPanel/QuickStartPanel.svelte";
   import type { GuidedFlowConfig } from "../../Svelte-Component-Library/src/lib/custom/GuidedFlow/types.js";
@@ -156,6 +156,12 @@
     store_id: string;
   }
 
+  interface CatalogFacets {
+    wineTypes: string[];
+    varietalsByWineType: Record<string, string[]>;
+    styleTagsByWineType: Record<string, string[]>;
+  }
+
   // Profile config from backend
   interface ProfileConfig {
     profileType: 'brand_concierge' | 'merchant_advisor';
@@ -165,6 +171,7 @@
     guidedFlowType: 'brand' | 'merchant';
     welcomeMessage: string;
     quickStartSuggestions: Array<{ label: string; prompt: string }>;
+    catalogFacets: CatalogFacets | null;
     features: {
       wineClub: boolean;
       corporateGifting: boolean;
@@ -199,12 +206,9 @@
   let loading = $state(false);
   let analyticsSessionId = $state<string | null>(null);
   let profileConfig = $state<ProfileConfig | null>(null);
-  let leadCaptured = $state(false);
-  let recommendationCount = $state(0);
-  let showLeadCapture = $derived(
+  let showTranscriptShare = $derived(
     profileConfig?.features.leadCapture &&
-    !leadCaptured &&
-    recommendationCount > 0
+    messages.some((message) => (message.recommendations?.length ?? 0) > 0)
   );
   let showWineClubCard = $state(false);
   let comparisonData = $state<{ wine1: ComparisonWine; wine2: ComparisonWine } | null>(null);
@@ -458,11 +462,11 @@
   let lastFocusedElement = $state<HTMLElement | null>(null);
   let a11yAnnouncement = $state('');
   const defaultQuickStarts: QuickStartRequest[] = [
-    { label: 'Bold Red', prompt: 'full-bodied red wine' },
-    { label: 'Crisp White', prompt: 'crisp white wine' },
-    { label: 'Date Night', prompt: 'wine for date night' },
-    { label: 'Under $25', prompt: 'good wine under $25' },
-    { label: 'Sparkling', prompt: 'sparkling wine for celebration' },
+    { label: 'Big Red for Steak', prompt: 'big red with steak' },
+    { label: 'Crisp White for Seafood', prompt: 'crisp white for seafood' },
+    { label: 'Rosé for Charcuterie', prompt: 'rosé for charcuterie' },
+    { label: 'Celebration Bubbles', prompt: 'celebration bubbles' },
+    { label: 'Sweet Wine for Dessert', prompt: 'sweet wine for dessert' },
     { label: 'Surprise Me', prompt: 'surprise me' }
   ];
   let popularRequests = $derived<QuickStartRequest[]>(
@@ -969,6 +973,45 @@
     ]
   };
 
+  const surpriseRedGrapeOption = { id: 'surprise-grape', label: 'Surprise Me', value: null, icon: wineSurpriseIcon };
+  const surpriseWhiteGrapeOption = { id: 'surprise-white-grape', label: 'Surprise Me', value: null, icon: wineSurpriseIcon };
+
+  const baseRedGrapeOptions = [
+    { id: 'cabernet-sauvignon', label: 'Cabernet Sauvignon', value: 'cabernet-sauvignon' },
+    { id: 'merlot', label: 'Merlot', value: 'merlot' },
+    { id: 'pinot-noir', label: 'Pinot Noir', value: 'pinot-noir' },
+    { id: 'syrah', label: 'Syrah / Shiraz', value: 'syrah' },
+    { id: 'malbec', label: 'Malbec', value: 'malbec' },
+    { id: 'zinfandel', label: 'Zinfandel', value: 'zinfandel' },
+    { id: 'red-blend', label: 'Red Blend', value: 'red-blend' }
+  ];
+
+  const merchantRedGrapeOptions = [
+    { id: 'cabernet-franc', label: 'Cabernet Franc', value: 'cabernet-franc' },
+    { id: 'grenache', label: 'Grenache', value: 'grenache' },
+    { id: 'sangiovese', label: 'Sangiovese', value: 'sangiovese' },
+    { id: 'tempranillo', label: 'Tempranillo', value: 'tempranillo' },
+    { id: 'petite-sirah', label: 'Petite Sirah', value: 'petite-sirah' },
+    { id: 'nebbiolo', label: 'Nebbiolo', value: 'nebbiolo' }
+  ];
+
+  const baseWhiteGrapeOptions = [
+    { id: 'chardonnay', label: 'Chardonnay', value: 'chardonnay' },
+    { id: 'sauvignon-blanc', label: 'Sauvignon Blanc', value: 'sauvignon-blanc' },
+    { id: 'riesling', label: 'Riesling', value: 'riesling' },
+    { id: 'pinot-grigio', label: 'Pinot Grigio', value: 'pinot-grigio' },
+    { id: 'moscato', label: 'Moscato', value: 'moscato' },
+    { id: 'white-blend', label: 'White Blend', value: 'white-blend' }
+  ];
+
+  const merchantWhiteGrapeOptions = [
+    { id: 'chenin-blanc', label: 'Chenin Blanc', value: 'chenin-blanc' },
+    { id: 'viognier', label: 'Viognier', value: 'viognier' },
+    { id: 'albarino', label: 'Albarino', value: 'albarino' },
+    { id: 'semillon', label: 'Semillon', value: 'semillon' },
+    { id: 'gewurztraminer', label: 'Gewurztraminer', value: 'gewurztraminer' }
+  ];
+
   // Step 2a: Red Grape (multi-select)
   const redGrapeStep = {
     id: 'red_varietal',
@@ -977,16 +1020,7 @@
     type: 'multi-select' as const,
     maxSelections: 2,
     required: true,
-    options: [
-      { id: 'cabernet-sauvignon', label: 'Cabernet Sauvignon', value: 'cabernet-sauvignon' },
-      { id: 'merlot', label: 'Merlot', value: 'merlot' },
-      { id: 'pinot-noir', label: 'Pinot Noir', value: 'pinot-noir' },
-      { id: 'syrah', label: 'Syrah / Shiraz', value: 'syrah' },
-      { id: 'malbec', label: 'Malbec', value: 'malbec' },
-      { id: 'zinfandel', label: 'Zinfandel', value: 'zinfandel' },
-      { id: 'red-blend', label: 'Red Blend', value: 'red-blend' },
-      { id: 'surprise-grape', label: 'Surprise Me', value: null, icon: wineSurpriseIcon }
-    ]
+    options: [...baseRedGrapeOptions, surpriseRedGrapeOption]
   };
 
   // Step 2b: White Grape (multi-select)
@@ -997,15 +1031,7 @@
     type: 'multi-select' as const,
     maxSelections: 2,
     required: true,
-    options: [
-      { id: 'chardonnay', label: 'Chardonnay', value: 'chardonnay' },
-      { id: 'sauvignon-blanc', label: 'Sauvignon Blanc', value: 'sauvignon-blanc' },
-      { id: 'riesling', label: 'Riesling', value: 'riesling' },
-      { id: 'pinot-grigio', label: 'Pinot Grigio', value: 'pinot-grigio' },
-      { id: 'moscato', label: 'Moscato', value: 'moscato' },
-      { id: 'white-blend', label: 'White Blend', value: 'white-blend' },
-      { id: 'surprise-white-grape', label: 'Surprise Me', value: null, icon: wineSurpriseIcon }
-    ]
+    options: [...baseWhiteGrapeOptions, surpriseWhiteGrapeOption]
   };
 
   // Step 2c: Food Pairing (single-select)
@@ -1031,6 +1057,7 @@
     wine_type_label?: string;
     varietal?: string;
     region?: string;
+    style_tags?: string[];
     body?: 'light' | 'medium' | 'full';
     body_label?: string;
     sweetness?: 'dry' | 'off-dry' | 'sweet';
@@ -1070,6 +1097,7 @@
     createFoodPairingPresetOption('seafood-shellfish', 'Shellfish / Oysters', {
       wine_type: 'sparkling',
       wine_type_label: 'Sparkling',
+      style_tags: ['brut'],
       sweetness: 'dry',
       sweetness_label: 'Dry',
       flavor_profile: ['citrus', 'mineral'],
@@ -1181,6 +1209,7 @@
     createFoodPairingPresetOption('cheese-mixed', 'Mixed Board', {
       wine_type: 'sparkling',
       wine_type_label: 'Sparkling',
+      style_tags: ['brut'],
       sweetness: 'dry',
       sweetness_label: 'Dry',
       flavor_profile: ['citrus', 'green-apple'],
@@ -1197,6 +1226,7 @@
     createFoodPairingPresetOption('cheese-aged', 'Aged / Salty Cheese', {
       wine_type: 'sparkling',
       wine_type_label: 'Sparkling',
+      style_tags: ['brut'],
       sweetness: 'dry',
       sweetness_label: 'Dry',
       flavor_profile: ['citrus', 'green-apple'],
@@ -1310,11 +1340,21 @@
   ]);
 
   const sparklingStyleStep = createFoodPairingStyleStep('sparkling_style', 'Sparkling Style', [
+    createFoodPairingPresetOption('sparkling-brut', 'Brut', {
+      wine_type: 'sparkling',
+      wine_type_label: 'Sparkling',
+      style_tags: ['brut'],
+      sweetness: 'dry',
+      sweetness_label: 'Dry',
+      flavor_profile: ['citrus', 'green-apple'],
+      flavor_labels: ['Citrus / Apple']
+    }),
     createFoodPairingPresetOption('sparkling-champagne', 'Champagne', {
       wine_type: 'sparkling',
       wine_type_label: 'Sparkling',
       varietal: 'champagne-blend',
       region: 'champagne',
+      style_tags: ['champagne'],
       flavor_profile: ['citrus', 'green-apple'],
       flavor_labels: ['Citrus / Mineral']
     }),
@@ -1322,19 +1362,21 @@
       wine_type: 'sparkling',
       wine_type_label: 'Sparkling',
       varietal: 'prosecco-blend',
+      style_tags: ['prosecco'],
       flavor_profile: ['green-apple', 'tropical'],
       flavor_labels: ['Apple / Pear', 'Soft Fruit & Floral']
     }),
     createFoodPairingPresetOption('sparkling-cava', 'Cava', {
       wine_type: 'sparkling',
       wine_type_label: 'Sparkling',
+      style_tags: ['cava'],
       flavor_profile: ['citrus', 'mineral'],
       flavor_labels: ['Citrus / Mineral']
     }),
     createFoodPairingPresetOption('sparkling-cremant', 'Cremant', {
       wine_type: 'sparkling',
       wine_type_label: 'Sparkling',
-      region: 'cremant',
+      style_tags: ['cremant'],
       flavor_profile: ['green-apple', 'mineral'],
       flavor_labels: ['Apple / Pear', 'Citrus / Mineral']
     }),
@@ -1342,12 +1384,14 @@
       wine_type: 'sparkling',
       wine_type_label: 'Sparkling',
       varietal: 'chardonnay',
+      style_tags: ['blanc-de-blancs'],
       flavor_profile: ['citrus', 'green-apple'],
       flavor_labels: ['Citrus / Mineral']
     }),
     createFoodPairingPresetOption('sparkling-rose', 'Rosé', {
       wine_type: 'sparkling',
       wine_type_label: 'Sparkling',
+      style_tags: ['sparkling-rose'],
       flavor_profile: ['berry', 'floral'],
       flavor_labels: ['Berry / Rosé']
     }),
@@ -1355,6 +1399,7 @@
       wine_type: 'sparkling',
       wine_type_label: 'Sparkling',
       varietal: 'moscato',
+      style_tags: ['moscato'],
       flavor_profile: ['tropical', 'floral'],
       flavor_labels: ['Soft Fruit & Floral']
     }),
@@ -1400,6 +1445,71 @@
     options: []
   };
 
+  function withFilteredOptions<T extends { options: Array<any> }>(step: T, options: T['options']): T {
+    return options.length > 0 ? { ...step, options } : step;
+  }
+
+  const guidedWineStyleStep = $derived.by(() => {
+    const availableWineTypes = new Set(profileConfig?.catalogFacets?.wineTypes ?? []);
+    if (availableWineTypes.size === 0) return wineStyleStep;
+
+    return withFilteredOptions(
+      wineStyleStep,
+      wineStyleStep.options.filter((option) => option.value === 'food-pairing' || availableWineTypes.has(option.value))
+    );
+  });
+
+  const guidedRedGrapeStep = $derived.by(() => {
+    const stepOptions = profileConfig?.guidedFlowType === 'merchant'
+      ? [...baseRedGrapeOptions, ...merchantRedGrapeOptions, surpriseRedGrapeOption]
+      : redGrapeStep.options;
+    const candidateStep = { ...redGrapeStep, options: stepOptions };
+    const availableVarietals = new Set(profileConfig?.catalogFacets?.varietalsByWineType?.red ?? []);
+    if (availableVarietals.size === 0) return candidateStep;
+
+    return withFilteredOptions(
+      candidateStep,
+      stepOptions.filter((option) => option.value === null || availableVarietals.has(option.value))
+    );
+  });
+
+  const guidedWhiteGrapeStep = $derived.by(() => {
+    const stepOptions = profileConfig?.guidedFlowType === 'merchant'
+      ? [...baseWhiteGrapeOptions, ...merchantWhiteGrapeOptions, surpriseWhiteGrapeOption]
+      : whiteGrapeStep.options;
+    const candidateStep = { ...whiteGrapeStep, options: stepOptions };
+    const availableVarietals = new Set(profileConfig?.catalogFacets?.varietalsByWineType?.white ?? []);
+    if (availableVarietals.size === 0) return candidateStep;
+
+    return withFilteredOptions(
+      candidateStep,
+      stepOptions.filter((option) => option.value === null || availableVarietals.has(option.value))
+    );
+  });
+
+  const guidedSparklingStyleStep = $derived.by(() => {
+    const availableStyleTags = new Set(profileConfig?.catalogFacets?.styleTagsByWineType?.sparkling ?? []);
+    const availableVarietals = new Set(profileConfig?.catalogFacets?.varietalsByWineType?.sparkling ?? []);
+
+    if (availableStyleTags.size === 0 && availableVarietals.size === 0) {
+      return sparklingStyleStep;
+    }
+
+    return withFilteredOptions(
+      sparklingStyleStep,
+      sparklingStyleStep.options.filter((option) => {
+        if (option.label === 'Surprise Me') return true;
+        if (!option.value || typeof option.value !== 'object') return true;
+
+        const preset = option.value as FoodPairingPresetValue;
+        const hasStyleTagMatch = preset.style_tags?.some((styleTag) => availableStyleTags.has(styleTag)) ?? false;
+        const hasVarietalMatch = preset.varietal ? availableVarietals.has(preset.varietal) : false;
+
+        return hasStyleTagMatch || hasVarietalMatch;
+      })
+    );
+  });
+
   // Track guided flow selections for dynamic step branching
   let guidedFlowWineType = $state<string | null>(null);
   let guidedFlowFoodPairing = $state<string | null>(null);
@@ -1407,19 +1517,19 @@
 
   // Dynamic steps based on wine_type selection
   let allGuidedFlowSteps = $derived.by(() => {
-    const steps = [wineStyleStep];
+    const steps = [guidedWineStyleStep];
 
     if (!guidedFlowWineType) {
       return steps;
     }
 
     if (guidedFlowWineType === 'red') {
-      steps.push(redGrapeStep, bodyStep, drynessStep, redFlavorStep, priceStep);
+      steps.push(guidedRedGrapeStep, bodyStep, drynessStep, redFlavorStep, priceStep);
       return steps;
     }
 
     if (guidedFlowWineType === 'white') {
-      steps.push(whiteGrapeStep, bodyStep, drynessStep, whiteFlavorStep, priceStep);
+      steps.push(guidedWhiteGrapeStep, bodyStep, drynessStep, whiteFlavorStep, priceStep);
       return steps;
     }
 
@@ -1432,7 +1542,7 @@
       const sparklingSweetnessStep =
         guidedFlowSparklingVarietal === 'moscato' ? sparklingMoscatoDrynessStep : drynessStep;
 
-      steps.push(sparklingStyleStep, sparklingSweetnessStep, sparklingFlavorStep, priceStep);
+      steps.push(guidedSparklingStyleStep, sparklingSweetnessStep, sparklingFlavorStep, priceStep);
       return steps;
     }
 
@@ -1461,24 +1571,54 @@
     }
   }
 
-  async function handleLeadSubmit(data: { email: string; name?: string }): Promise<boolean> {
+  function buildTranscriptMessages() {
+    return messages
+      .filter((message) => !message.shimmer && (message.content.trim() || (message.recommendations?.length ?? 0) > 0))
+      .map((message) => ({
+        role: message.role,
+        content: message.content.trim(),
+        recommendations: (message.recommendations ?? []).slice(0, 6).map((recommendation) => ({
+          name: recommendation.name,
+          brand: recommendation.brand,
+          price: recommendation.price,
+          shop_link: recommendation.shop_link,
+          wine_type: recommendation.wine_type,
+          varietal: recommendation.varietal,
+          region: recommendation.region
+        }))
+      }));
+  }
+
+  async function handleTranscriptSubmit(data: { email: string; name?: string; subscribe: boolean }): Promise<boolean> {
+    const transcriptMessages = buildTranscriptMessages();
+    if (transcriptMessages.length === 0) {
+      return false;
+    }
+
     try {
-      const res = await fetch(`${CHAT_BASE_URL}/lead`, {
+      const res = await fetch(`${CHAT_BASE_URL}/transcript`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: data.email,
           name: data.name,
-          intentSignal: 'guided_flow_complete',
+          subscribe: data.subscribe,
+          messages: transcriptMessages,
           sessionId: analyticsSessionId,
           sourcePage: window.location.pathname,
         }),
       });
+
       if (res.ok) {
-        leadCaptured = true;
-        void sendAnalyticsEvent('lead_captured', { payload: { intentSignal: 'guided_flow_complete' } });
+        void sendAnalyticsEvent('transcript_emailed', {
+          payload: {
+            subscribe: data.subscribe,
+            message_count: transcriptMessages.length
+          }
+        });
         return true;
       }
+
       return false;
     } catch {
       return false;
@@ -1583,7 +1723,6 @@
       // Replace shimmer with recommendations or friendly error message
       if (productRecommendations.length > 0) {
         // Removed productRegistry - stream has conversation history
-        recommendationCount++;
 
         const botMessage: Message = {
           role: "assistant",
@@ -2317,8 +2456,6 @@
         // Replace shimmer with recommendations or friendly error message
         if (productRecommendations.length > 0) {
           // Removed productRegistry - stream has conversation history
-          recommendationCount++;
-
           const botMessage: Message = {
             role: "assistant",
             content: "",
@@ -2492,11 +2629,12 @@
         </div>
       {/if}
 
-      {#if showLeadCapture}
+      {#if showTranscriptShare}
         <div style="padding: 0 12px;">
-          <LeadCaptureCard
+          <TranscriptShareCard
             profileType={profileConfig?.profileType}
-            onSubmit={handleLeadSubmit}
+            storeName={profileConfig?.storeName}
+            onSubmit={handleTranscriptSubmit}
           />
         </div>
       {/if}

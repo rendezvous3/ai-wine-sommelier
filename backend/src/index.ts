@@ -23,8 +23,13 @@ import {
   buildCompactRerankCandidates,
 } from "./utils";
 import { getWineSchemaForPrompt } from './wine-schema';
-import { searchWines, lookupWineByName, surpriseMe } from './wine-search';
-import type { WineFilters } from './wine-search';
+import {
+  getCatalogFacets,
+  lookupWineByName,
+  searchWinesWithFallback,
+  surpriseMe
+} from './wine-search';
+import type { WineFilters, WineResult } from './wine-search';
 import { getProfile } from './profiles';
 import {
   isAnalyticsEnabled,
@@ -131,8 +136,31 @@ const FEEDBACK_MAX_FILE_SIZE = 5 * 1024 * 1024;
 const FEEDBACK_RATE_WINDOW_MS = 10 * 60 * 1000;
 const FEEDBACK_RATE_MAX = 5;
 const ALLOWED_SCREENSHOT_MIME = new Set(["image/png", "image/jpeg", "image/webp"]);
+const TRANSCRIPT_FROM = "Wine Concierge <noreply@xtscale.com>";
+const TRANSCRIPT_RATE_WINDOW_MS = 10 * 60 * 1000;
+const TRANSCRIPT_RATE_MAX = 5;
+const TRANSCRIPT_MAX_MESSAGES = 40;
+const TRANSCRIPT_MAX_RECOMMENDATIONS_PER_MESSAGE = 6;
+const TRANSCRIPT_MAX_CONTENT_LEN = 4000;
 
 const feedbackRateLimitStore = new Map<string, number[]>();
+const transcriptRateLimitStore = new Map<string, number[]>();
+
+interface TranscriptRecommendation {
+  name?: string;
+  brand?: string;
+  price?: number | null;
+  shop_link?: string | null;
+  wine_type?: string | null;
+  varietal?: string | null;
+  region?: string | null;
+}
+
+interface TranscriptMessageEntry {
+  role: "user" | "assistant" | "system";
+  content: string;
+  recommendations: TranscriptRecommendation[];
+}
 
 function cleanupRateLimitStore(now: number) {
   for (const [key, timestamps] of feedbackRateLimitStore.entries()) {
@@ -155,6 +183,30 @@ function isRateLimited(ip: string, now: number): boolean {
   }
   fresh.push(now);
   feedbackRateLimitStore.set(ip, fresh);
+  return false;
+}
+
+function cleanupTranscriptRateLimitStore(now: number) {
+  for (const [key, timestamps] of transcriptRateLimitStore.entries()) {
+    const fresh = timestamps.filter((ts) => now - ts < TRANSCRIPT_RATE_WINDOW_MS);
+    if (fresh.length === 0) {
+      transcriptRateLimitStore.delete(key);
+      continue;
+    }
+    transcriptRateLimitStore.set(key, fresh);
+  }
+}
+
+function isTranscriptRateLimited(ip: string, now: number): boolean {
+  cleanupTranscriptRateLimitStore(now);
+  const timestamps = transcriptRateLimitStore.get(ip) ?? [];
+  const fresh = timestamps.filter((ts) => now - ts < TRANSCRIPT_RATE_WINDOW_MS);
+  if (fresh.length >= TRANSCRIPT_RATE_MAX) {
+    transcriptRateLimitStore.set(ip, fresh);
+    return true;
+  }
+  fresh.push(now);
+  transcriptRateLimitStore.set(ip, fresh);
   return false;
 }
 
@@ -188,6 +240,151 @@ function toBase64(bytes: Uint8Array): string {
     binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
   }
   return btoa(binary);
+}
+
+function safeTranscriptText(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value.trim().slice(0, TRANSCRIPT_MAX_CONTENT_LEN);
+}
+
+function safeTranscriptScalar(value: unknown): string | null {
+  const trimmed = safeTranscriptText(value);
+  return trimmed || null;
+}
+
+function safeTranscriptPrice(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null;
+  }
+  return Number(value);
+}
+
+function normalizeTranscriptMessages(rawMessages: unknown): TranscriptMessageEntry[] {
+  if (!Array.isArray(rawMessages)) return [];
+
+  return rawMessages
+    .slice(0, TRANSCRIPT_MAX_MESSAGES)
+    .map((entry) => {
+      const rawMessage = entry && typeof entry === "object" ? entry as Record<string, unknown> : {};
+      const role = rawMessage.role === "user" || rawMessage.role === "assistant" || rawMessage.role === "system"
+        ? rawMessage.role
+        : "assistant";
+      const content = safeTranscriptText(rawMessage.content);
+      const recommendations = Array.isArray(rawMessage.recommendations)
+        ? rawMessage.recommendations
+            .slice(0, TRANSCRIPT_MAX_RECOMMENDATIONS_PER_MESSAGE)
+            .map((recommendation) => {
+              const rawRecommendation = recommendation && typeof recommendation === "object"
+                ? recommendation as Record<string, unknown>
+                : {};
+
+              return {
+                name: safeTranscriptScalar(rawRecommendation.name) ?? undefined,
+                brand: safeTranscriptScalar(rawRecommendation.brand) ?? undefined,
+                price: safeTranscriptPrice(rawRecommendation.price),
+                shop_link: safeTranscriptScalar(rawRecommendation.shop_link),
+                wine_type: safeTranscriptScalar(rawRecommendation.wine_type),
+                varietal: safeTranscriptScalar(rawRecommendation.varietal),
+                region: safeTranscriptScalar(rawRecommendation.region),
+              };
+            })
+            .filter((recommendation) => recommendation.name || recommendation.shop_link || recommendation.price != null)
+        : [];
+
+      return { role, content, recommendations };
+    })
+    .filter((entry) => entry.content || entry.recommendations.length > 0);
+}
+
+function formatTranscriptPrice(value: number | null | undefined): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "Price unavailable";
+  }
+  return `$${value.toFixed(2)}`;
+}
+
+function buildTranscriptEmail(
+  profileName: string,
+  messages: TranscriptMessageEntry[],
+  name: string | null,
+  sourcePage: string | null,
+  submittedAt: string
+) {
+  let recommendationCount = 0;
+
+  const textSections = messages.map((message) => {
+    const speaker = message.role === "user" ? "You" : message.role === "system" ? "System" : "Sommelier";
+    const lines = [`${speaker}:`];
+
+    if (message.content) {
+      lines.push(message.content);
+    }
+
+    if (message.recommendations.length > 0) {
+      recommendationCount += message.recommendations.length;
+      lines.push("Recommendations:");
+
+      for (const recommendation of message.recommendations) {
+        const detailParts = [
+          recommendation.brand,
+          recommendation.wine_type,
+          recommendation.varietal,
+          recommendation.region
+        ].filter(Boolean);
+
+        lines.push(`- ${recommendation.name ?? "Recommended bottle"}${detailParts.length > 0 ? ` (${detailParts.join(" • ")})` : ""}`);
+        lines.push(`  ${formatTranscriptPrice(recommendation.price)}`);
+        if (recommendation.shop_link) {
+          lines.push(`  ${recommendation.shop_link}`);
+        }
+      }
+    }
+
+    return lines.join("\n");
+  });
+
+  const htmlSections = messages.map((message) => {
+    const speaker = message.role === "user" ? "You" : message.role === "system" ? "System" : "Sommelier";
+    const productsHtml = message.recommendations.length > 0
+      ? `<div style="margin-top:12px;"><div style="font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#6b7280;margin-bottom:8px;">Recommendations</div><ul style="margin:0;padding-left:18px;">${message.recommendations.map((recommendation) => {
+          const detailParts = [
+            recommendation.brand,
+            recommendation.wine_type,
+            recommendation.varietal,
+            recommendation.region
+          ].filter(Boolean);
+
+          return `<li style="margin-bottom:10px;"><div style="font-weight:600;color:#111827;">${escapeHtml(recommendation.name ?? "Recommended bottle")}</div><div style="color:#6b7280;font-size:13px;">${escapeHtml(detailParts.join(" • ")) || "&nbsp;"}</div><div style="color:#111827;font-size:13px;">${escapeHtml(formatTranscriptPrice(recommendation.price))}</div>${recommendation.shop_link ? `<div style="font-size:13px;"><a href="${escapeHtml(recommendation.shop_link)}" style="color:#1d4ed8;">View bottle</a></div>` : ""}</li>`;
+        }).join("")}</ul></div>`
+      : "";
+
+    return `<section style="padding:16px 0;border-top:1px solid #e5e7eb;"><div style="font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#6b7280;margin-bottom:8px;">${escapeHtml(speaker)}</div>${message.content ? `<div style="font-size:14px;line-height:1.6;color:#111827;">${escapeHtml(message.content).replace(/\n/g, "<br />")}</div>` : ""}${productsHtml}</section>`;
+  });
+
+  const salutation = name ? `Hi ${escapeHtml(name)},` : "Hi,";
+  const sourceLine = sourcePage ? `<p style="margin:0 0 12px;color:#6b7280;font-size:13px;">Source page: ${escapeHtml(sourcePage)}</p>` : "";
+
+  return {
+    recommendationCount,
+    textBody: [
+      `${profileName} Chat Transcript`,
+      `Generated (UTC): ${submittedAt}`,
+      sourcePage ? `Source Page: ${sourcePage}` : null,
+      "",
+      ...textSections
+    ].filter(Boolean).join("\n"),
+    htmlBody: `
+      <div style="font-family:Arial,sans-serif;max-width:680px;margin:0 auto;padding:24px;background:#faf8f3;">
+        <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;padding:24px;">
+          <p style="margin:0 0 8px;color:#111827;font-size:14px;">${salutation}</p>
+          <h1 style="margin:0 0 8px;color:#111827;font-size:24px;">Your ${escapeHtml(profileName)} chat transcript</h1>
+          <p style="margin:0 0 8px;color:#4b5563;font-size:14px;">Generated ${escapeHtml(submittedAt)}.</p>
+          ${sourceLine}
+          ${htmlSections.join("")}
+        </div>
+      </div>
+    `
+  };
 }
 
 // ============================================
@@ -228,8 +425,19 @@ app.get('/', (c) => {
 // PROFILE CONFIG (public-safe subset for frontend)
 // ============================================
 
-app.get('/chat/config', (c) => {
+app.get('/chat/config', async (c) => {
   const profile = getProfile(c.env.PROFILE_TYPE);
+  let catalogFacets = null;
+
+  try {
+    const facetFilters = !profile.allowCrossBrand && profile.brandName
+      ? { brand: profile.brandName }
+      : {};
+    catalogFacets = await getCatalogFacets(c.env.WINE_DB, facetFilters);
+  } catch (error) {
+    console.error('[Config] Failed to build catalog facets:', error);
+  }
+
   return c.json({
     profileType: profile.profileType,
     storeName: profile.storeName,
@@ -239,6 +447,7 @@ app.get('/chat/config', (c) => {
     welcomeMessage: profile.welcomeMessage,
     quickStartSuggestions: profile.quickStartSuggestions,
     features: profile.features,
+    catalogFacets,
     wineClubConfig: profile.wineClubConfig ?? null,
     giftingConfig: profile.giftingConfig ?? null,
     brandContent: profile.brandContent ? {
@@ -293,6 +502,87 @@ app.post("/chat/lead", async (c) => {
   } catch (error: any) {
     console.error('[Lead Capture] Error:', error.message);
     return c.json({ error: 'Failed to capture lead' }, 500);
+  }
+});
+
+app.post("/chat/transcript", async (c) => {
+  const profile = getProfile(c.env.PROFILE_TYPE);
+
+  try {
+    const body = await c.req.json();
+    const email = typeof body?.email === "string" ? body.email.trim() : "";
+    const name = typeof body?.name === "string" ? body.name.trim() : "";
+    const subscribe = Boolean(body?.subscribe);
+    const sessionId = typeof body?.sessionId === "string" ? body.sessionId : "unknown";
+    const sourcePage = typeof body?.sourcePage === "string" ? body.sourcePage.trim() : null;
+    const transcriptMessages = normalizeTranscriptMessages(body?.messages);
+    const ip = c.req.header("CF-Connecting-IP") || "unknown";
+
+    if (!email) {
+      return c.json({ ok: false, error: "validation_error", message: "Email is required." }, 400);
+    }
+    if (!isValidEmail(email)) {
+      return c.json({ ok: false, error: "validation_error", message: "Email format is invalid." }, 400);
+    }
+    if (transcriptMessages.length === 0) {
+      return c.json({ ok: false, error: "validation_error", message: "No transcript content is available to send." }, 400);
+    }
+
+    const now = Date.now();
+    if (isTranscriptRateLimited(ip, now)) {
+      return c.json({ ok: false, error: "rate_limited", message: "Too many transcript requests. Please try again later." }, 429);
+    }
+
+    const submittedAt = new Date(now).toISOString();
+    const { textBody, htmlBody, recommendationCount } = buildTranscriptEmail(
+      profile.storeName,
+      transcriptMessages,
+      name || null,
+      sourcePage,
+      submittedAt
+    );
+
+    const resendResp = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${c.env.RESEND_API_KEY}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        from: TRANSCRIPT_FROM,
+        to: [email],
+        subject: `Your ${profile.storeName} chat transcript`,
+        text: textBody,
+        html: htmlBody
+      })
+    });
+
+    const resendData = await resendResp.json().catch(() => ({}));
+    if (!resendResp.ok || !resendData?.id) {
+      console.error("[Transcript] Resend error:", resendData);
+      return c.json({ ok: false, error: "email_provider_error", message: "Transcript email could not be delivered." }, 502);
+    }
+
+    let leadId: string | null = null;
+    if (subscribe && isAnalyticsEnabled(c.env.ANALYTICS_DB)) {
+      leadId = await recordLeadCapture(c.env.ANALYTICS_DB, {
+        sessionId,
+        email,
+        name: name || null,
+        intentSignal: "transcript_opt_in",
+        profileType: profile.profileType,
+        tastePreferences: {
+          messageCount: transcriptMessages.length,
+          recommendationCount
+        },
+        sourcePage
+      });
+    }
+
+    return c.json({ ok: true, id: resendData.id, leadId });
+  } catch (error) {
+    console.error("[Transcript] Unexpected error:", error);
+    return c.json({ ok: false, error: "internal_error", message: "Unexpected error while sending transcript." }, 500);
   }
 });
 
@@ -1135,12 +1425,28 @@ app.post("/chat/recommendations", async (c) => {
   const lastAssistantMessage = enrichedHistory.slice(-2).find((m: any) => m.role === 'assistant')?.content || "";
 
   // D1 SQL search — replaces Vectorize
-  let results;
+  let results: WineResult[] = [];
+  let searchFallbackReason = isSurprise ? 'surprise_random' : 'exact_match';
+  let appliedSearchFilters = filters;
   try {
     if (isSurprise) {
       results = await surpriseMe(c.env.WINE_DB, filters, 8);
+      if (results.length === 0) {
+        const broadenedFilters: WineFilters = {};
+        if (filters.brand) broadenedFilters.brand = filters.brand;
+        if (filters.wine_type) broadenedFilters.wine_type = filters.wine_type;
+
+        results = await surpriseMe(c.env.WINE_DB, broadenedFilters, 8);
+        searchFallbackReason = results.length > 0
+          ? 'surprise_broadened'
+          : 'no_valid_catalog_results';
+        appliedSearchFilters = broadenedFilters;
+      }
     } else {
-      results = await searchWines(c.env.WINE_DB, filters, 8);
+      const searchResult = await searchWinesWithFallback(c.env.WINE_DB, filters, 8);
+      results = searchResult.results;
+      searchFallbackReason = searchResult.fallbackReason;
+      appliedSearchFilters = searchResult.appliedFilters;
     }
   } catch (err) {
     console.error("Wine search error:", err);
@@ -1156,7 +1462,7 @@ app.post("/chat/recommendations", async (c) => {
         finalRankCount: 0,
         status: "error",
         errorCode: "wine_search_error",
-        fallbackReason: "wine_search_error",
+        fallbackReason: `search:${searchFallbackReason}|wine_search_error`,
         latencyMs: Date.now() - recommendationsStartedAt,
       })
     );
@@ -1175,7 +1481,7 @@ app.post("/chat/recommendations", async (c) => {
         preRankedCount: 0,
         finalRankCount: 0,
         status: "completed",
-        fallbackReason: "no_valid_catalog_results",
+        fallbackReason: `search:${searchFallbackReason}`,
         latencyMs: Date.now() - recommendationsStartedAt,
       })
     );
@@ -1184,6 +1490,8 @@ app.post("/chat/recommendations", async (c) => {
       recommendations: [],
       error: "No wines found matching your criteria",
       service: "recommendations",
+      appliedFilters: appliedSearchFilters,
+      fallbackReason: searchFallbackReason,
     }, 200);
   }
 
@@ -1210,7 +1518,7 @@ app.post("/chat/recommendations", async (c) => {
         preRankedCount: results.length,
         finalRankCount: results.length,
         status: "completed",
-        fallbackReason: "rerank_skipped_small_candidate_set",
+        fallbackReason: `search:${searchFallbackReason}|rerank_skipped_small_candidate_set`,
         latencyMs: Date.now() - recommendationsStartedAt,
       })
     );
@@ -1219,6 +1527,8 @@ app.post("/chat/recommendations", async (c) => {
       recommendations: results,
       preRankedProducts: results,
       reasoning: "Skipped rerank because the candidate set was already narrow.",
+      appliedFilters: appliedSearchFilters,
+      fallbackReason: searchFallbackReason,
     }, 200);
   }
 
@@ -1273,7 +1583,7 @@ app.post("/chat/recommendations", async (c) => {
           finalRankCount: results.length,
           status: "completed",
           errorCode: "rerank_api_error",
-          fallbackReason: "rerank_api_error",
+          fallbackReason: `search:${searchFallbackReason}|rerank_api_error`,
           latencyMs: Date.now() - recommendationsStartedAt,
         })
       );
@@ -1282,6 +1592,8 @@ app.post("/chat/recommendations", async (c) => {
         recommendations: results,
         error: "Showing results without AI ranking.",
         service: "recommendations",
+        appliedFilters: appliedSearchFilters,
+        fallbackReason: searchFallbackReason,
       }, 200);
     }
 
@@ -1311,7 +1623,7 @@ app.post("/chat/recommendations", async (c) => {
           finalRankCount: results.length,
           status: "completed",
           errorCode: "rerank_empty_response",
-          fallbackReason: "rerank_empty_response",
+          fallbackReason: `search:${searchFallbackReason}|rerank_empty_response`,
           latencyMs: Date.now() - recommendationsStartedAt,
         })
       );
@@ -1320,6 +1632,8 @@ app.post("/chat/recommendations", async (c) => {
         recommendations: results,
         error: "Showing results without AI ranking.",
         service: "recommendations",
+        appliedFilters: appliedSearchFilters,
+        fallbackReason: searchFallbackReason,
         ...(tokenUsage ? { tokenUsage } : {})
       }, 200);
     }
@@ -1352,7 +1666,7 @@ app.post("/chat/recommendations", async (c) => {
           finalRankCount: results.length,
           status: "completed",
           errorCode: "rerank_json_parse_error",
-          fallbackReason: "rerank_json_parse_error",
+          fallbackReason: `search:${searchFallbackReason}|rerank_json_parse_error`,
           latencyMs: Date.now() - recommendationsStartedAt,
         })
       );
@@ -1360,6 +1674,8 @@ app.post("/chat/recommendations", async (c) => {
       return c.json({
         recommendations: results,
         error: "Re-ranking parse error - showing unranked results",
+        appliedFilters: appliedSearchFilters,
+        fallbackReason: searchFallbackReason,
         ...(tokenUsage ? { tokenUsage } : {})
       }, 200);
     }
@@ -1394,7 +1710,7 @@ app.post("/chat/recommendations", async (c) => {
           preRankedCount: results.length,
           finalRankCount: results.length,
           status: "completed",
-          fallbackReason: "no_ranked_ids",
+          fallbackReason: `search:${searchFallbackReason}|no_ranked_ids`,
           latencyMs: Date.now() - recommendationsStartedAt,
         })
       );
@@ -1402,6 +1718,8 @@ app.post("/chat/recommendations", async (c) => {
       return c.json({
         recommendations: results,
         error: "No ranked IDs found - showing unranked results",
+        appliedFilters: appliedSearchFilters,
+        fallbackReason: searchFallbackReason,
         ...(tokenUsage ? { tokenUsage } : {})
       }, 200);
     }
@@ -1424,6 +1742,7 @@ app.post("/chat/recommendations", async (c) => {
         preRankedCount: results.length,
         finalRankCount: rankedProducts.length,
         status: "completed",
+        fallbackReason: `search:${searchFallbackReason}`,
         latencyMs: Date.now() - recommendationsStartedAt,
       })
     );
@@ -1432,6 +1751,8 @@ app.post("/chat/recommendations", async (c) => {
       recommendations: rankedProducts,
       preRankedProducts: results,
       reasoning: reasoning,
+      appliedFilters: appliedSearchFilters,
+      fallbackReason: searchFallbackReason,
       ...(tokenUsage ? { tokenUsage } : {})
     }, 200);
 
@@ -1456,7 +1777,7 @@ app.post("/chat/recommendations", async (c) => {
         finalRankCount: results.length,
         status: "completed",
         errorCode: "recommendation_service_error",
-        fallbackReason: "recommendation_service_error",
+        fallbackReason: `search:${searchFallbackReason}|recommendation_service_error`,
         latencyMs: Date.now() - recommendationsStartedAt,
       })
     );
@@ -1465,6 +1786,8 @@ app.post("/chat/recommendations", async (c) => {
       recommendations: results,
       error: "Showing results without AI ranking.",
       service: "recommendations",
+      appliedFilters: appliedSearchFilters,
+      fallbackReason: searchFallbackReason,
     }, 200);
   }
 });

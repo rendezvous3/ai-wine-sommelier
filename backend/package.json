@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "catalog:import": "node scripts/import-catalog.mjs --format json"
   },
   "dependencies": {
     "hono": "^4.6.0"

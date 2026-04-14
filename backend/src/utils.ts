@@ -1,4 +1,12 @@
-import { isValidWineType, isValidBody, isValidSweetness, isValidAcidity, isValidTannin } from './wine-schema';
+import {
+  isValidAcidity,
+  isValidBody,
+  isValidStyleTag,
+  isValidSweetness,
+  isValidTannin,
+  isValidWineType,
+  normalizeStyleTag
+} from './wine-schema';
 import type { WineFilters } from './wine-search';
 
 const formatConversationHistory = (messageList: Array<any>) => {
@@ -14,6 +22,12 @@ const formatConversationHistory = (messageList: Array<any>) => {
  */
 export function validateWineFilters(filters: Record<string, any>): WineFilters {
   const validated: WineFilters = {};
+  const normalizeStringArray = (value: unknown): string[] => {
+    const rawValues = Array.isArray(value) ? value : [value];
+    return rawValues
+      .map((entry) => String(entry).toLowerCase().trim())
+      .filter((entry) => entry.length > 0);
+  };
 
   if (filters.wine_type) {
     const wt = String(filters.wine_type).toLowerCase();
@@ -23,7 +37,12 @@ export function validateWineFilters(filters: Record<string, any>): WineFilters {
   }
 
   if (filters.varietal) {
-    validated.varietal = String(filters.varietal).toLowerCase();
+    const varietals = normalizeStringArray(filters.varietal);
+    if (varietals.length === 1) {
+      validated.varietal = varietals[0];
+    } else if (varietals.length > 1) {
+      validated.varietal = varietals;
+    }
   }
 
   if (filters.region) {
@@ -78,9 +97,17 @@ export function validateWineFilters(filters: Record<string, any>): WineFilters {
   }
 
   if (filters.flavor_profile && Array.isArray(filters.flavor_profile)) {
-    validated.flavor_profile = filters.flavor_profile
-      .map((f: any) => String(f).toLowerCase())
-      .filter((f: string) => f.length > 0);
+    validated.flavor_profile = normalizeStringArray(filters.flavor_profile);
+  }
+
+  if (filters.style_tags) {
+    const normalizedStyleTags = normalizeStringArray(filters.style_tags)
+      .map((tag) => normalizeStyleTag(tag) ?? tag)
+      .filter((tag): tag is string => !!tag && isValidStyleTag(tag));
+
+    if (normalizedStyleTags.length > 0) {
+      validated.style_tags = [...new Set(normalizedStyleTags)];
+    }
   }
 
   return validated;
@@ -111,6 +138,9 @@ export function buildCompactRerankCandidates(
 
     if (Array.isArray(wine.flavor_profile) && wine.flavor_profile.length > 0) {
       candidate.flavor_profile = wine.flavor_profile;
+    }
+    if (Array.isArray(wine.style_tags) && wine.style_tags.length > 0) {
+      candidate.style_tags = wine.style_tags;
     }
     if (Array.isArray(wine.food_pairings) && wine.food_pairings.length > 0) {
       candidate.food_pairings = wine.food_pairings;

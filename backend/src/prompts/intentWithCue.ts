@@ -23,6 +23,7 @@ and emits a CODEX cue with a summary following a strict field-order format:
 - Extract ONLY what the user explicitly stated. Do NOT infer.
 - If user says "bold red" → extract wine_type: "red", body: "full". Do NOT add flavor_profile, region, or varietal.
 - If user says "surprise me" → set action to "surprise". No filters needed.
+- If user names a sparkling style like Champagne, Prosecco, Cava, Crémant, Blanc de Blancs, Brut, Sparkling Rosé, or Moscato, extract wine_type: "sparkling" plus matching style_tags.
 - If user mentions flavor descriptors, map them to the closest flavor family tags (see mapping below).
 
 ${schemaInfo}
@@ -34,8 +35,18 @@ ${getWineSchemaForPrompt()}
 - "red", "red wine", "reds" → wine_type: "red"
 - "white", "white wine", "whites" → wine_type: "white"
 - "rosé", "rose" → wine_type: "rose"
-- "sparkling", "champagne", "bubbly", "prosecco" → wine_type: "sparkling"
+- "sparkling", "champagne", "bubbly", "bubbles", "prosecco", "cava", "cremant", "crémant", "blanc de blancs", "brut" → wine_type: "sparkling"
 - "dessert", "sweet wine", "port" → wine_type: "dessert"
+
+## STYLE TAG EXTRACTION
+- "brut", "dry bubbles" → style_tags: ["brut"]
+- "champagne" → style_tags: ["champagne"]
+- "prosecco" → style_tags: ["prosecco"]
+- "cava" → style_tags: ["cava"]
+- "cremant", "crémant" → style_tags: ["cremant"]
+- "blanc de blancs" → style_tags: ["blanc-de-blancs"]
+- "sparkling rosé", "sparkling rose", "rosé bubbles", "pink bubbles" → style_tags: ["sparkling-rose"]
+- "sparkling moscato" → style_tags: ["moscato"]
 
 ## BODY MAPPING
 - "full-bodied", "full", "bold", "rich", "heavy", "dense", "big" → body: "full"
@@ -83,6 +94,7 @@ Earthy & Mineral family: "earthy", "mineral", "minerally", "slate", "mushroom", 
 - "casual", "everyday", "weeknight", "just relaxing" → occasion: "casual"
 - "celebration", "celebrating", "birthday", "anniversary", "toast" → occasion: "celebration"
 - "cooking", "to cook with" → occasion: "cooking"
+- "brunch" → occasion: "brunch"
 
 ## FOOD PAIRING MAPPING
 - "steak", "beef", "red meat" → food_pairing: "steak"
@@ -124,6 +136,8 @@ Only extract if user explicitly mentions a grape variety:
 - "gewurztraminer", "gewurz" → varietal: "gewurztraminer"
 - "viognier" → varietal: "viognier"
 - "moscato" → varietal: "moscato"
+- "red blend", "big red blend" → varietal: "red-blend"
+- "white blend" → varietal: "white-blend"
 
 ## REGION EXTRACTION
 Only extract if user explicitly mentions a region:
@@ -131,7 +145,7 @@ Only extract if user explicitly mentions a region:
 - "Sonoma" → region: "sonoma"
 - "Bordeaux" → region: "bordeaux"
 - "Burgundy" → region: "burgundy"
-- "Champagne" (as region) → region: "champagne"
+- "Champagne region", "from Champagne" → region: "champagne"
 - "Rhône", "Rhone" → region: "rhone-valley"
 - "Tuscany", "Tuscan" → region: "tuscany"
 - "Piedmont", "Piemonte" → region: "piedmont"
@@ -161,6 +175,7 @@ ${lastMessage}
     "acidity": string | null,
     "tannin": string | null,
     "flavor_profile": string[] | null,
+    "style_tags": string[] | null,
     "food_pairing": string | null,
     "occasion": string | null,
     "brand": string | null,

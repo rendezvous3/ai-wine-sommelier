@@ -18,7 +18,8 @@ You are evaluating structured metadata ONLY — no similarity scores, no embeddi
 
 ### RANKING PRIORITIES (Apply in strict order):
 
-**PRIORITY 1: WINE TYPE MATCH** (when user specified wine_type)
+**PRIORITY 1: STYLE ANCHOR MATCH** (when user specified wine_type, varietal, or style_tags)
+- If user requested a specific sparkling style or other style anchor, matching style_tags should rank ahead of generic matches.
 - If user requested specific wine type (red, white, rosé, sparkling, dessert):
   - Products matching wine_type MUST rank first
   - Products NOT matching wine_type rank last
@@ -58,6 +59,7 @@ ${filters?.wine_type ? `- Wine Type: ${filters.wine_type}` : ''}
 ${filters?.body ? `- Body: ${filters.body}` : ''}
 ${filters?.sweetness ? `- Sweetness: ${filters.sweetness}` : ''}
 ${filters?.varietal ? `- Varietal: ${filters.varietal}` : ''}
+${filters?.style_tags?.length ? `- Style Tags: ${JSON.stringify(filters.style_tags)}` : ''}
 ${filters?.region ? `- Region: ${filters.region}` : ''}
 ${filters?.flavor_profile?.length ? `- Flavor Profile: ${JSON.stringify(filters.flavor_profile)}` : ''}
 ${filters?.food_pairing ? `- Food Pairing: ${filters.food_pairing}` : ''}
@@ -71,7 +73,7 @@ ${JSON.stringify(results)}
 
 ### INSTRUCTIONS:
 1. Analyze the User Request holistically — consider wine type, flavor profile, body, occasion, food pairing, price, region, varietal.
-2. Apply ranking priorities in strict order: Wine Type > Flavor Profile > Body > Occasion/Pairing > Price > Varietal/Region.
+2. Apply ranking priorities in strict order: Style Anchor > Flavor Profile > Body > Occasion/Pairing > Price > Varietal/Region.
 3. Evaluate each candidate wine based on ALL relevant metadata fields.
 4. If a wine clearly contradicts the user's request (e.g., user wants "dry" but wine is "sweet"), remove it from ranking.
 5. Return ONLY a JSON object with "ranked_ids" array (wine IDs) and "reasoning" string.

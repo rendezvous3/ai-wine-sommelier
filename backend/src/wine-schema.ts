@@ -14,6 +14,7 @@ export const TANNIN_LEVELS = wineSchema.tannin;
 export const FLAVOR_FAMILIES = wineSchema.flavor_families;
 export const OCCASIONS = wineSchema.occasions;
 export const FOOD_PAIRINGS = wineSchema.food_pairings;
+export const STYLE_TAGS = wineSchema.style_tags;
 
 // All individual flavor tags (flattened from families)
 export const ALL_FLAVOR_TAGS = Object.values(FLAVOR_FAMILIES).flat();
@@ -44,6 +45,10 @@ export function isValidTannin(tannin: string): boolean {
 
 export function isValidOccasion(occasion: string): boolean {
   return OCCASIONS.includes(occasion.toLowerCase());
+}
+
+export function isValidStyleTag(styleTag: string): boolean {
+  return STYLE_TAGS.includes(styleTag.toLowerCase());
 }
 
 // ============================================
@@ -80,6 +85,28 @@ export function normalizeSweetness(input: string): string | null {
     'sweet': 'sweet', 'very sweet': 'sweet',
   };
   return aliases[lower] ?? (SWEETNESS_LEVELS.includes(lower) ? lower : null);
+}
+
+export function normalizeStyleTag(input: string): string | null {
+  const lower = input.toLowerCase().trim();
+  const aliases: Record<string, string> = {
+    'brut': 'brut',
+    'champagne': 'champagne',
+    'prosecco': 'prosecco',
+    'cava': 'cava',
+    'cremant': 'cremant',
+    'crémant': 'cremant',
+    'blanc de blancs': 'blanc-de-blancs',
+    'blanc-de-blancs': 'blanc-de-blancs',
+    'sparkling rose': 'sparkling-rose',
+    'sparkling rosé': 'sparkling-rose',
+    'rose bubbles': 'sparkling-rose',
+    'rosé bubbles': 'sparkling-rose',
+    'pink bubbles': 'sparkling-rose',
+    'sparkling moscato': 'moscato',
+    'moscato': 'moscato'
+  };
+  return aliases[lower] ?? (STYLE_TAGS.includes(lower) ? lower : null);
 }
 
 /**
@@ -159,5 +186,6 @@ WINE SCHEMA:
 - Common Food Pairings: ${FOOD_PAIRINGS.join(', ')}
 - Regions: ${REGIONS.join(', ')}
 - Common Varietals: ${VARIETALS.join(', ')}
+- Style Tags: ${STYLE_TAGS.join(', ')}
 `.trim();
 }

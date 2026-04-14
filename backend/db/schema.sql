@@ -16,10 +16,15 @@ CREATE TABLE IF NOT EXISTS wines (
   description TEXT,
   tasting_notes TEXT,
   flavor_profile TEXT,
+  style_tags TEXT,
   food_pairings TEXT,
   occasions TEXT,
   image_url TEXT,
   shop_link TEXT,
+  source_name TEXT,
+  source_kind TEXT,
+  source_url TEXT,
+  last_scraped_at TEXT,
   in_stock INTEGER DEFAULT 1,
   staff_pick INTEGER DEFAULT 0
 );
