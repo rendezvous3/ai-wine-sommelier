@@ -6,7 +6,7 @@ compatibility_date = "2025-11-24"
 port = 9174
 
 [vars]
-PROFILE_TYPE = "brand_concierge"
+PROFILE_TYPE = "MERCHANT"
 
 [[d1_databases]]
 binding = "WINE_DB"

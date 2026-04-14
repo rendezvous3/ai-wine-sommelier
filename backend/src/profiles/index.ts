@@ -7,9 +7,21 @@ const PROFILES: Record<ProfileType, DeploymentProfile> = {
   merchant_advisor: merchantAdvisorProfile,
 };
 
+const PROFILE_ALIASES: Record<string, ProfileType> = {
+  BRAND: 'brand_concierge',
+  MERCHANT: 'merchant_advisor',
+  brand: 'brand_concierge',
+  merchant: 'merchant_advisor',
+  brand_concierge: 'brand_concierge',
+  merchant_advisor: 'merchant_advisor',
+};
+
 export function getProfile(profileType?: string): DeploymentProfile {
-  if (profileType && profileType in PROFILES) {
-    return PROFILES[profileType as ProfileType];
+  if (profileType) {
+    const normalizedProfileType = PROFILE_ALIASES[profileType.trim()] ?? PROFILE_ALIASES[profileType.trim().toUpperCase()];
+    if (normalizedProfileType) {
+      return PROFILES[normalizedProfileType];
+    }
   }
   return PROFILES.merchant_advisor;
 }
